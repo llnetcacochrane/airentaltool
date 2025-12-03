@@ -8,7 +8,8 @@ import { paymentPredictionService, PaymentRiskScore } from '../services/paymentP
 import { leaseRenewalService, LeaseRenewalOpportunity } from '../services/leaseRenewalService';
 import {
   AlertCircle, TrendingUp, Calendar, DollarSign, Wrench,
-  ChevronRight, Building2, Home, Users, Bell, Clock, AlertTriangle
+  ChevronRight, Building2, Home, Users, Bell, Clock, AlertTriangle,
+  Sparkles, CheckCircle2, ArrowRight, Zap, FileText
 } from 'lucide-react';
 
 interface Alert {
@@ -25,7 +26,7 @@ interface Alert {
 }
 
 export function OperationsCenter() {
-  const { currentOrganization } = useAuth();
+  const { currentOrganization, userProfile } = useAuth();
   const { currentPortfolio } = usePortfolio();
   const navigate = useNavigate();
   const [portfolioHealth, setPortfolioHealth] = useState<PortfolioHealth | null>(null);
@@ -33,6 +34,7 @@ export function OperationsCenter() {
   const [renewalOpportunities, setRenewalOpportunities] = useState<LeaseRenewalOpportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [hasProperties, setHasProperties] = useState(true);
 
   useEffect(() => {
     loadOperationsData();
@@ -46,15 +48,17 @@ export function OperationsCenter() {
     }
     setIsLoading(true);
     try {
-      const [healthData, riskData, renewalData] = await Promise.all([
+      const [healthData, riskData, renewalData, summaryData] = await Promise.all([
         portfolioHealthService.calculateHealthScore(orgOrPortfolioId),
         paymentPredictionService.calculateTenantRiskScores(orgOrPortfolioId),
         leaseRenewalService.getExpiringLeases(orgOrPortfolioId, 90),
+        financialService.getPortfolioSummary(orgOrPortfolioId),
       ]);
 
       setPortfolioHealth(healthData);
       setRiskScores(riskData.filter(r => r.risk_level !== 'low'));
       setRenewalOpportunities(renewalData);
+      setHasProperties(summaryData?.total_properties > 0);
 
       const generatedAlerts: Alert[] = [];
 
@@ -124,6 +128,68 @@ export function OperationsCenter() {
     }
   };
 
+  const getPackageInfo = () => {
+    const packageTier = userProfile?.selected_tier || 'free';
+
+    switch (packageTier) {
+      case 'free':
+        return {
+          title: 'Welcome to AI Rental Tools',
+          subtitle: 'Free Tier',
+          description: 'Start managing your rental properties with ease. Add up to 5 units and get access to essential property management tools.',
+          features: [
+            'Manage up to 5 units',
+            'Track tenants and leases',
+            'Monitor rent payments',
+            'Basic maintenance tracking'
+          ],
+          setupTitle: 'Add Your First Property',
+          setupDescription: 'Get started by adding your first rental property',
+          setupLink: '/properties',
+          viewGuide: '/getting-started'
+        };
+      case 'basic':
+      case 'landlord':
+        return {
+          title: 'Welcome to Your Landlord Dashboard',
+          subtitle: 'Landlord Plan',
+          description: 'Manage unlimited properties with advanced tools. Set up your business entity and start organizing your portfolio.',
+          features: [
+            'Unlimited properties and units',
+            'Business entity management',
+            'Advanced financial reporting',
+            'Tenant portal access',
+            'Document management'
+          ],
+          setupTitle: 'Create Your First Business',
+          setupDescription: 'Organize your properties under business entities',
+          setupLink: '/onboarding?flow=business',
+          viewGuide: '/getting-started'
+        };
+      case 'professional':
+      case 'management-company':
+        return {
+          title: 'Welcome to Your Property Management Platform',
+          subtitle: 'Management Company Plan',
+          description: 'Full-featured property management with multi-portfolio support, AI-powered tools, and white-label branding.',
+          features: [
+            'Multi-portfolio management',
+            'White-label branding',
+            'AI-powered rent optimization',
+            'Owner portal & reporting',
+            'Advanced automation',
+            'API access'
+          ],
+          setupTitle: 'Setup Your Organization',
+          setupDescription: 'Configure your management company structure',
+          setupLink: '/onboarding?flow=organization',
+          viewGuide: '/getting-started'
+        };
+      default:
+        return null;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -171,7 +237,87 @@ export function OperationsCenter() {
       </div>
 
       <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
-        {portfolioHealth && (
+        {!hasProperties && (() => {
+          const packageInfo = getPackageInfo();
+          if (!packageInfo) return null;
+
+          return (
+            <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 rounded-2xl shadow-2xl">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-5 rounded-full -mr-48 -mt-48"></div>
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-white opacity-5 rounded-full -ml-32 -mb-32"></div>
+
+              <div className="relative p-8 md:p-12">
+                <div className="max-w-4xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-14 h-14 bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                      <Sparkles className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-3xl md:text-4xl font-bold text-white">{packageInfo.title}</h2>
+                      <p className="text-blue-100 text-lg">{packageInfo.subtitle}</p>
+                    </div>
+                  </div>
+
+                  <p className="text-xl text-white opacity-95 mb-8 max-w-3xl">
+                    {packageInfo.description}
+                  </p>
+
+                  <div className="grid md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                      <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                        <Zap className="w-5 h-5" />
+                        What's Included
+                      </h3>
+                      <ul className="space-y-2">
+                        {packageInfo.features.map((feature, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-white opacity-90">
+                            <CheckCircle2 className="w-5 h-5 text-blue-200 flex-shrink-0 mt-0.5" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-6 border border-white border-opacity-20">
+                      <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
+                        <Building2 className="w-5 h-5" />
+                        {packageInfo.setupTitle}
+                      </h3>
+                      <p className="text-white opacity-90 text-sm mb-6">
+                        {packageInfo.setupDescription}
+                      </p>
+
+                      <div className="space-y-3">
+                        <button
+                          onClick={() => navigate(packageInfo.setupLink)}
+                          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition shadow-lg"
+                        >
+                          Start Setup Wizard
+                          <ArrowRight size={18} />
+                        </button>
+
+                        <button
+                          onClick={() => navigate(packageInfo.viewGuide)}
+                          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-white bg-opacity-10 backdrop-blur-sm text-white rounded-lg font-semibold hover:bg-opacity-20 transition border border-white border-opacity-20"
+                        >
+                          <FileText size={18} />
+                          View Complete Guide
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-white opacity-75 text-sm">
+                    <Clock className="w-4 h-4" />
+                    <span>Setup takes about 5-10 minutes</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {portfolioHealth && hasProperties && (
           <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${getHealthColor(portfolioHealth.health_level)} shadow-xl`}>
             <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
             <div className="relative p-6 sm:p-8">
@@ -210,7 +356,7 @@ export function OperationsCenter() {
           </div>
         )}
 
-        {alerts.length > 0 && (
+        {alerts.length > 0 && hasProperties && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">
             <div className="p-6 border-b border-gray-100">
               <div className="flex items-center gap-3">
