@@ -601,10 +601,125 @@ else
 fi
 
 #############################################
-# STEP 13: Create Update Script
+# STEP 13: Super Admin Setup
 #############################################
 
-print_step "STEP 13: Creating Update Script"
+print_step "STEP 13: Super Admin Account Setup"
+
+print_info "Creating super admin account..."
+echo ""
+read -p "Enter super admin email address: " super_admin_email
+read -sp "Enter super admin password: " super_admin_password
+echo ""
+read -p "Enter super admin full name [Super Admin]: " super_admin_name
+super_admin_name=${super_admin_name:-Super Admin}
+
+# Create Node.js script to setup super admin
+cat > $INSTALL_DIR/setup-super-admin.js <<'ADMINEOF'
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config();
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('Error: Missing Supabase configuration');
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
+
+async function setupSuperAdmin() {
+  const email = process.argv[2];
+  const password = process.argv[3];
+  const fullName = process.argv[4] || 'Super Admin';
+
+  try {
+    console.log('Creating super admin user account...');
+
+    // Create auth user
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: email,
+      password: password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName
+      }
+    });
+
+    if (authError) {
+      console.error('Error creating user:', authError.message);
+      process.exit(1);
+    }
+
+    console.log('User created:', authData.user.id);
+
+    // Insert into super_admins table
+    const { error: superAdminError } = await supabase
+      .from('super_admins')
+      .insert({
+        user_id: authData.user.id,
+        created_at: new Date().toISOString()
+      });
+
+    if (superAdminError) {
+      console.error('Error creating super admin record:', superAdminError.message);
+      process.exit(1);
+    }
+
+    // Create user profile
+    const { error: profileError } = await supabase
+      .from('user_profiles')
+      .insert({
+        user_id: authData.user.id,
+        full_name: fullName,
+        email: email,
+        role: 'super_admin',
+        created_at: new Date().toISOString()
+      });
+
+    if (profileError) {
+      console.error('Error creating profile:', profileError.message);
+      // Don't exit - profile might be created by trigger
+    }
+
+    console.log('✓ Super admin account created successfully!');
+    console.log('  Email:', email);
+    console.log('  User ID:', authData.user.id);
+    process.exit(0);
+
+  } catch (error) {
+    console.error('Unexpected error:', error.message);
+    process.exit(1);
+  }
+}
+
+setupSuperAdmin();
+ADMINEOF
+
+# Run the super admin setup script
+print_info "Executing super admin setup..."
+cd $INSTALL_DIR
+node setup-super-admin.js "$super_admin_email" "$super_admin_password" "$super_admin_name" || {
+    print_error "Failed to create super admin account"
+}
+
+# Clean up the script
+rm -f setup-super-admin.js
+
+print_success "Super admin account created!"
+print_info "Email: $super_admin_email"
+
+#############################################
+# STEP 14: Create Update Script
+#############################################
+
+print_step "STEP 14: Creating Update Script"
 
 cat > $DEV_DIR/update.sh <<'UPDATEEOF'
 #!/bin/bash
@@ -636,7 +751,7 @@ chmod +x $DEV_DIR/update.sh
 print_success "Update script created at: $DEV_DIR/update.sh"
 
 #############################################
-# STEP 14: Final Summary
+# STEP 15: Final Summary
 #############################################
 
 print_step "INSTALLATION COMPLETE!"
@@ -654,6 +769,10 @@ echo -e "${YELLOW}URLs:${NC}"
 echo "  Frontend:  https://$frontend_domain"
 echo "  API:       https://$api_domain"
 echo "  Public:    https://$root_domain"
+echo ""
+echo -e "${YELLOW}Super Admin:${NC}"
+echo "  Email:     $super_admin_email"
+echo "  Name:      $super_admin_name"
 echo ""
 echo -e "${YELLOW}Directories:${NC}"
 echo "  Production:  $INSTALL_DIR"
@@ -714,6 +833,10 @@ Directories:
 Database:
 $([ "$USE_SUPABASE" == true ] && echo "  Type: Supabase" || echo "  Type: PostgreSQL")
 $([ "$USE_SUPABASE" != true ] && echo "  URL: $DB_URL")
+
+Super Admin Account:
+  Email: $super_admin_email
+  Name: $super_admin_name
 
 System Information:
   OS: $(lsb_release -d 2>/dev/null | cut -f2 || echo 'Unknown')
