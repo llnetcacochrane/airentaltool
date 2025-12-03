@@ -5,6 +5,7 @@ import { financialService } from '../services/financialService';
 import { portfolioHealthService, PortfolioHealth } from '../services/portfolioHealthService';
 import { paymentPredictionService, PaymentRiskScore } from '../services/paymentPredictionService';
 import { leaseRenewalService, LeaseRenewalOpportunity } from '../services/leaseRenewalService';
+import { WelcomeWizard } from '../components/WelcomeWizard';
 import {
   Building2, Users, DollarSign, AlertCircle, TrendingUp,
   Wrench, Activity, AlertTriangle, Calendar, ChevronRight,
@@ -19,6 +20,7 @@ export function ModernDashboard() {
   const [riskScores, setRiskScores] = useState<PaymentRiskScore[]>([]);
   const [renewalOpportunities, setRenewalOpportunities] = useState<LeaseRenewalOpportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showWelcomeWizard, setShowWelcomeWizard] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -38,10 +40,23 @@ export function ModernDashboard() {
       setPortfolioHealth(healthData);
       setRiskScores(riskData.filter(r => r.risk_level !== 'low').slice(0, 5));
       setRenewalOpportunities(renewalData.slice(0, 5));
+
+      // Show welcome wizard if this is a new user with no properties
+      const wizardShown = localStorage.getItem(`wizard_shown_${currentOrganization.id}`);
+      if (!wizardShown && summaryData?.total_properties === 0) {
+        setShowWelcomeWizard(true);
+      }
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCloseWizard = () => {
+    setShowWelcomeWizard(false);
+    if (currentOrganization) {
+      localStorage.setItem(`wizard_shown_${currentOrganization.id}`, 'true');
     }
   };
 
@@ -89,8 +104,11 @@ export function ModernDashboard() {
   const healthColors = portfolioHealth ? getHealthColor(portfolioHealth.health_level) : null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200">
+    <>
+      {showWelcomeWizard && <WelcomeWizard onClose={handleCloseWizard} />}
+
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b border-gray-200">
         <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -493,5 +511,6 @@ export function ModernDashboard() {
         </div>
       </div>
     </div>
+    </>
   );
 }

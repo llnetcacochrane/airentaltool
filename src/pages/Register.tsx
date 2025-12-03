@@ -37,8 +37,8 @@ export function Register() {
     try {
       await register(email, password, firstName, lastName, tierSlug);
 
-      // All users go to profile onboarding to collect address/phone/company
-      navigate('/profile-onboarding');
+      // Navigate directly to dashboard - wizard will guide setup there
+      navigate('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {

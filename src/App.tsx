@@ -37,6 +37,7 @@ import PropertyOwners from './pages/PropertyOwners';
 import { DiagnosticPanel } from './pages/DiagnosticPanel';
 import { AIApiKeys } from './pages/AIApiKeys';
 import { EmailDiagnostics } from './pages/EmailDiagnostics';
+import { GettingStarted } from './pages/GettingStarted';
 
 function App() {
   return (
@@ -135,6 +136,7 @@ function App() {
             }
           >
             <Route path="/dashboard" element={<OperationsCenter />} />
+            <Route path="/getting-started" element={<GettingStarted />} />
             <Route path="/businesses" element={<BusinessesList />} />
             <Route path="/business/:businessId" element={<BusinessDetail />} />
             <Route path="/properties" element={<Properties />} />
