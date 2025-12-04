@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Users, UserPlus, Shield, Building2, Mail, Calendar, ArrowLeft, Save, X, Plus, Trash2, Edit3 } from 'lucide-react';
+import { UserEditor } from '../components/UserEditor';
 
 interface User {
   user_id: string;
@@ -56,6 +57,7 @@ export function SuperAdminUsers() {
   const [newUserPackage, setNewUserPackage] = useState('');
   const [createNewOrg, setCreateNewOrg] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAccessAndLoad();
@@ -718,8 +720,16 @@ export function SuperAdminUsers() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setEditingUser(editingUser === user.user_id ? null : user.user_id)}
+                          onClick={() => setEditingUserId(user.user_id)}
                           className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                          title="Edit user"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setEditingUser(editingUser === user.user_id ? null : user.user_id)}
+                          className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
                           title="Add to organization"
                         >
                           <UserPlus className="w-4 h-4" />
@@ -742,6 +752,14 @@ export function SuperAdminUsers() {
           </div>
         </div>
       </div>
+
+      {editingUserId && (
+        <UserEditor
+          userId={editingUserId}
+          onClose={() => setEditingUserId(null)}
+          onSave={loadData}
+        />
+      )}
     </div>
   );
 }
