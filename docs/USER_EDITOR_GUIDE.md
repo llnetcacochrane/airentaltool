@@ -67,23 +67,47 @@ The User Editor provides Super Admins with full granular control over all user d
 
 ### 4. Feature Flags Management
 
-**Granular Feature Control:**
-Super Admins can enable/disable specific features for organizations:
+**Portfolio-Based Feature Control:**
+Features are now managed at the portfolio level (not just organizations). This means:
+- **All users have access to features based on their package tier**
+- Features automatically sync with the user's selected package
+- Super Admins can override features at the portfolio level
+- Organizations add additional features on top of user package
 
-- **Business Entities**: Organize properties under businesses
-- **Property Owners**: Manage property owner accounts
-- **AI Recommendations**: AI-powered insights and suggestions
-- **Rent Optimization**: Market-based rent recommendations
-- **White Label Branding**: Custom branding for management companies
-- **API Access**: Programmatic access to the platform
-- **Custom Reports**: Advanced reporting capabilities
-- **Bulk Operations**: Mass updates and imports
+**Available Features by Tier:**
+
+**Free Tier:**
+- Basic Property Management
+- Basic Tenant Management
+- Basic Rent Tracking
+- Basic Maintenance Requests
+- Max 5 units
+
+**Landlord Tier (All Free features plus):**
+- Unlimited Units
+- Business Entities
+- Expense Tracking
+- Document Storage
+
+**Professional Tier (All Landlord features plus):**
+- Property Owners Management
+- AI Recommendations
+- Rent Optimization
+- Advanced Reporting
+- Bulk Operations
+
+**Enterprise Tier (All Professional features plus):**
+- White Label Branding
+- API Access
+- Custom Integrations
+- Priority Support
 
 **How It Works:**
-1. Select an organization from the dropdown
+1. Select a portfolio from the dropdown (users have at least one portfolio)
 2. View all available features with current status
-3. Enable or disable features individually
+3. Enable or disable features individually to override package defaults
 4. Changes take effect immediately
+5. Features marked as enabled by package are automatically synced
 
 ### 5. Business Management
 

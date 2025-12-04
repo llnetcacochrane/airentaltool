@@ -49,6 +49,12 @@ interface FeatureFlag {
   is_enabled: boolean;
 }
 
+interface Portfolio {
+  id: string;
+  name: string;
+  is_default: boolean;
+}
+
 interface PackageTier {
   id: string;
   tier_slug: string;
@@ -60,6 +66,7 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
   const [activeTab, setActiveTab] = useState<'profile' | 'organizations' | 'package' | 'features' | 'businesses'>('profile');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [features, setFeatures] = useState<FeatureFlag[]>([]);
   const [packageTiers, setPackageTiers] = useState<PackageTier[]>([]);
@@ -82,15 +89,17 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
     setIsLoading(true);
     setError('');
     try {
-      const [profileData, orgsData, businessData, tierData, availableOrgsData] = await Promise.all([
+      const [profileData, orgsData, portfoliosData, businessData, tierData, availableOrgsData] = await Promise.all([
         loadUserProfile(),
         loadUserOrganizations(),
+        loadUserPortfolios(),
         loadUserBusinesses(),
         loadPackageTiers(),
         loadAvailableOrganizations(),
       ]);
 
-      await loadUserFeatures(orgsData[0]?.id);
+      const defaultPortfolio = portfoliosData.find((p: Portfolio) => p.is_default);
+      await loadUserFeatures(defaultPortfolio?.id);
     } catch (err) {
       console.error('Failed to load user data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load user data');
@@ -168,6 +177,19 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
     return orgs;
   };
 
+  const loadUserPortfolios = async () => {
+    const { data, error } = await supabase
+      .from('portfolios')
+      .select('id, name, is_default')
+      .eq('user_id', userId)
+      .order('is_default', { ascending: false });
+
+    if (error) throw error;
+
+    setPortfolios(data || []);
+    return data || [];
+  };
+
   const loadUserBusinesses = async () => {
     const { data, error } = await supabase
       .from('businesses')
@@ -180,16 +202,30 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
     return data || [];
   };
 
-  const loadUserFeatures = async (orgId?: string) => {
-    if (!orgId) {
-      setFeatures([]);
+  const loadUserFeatures = async (portfolioId?: string) => {
+    if (!portfolioId) {
+      const { data: effectiveFeatures, error } = await supabase
+        .rpc('get_effective_user_features', { p_user_id: userId });
+
+      if (error) {
+        console.error('Error loading effective features:', error);
+        setFeatures([]);
+        return;
+      }
+
+      const formattedFeatures: FeatureFlag[] = (effectiveFeatures || []).map((f: any) => ({
+        feature_key: f.feature_key,
+        is_enabled: f.is_enabled,
+      }));
+
+      setFeatures(formattedFeatures);
       return;
     }
 
     const { data, error } = await supabase
-      .from('organization_feature_flags')
+      .from('portfolio_feature_flags')
       .select('feature_key, is_enabled')
-      .eq('organization_id', orgId);
+      .eq('portfolio_id', portfolioId);
 
     if (error) throw error;
 
@@ -377,20 +413,21 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
     }
   };
 
-  const handleToggleFeature = async (orgId: string, featureKey: string, enabled: boolean) => {
+  const handleToggleFeature = async (portfolioId: string, featureKey: string, enabled: boolean) => {
     try {
       const { error } = await supabase
-        .from('organization_feature_flags')
+        .from('portfolio_feature_flags')
         .upsert({
-          organization_id: orgId,
+          portfolio_id: portfolioId,
           feature_key: featureKey,
           is_enabled: enabled,
+          enabled_by_admin: true,
         });
 
       if (error) throw error;
 
       setSuccessMessage('Feature updated successfully');
-      await loadUserFeatures(orgId);
+      await loadUserFeatures(portfolioId);
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update feature');
@@ -887,24 +924,29 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
           {activeTab === 'features' && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Feature Flags</h3>
-              {organizations.length === 0 ? (
-                <p className="text-gray-600 text-center py-8 bg-gray-50 rounded-lg">
-                  User must be in an organization to manage features
-                </p>
+              <p className="text-sm text-gray-600">
+                Features are based on the user's package tier. You can override individual features below.
+              </p>
+
+              {portfolios.length === 0 ? (
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <p className="text-gray-600">User has no portfolios yet</p>
+                </div>
               ) : (
                 <>
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Organization
+                      Select Portfolio
                     </label>
                     <select
                       onChange={(e) => loadUserFeatures(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      defaultValue={portfolios.find(p => p.is_default)?.id || ''}
                     >
-                      <option value="">Choose organization...</option>
-                      {organizations.map((org) => (
-                        <option key={org.id} value={org.id}>
-                          {org.name}
+                      <option value="">Choose portfolio...</option>
+                      {portfolios.map((portfolio) => (
+                        <option key={portfolio.id} value={portfolio.id}>
+                          {portfolio.name} {portfolio.is_default ? '(Default)' : ''}
                         </option>
                       ))}
                     </select>
@@ -912,17 +954,26 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
 
                   <div className="space-y-2">
                     {[
+                      { key: 'basic_properties', label: 'Basic Property Management' },
+                      { key: 'basic_tenants', label: 'Basic Tenant Management' },
+                      { key: 'basic_rent_tracking', label: 'Basic Rent Tracking' },
+                      { key: 'basic_maintenance', label: 'Basic Maintenance Requests' },
+                      { key: 'unlimited_units', label: 'Unlimited Units' },
                       { key: 'businesses', label: 'Business Entities' },
+                      { key: 'expense_tracking', label: 'Expense Tracking' },
+                      { key: 'document_storage', label: 'Document Storage' },
                       { key: 'property_owners', label: 'Property Owners' },
                       { key: 'ai_recommendations', label: 'AI Recommendations' },
                       { key: 'rent_optimization', label: 'Rent Optimization' },
+                      { key: 'advanced_reporting', label: 'Advanced Reporting' },
+                      { key: 'bulk_operations', label: 'Bulk Operations' },
                       { key: 'white_label', label: 'White Label Branding' },
                       { key: 'api_access', label: 'API Access' },
-                      { key: 'custom_reports', label: 'Custom Reports' },
-                      { key: 'bulk_operations', label: 'Bulk Operations' },
+                      { key: 'custom_integrations', label: 'Custom Integrations' },
+                      { key: 'priority_support', label: 'Priority Support' },
                     ].map((feature) => {
                       const isEnabled = features.find(f => f.feature_key === feature.key)?.is_enabled || false;
-                      const orgId = organizations[0]?.id;
+                      const selectedPortfolio = portfolios.find(p => p.is_default)?.id;
 
                       return (
                         <div key={feature.key} className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-4">
@@ -938,8 +989,8 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
                             </div>
                           </div>
                           <button
-                            onClick={() => orgId && handleToggleFeature(orgId, feature.key, !isEnabled)}
-                            disabled={!orgId}
+                            onClick={() => selectedPortfolio && handleToggleFeature(selectedPortfolio, feature.key, !isEnabled)}
+                            disabled={!selectedPortfolio}
                             className={`px-4 py-2 rounded-lg font-medium text-sm ${
                               isEnabled
                                 ? 'bg-red-100 text-red-700 hover:bg-red-200'
