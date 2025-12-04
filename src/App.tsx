@@ -38,6 +38,7 @@ import { DiagnosticPanel } from './pages/DiagnosticPanel';
 import { AIApiKeys } from './pages/AIApiKeys';
 import { EmailDiagnostics } from './pages/EmailDiagnostics';
 import { GettingStarted } from './pages/GettingStarted';
+import { Welcome } from './pages/Welcome';
 
 function App() {
   return (
@@ -69,6 +70,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Onboarding />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/welcome"
+            element={
+              <ProtectedRoute>
+                <Welcome />
               </ProtectedRoute>
             }
           />

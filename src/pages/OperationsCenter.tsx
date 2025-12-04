@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usePortfolio } from '../context/PortfolioContext';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { financialService } from '../services/financialService';
 import { portfolioHealthService, PortfolioHealth } from '../services/portfolioHealthService';
 import { paymentPredictionService, PaymentRiskScore } from '../services/paymentPredictionService';
@@ -37,8 +38,23 @@ export function OperationsCenter() {
   const [hasProperties, setHasProperties] = useState(true);
 
   useEffect(() => {
-    loadOperationsData();
+    checkOnboardingAndLoad();
   }, [currentOrganization?.id, currentPortfolio?.id]);
+
+  const checkOnboardingAndLoad = async () => {
+    try {
+      const { data: onboardingStatus } = await supabase.rpc('user_has_completed_onboarding');
+
+      if (onboardingStatus && !onboardingStatus.is_complete) {
+        navigate('/welcome');
+        return;
+      }
+    } catch (error) {
+      console.log('Could not check onboarding status:', error);
+    }
+
+    loadOperationsData();
+  };
 
   const loadOperationsData = async () => {
     const orgOrPortfolioId = currentOrganization?.id || currentPortfolio?.id;
