@@ -48,7 +48,10 @@ export function TenantForm({ tenant, onSubmit, onCancel, isSubmitting }: TenantF
   }, [currentOrganization?.id]);
 
   const loadUnits = async () => {
-    if (!currentOrganization) return;
+    if (!currentOrganization) {
+      setIsLoadingUnits(false);
+      return;
+    }
     try {
       const data = await unitService.getAllUnits(currentOrganization.id);
       setUnits(data.filter(u => u.occupancy_status === 'vacant' || u.id === tenant?.unit_id));

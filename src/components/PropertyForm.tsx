@@ -54,7 +54,10 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
   }, [currentOrganization?.id]);
 
   const loadBusinesses = async () => {
-    if (!currentOrganization) return;
+    if (!currentOrganization) {
+      setIsLoadingBusinesses(false);
+      return;
+    }
     try {
       const data = await businessService.getAllBusinesses(currentOrganization.id);
       setBusinesses(data);
@@ -68,13 +71,13 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.business_id) {
+    if (currentOrganization && !formData.business_id) {
       alert('Please select a business');
       return;
     }
 
     const data: Partial<Property> = {
-      business_id: formData.business_id,
+      business_id: formData.business_id || undefined,
       name: formData.name,
       property_type: formData.property_type,
       address_line1: formData.address_line1,
@@ -107,7 +110,7 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
     );
   }
 
-  if (businesses.length === 0) {
+  if (currentOrganization && businesses.length === 0) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
@@ -145,25 +148,27 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Business <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.business_id}
-                onChange={(e) => setFormData({ ...formData, business_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              >
-                <option value="">Select a business...</option>
-                {businesses.map((business) => (
-                  <option key={business.id} value={business.id}>
-                    {business.business_name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">Properties are organized under businesses for accounting</p>
-            </div>
+            {currentOrganization && businesses.length > 0 && (
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Business <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={formData.business_id}
+                  onChange={(e) => setFormData({ ...formData, business_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select a business...</option>
+                  {businesses.map((business) => (
+                    <option key={business.id} value={business.id}>
+                      {business.business_name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Properties are organized under businesses for accounting</p>
+              </div>
+            )}
 
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
