@@ -4,6 +4,7 @@ import { aiService } from './aiService';
 export interface PaymentRiskScore {
   tenant_id: string;
   tenant_name: string;
+  unit_number: string;
   risk_score: number;
   risk_level: 'low' | 'medium' | 'high' | 'critical';
   total_payments: number;
@@ -29,18 +30,7 @@ export const paymentPredictionService = {
   async calculateTenantRiskScores(organizationId: string): Promise<PaymentRiskScore[]> {
     const { data: leases, error: leasesError } = await supabase
       .from('leases')
-      .select(`
-        id,
-        tenant_id,
-        monthly_rent_cents,
-        status,
-        tenants (
-          id,
-          first_name,
-          last_name,
-          email
-        )
-      `)
+      .select('id, unit_id, monthly_rent_cents, status')
       .eq('organization_id', organizationId)
       .eq('status', 'active');
 
@@ -50,7 +40,22 @@ export const paymentPredictionService = {
     const riskScores: PaymentRiskScore[] = [];
 
     for (const lease of leases) {
-      if (!lease.tenants) continue;
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('id, first_name, last_name, email')
+        .eq('unit_id', lease.unit_id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!tenant) continue;
+
+      const { data: unit } = await supabase
+        .from('units')
+        .select('unit_number')
+        .eq('id', lease.unit_id)
+        .single();
+
+      if (!unit) continue;
 
       const { data: payments, error: paymentsError } = await supabase
         .from('rent_payments')
@@ -109,8 +114,9 @@ export const paymentPredictionService = {
       else if (averageDaysLate > 5) riskScore += 20;
       else if (averageDaysLate > 2) riskScore += 10;
 
-      if (outstandingBalance > lease.monthly_rent * 2) riskScore += 30;
-      else if (outstandingBalance > lease.monthly_rent) riskScore += 15;
+      const monthlyRent = (lease.monthly_rent_cents || 0) / 100;
+      if (outstandingBalance > monthlyRent * 2) riskScore += 30;
+      else if (outstandingBalance > monthlyRent) riskScore += 15;
 
       let riskLevel: 'low' | 'medium' | 'high' | 'critical';
       let recommendation: string;
@@ -130,8 +136,9 @@ export const paymentPredictionService = {
       }
 
       riskScores.push({
-        tenant_id: lease.tenant_id,
-        tenant_name: `${lease.tenants.first_name} ${lease.tenants.last_name}`,
+        tenant_id: tenant.id,
+        tenant_name: `${tenant.first_name} ${tenant.last_name}`,
+        unit_number: unit.unit_number,
         risk_score: Math.min(riskScore, 100),
         risk_level: riskLevel,
         total_payments: totalPayments,

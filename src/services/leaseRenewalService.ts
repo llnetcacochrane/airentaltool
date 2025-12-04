@@ -7,6 +7,7 @@ export interface LeaseRenewalOpportunity {
   tenant_name: string;
   property_id: string;
   property_name: string;
+  unit_number: string;
   current_rent: number;
   suggested_rent: number;
   end_date: string;
@@ -32,25 +33,7 @@ export const leaseRenewalService = {
 
     const { data: leases, error } = await supabase
       .from('leases')
-      .select(`
-        id,
-        tenant_id,
-        property_id,
-        monthly_rent_cents,
-        start_date,
-        end_date,
-        status,
-        tenants (
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        properties (
-          id,
-          name
-        )
-      `)
+      .select('id, unit_id, monthly_rent_cents, start_date, end_date, status')
       .eq('organization_id', organizationId)
       .eq('status', 'active')
       .gte('end_date', today.toISOString().split('T')[0])
@@ -63,7 +46,30 @@ export const leaseRenewalService = {
     const opportunities: LeaseRenewalOpportunity[] = [];
 
     for (const lease of leases) {
-      if (!lease.tenants || !lease.properties) continue;
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('id, first_name, last_name, email')
+        .eq('unit_id', lease.unit_id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!tenant) continue;
+
+      const { data: unit } = await supabase
+        .from('units')
+        .select('property_id, unit_number')
+        .eq('id', lease.unit_id)
+        .single();
+
+      if (!unit) continue;
+
+      const { data: property } = await supabase
+        .from('properties')
+        .select('id, name')
+        .eq('id', unit.property_id)
+        .single();
+
+      if (!property) continue;
 
       const endDate = new Date(lease.end_date);
       const daysUntilExpiry = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -92,7 +98,7 @@ export const leaseRenewalService = {
       const { data: maintenanceRequests } = await supabase
         .from('maintenance_requests')
         .select('id')
-        .eq('tenant_id', lease.tenant_id);
+        .eq('tenant_id', tenant.id);
 
       const maintenanceCount = maintenanceRequests?.length || 0;
 
@@ -117,7 +123,7 @@ export const leaseRenewalService = {
       else priority = 'medium';
 
       const rentRecommendation = await rentOptimizationService.analyzeProperty(
-        lease.property_id,
+        property.id,
         organizationId
       );
 
@@ -141,10 +147,11 @@ export const leaseRenewalService = {
 
       opportunities.push({
         lease_id: lease.id,
-        tenant_id: lease.tenant_id,
-        tenant_name: `${lease.tenants.first_name} ${lease.tenants.last_name}`,
-        property_id: lease.property_id,
-        property_name: lease.properties.name,
+        tenant_id: tenant.id,
+        tenant_name: `${tenant.first_name} ${tenant.last_name}`,
+        property_id: property.id,
+        property_name: property.name,
+        unit_number: unit.unit_number,
         current_rent: currentRentDollars,
         suggested_rent: suggestedRent,
         end_date: lease.end_date,

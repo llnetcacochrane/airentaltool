@@ -89,11 +89,19 @@ export const financialService = {
   },
 
   async getPropertyFinancials(propertyId: string, startDate: string, endDate: string) {
-    // Get all leases for this property
+    const { data: units } = await supabase
+      .from('units')
+      .select('id')
+      .eq('property_id', propertyId);
+
+    if (!units || units.length === 0) return null;
+
+    const unitIds = units.map(u => u.id);
+
     const { data: leases } = await supabase
       .from('leases')
-      .select('id, monthly_rent_cents, tenant_id, tenants(first_name, last_name)')
-      .eq('property_id', propertyId);
+      .select('id, monthly_rent_cents, unit_id')
+      .in('unit_id', unitIds);
 
     if (!leases) return null;
 
@@ -102,7 +110,6 @@ export const financialService = {
     const leaseDetails = [];
 
     for (const lease of leases) {
-      // Get income for this lease
       const { data: payments } = await supabase
         .from('rent_payments')
         .select('amount_cents')
@@ -114,10 +121,16 @@ export const financialService = {
       const leaseIncome = payments?.reduce((sum, p) => sum + (p.amount_cents || 0) / 100, 0) || 0;
       totalIncome += leaseIncome;
 
-      const tenants = Array.isArray(lease.tenants) ? lease.tenants[0] : lease.tenants;
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('first_name, last_name')
+        .eq('unit_id', lease.unit_id)
+        .eq('is_active', true)
+        .maybeSingle();
+
       leaseDetails.push({
         leaseId: lease.id,
-        tenantName: tenants ? `${tenants.first_name} ${tenants.last_name}` : 'Unknown',
+        tenantName: tenant ? `${tenant.first_name} ${tenant.last_name}` : 'Unknown',
         monthlyRent: (lease.monthly_rent_cents || 0) / 100,
         income: leaseIncome,
       });
@@ -163,7 +176,7 @@ export const financialService = {
   async getIncomeReport(organizationId: string, startDate: string, endDate: string) {
     const { data: payments } = await supabase
       .from('rent_payments')
-      .select('*, leases(tenant_id, tenants(first_name, last_name))')
+      .select('*')
       .eq('organization_id', organizationId)
       .eq('status', 'paid')
       .gte('payment_date', startDate)
