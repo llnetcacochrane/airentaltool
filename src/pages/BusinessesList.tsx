@@ -6,7 +6,7 @@ import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Business } from '../types';
 import {
   Plus, Building2, ChevronRight, AlertCircle, Zap, Upload,
-  Home, Users, Wrench, DollarSign, ArrowLeft
+  Home, Users, Wrench, DollarSign, ArrowLeft, Lock
 } from 'lucide-react';
 import { BusinessSetupWizard } from '../components/BusinessSetupWizard';
 import { EnhancedImportWizard } from '../components/EnhancedImportWizard';
@@ -17,7 +17,7 @@ export function BusinessesList() {
   const [error, setError] = useState('');
   const [showBusinessWizard, setShowBusinessWizard] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
-  const { currentOrganization } = useAuth();
+  const { currentOrganization, userProfile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,6 +49,11 @@ export function BusinessesList() {
     );
   }
 
+  const packageTier = userProfile?.selected_tier || 'free';
+  const isFree = packageTier === 'free';
+  const isBasicOrLandlord = packageTier === 'basic' || packageTier === 'landlord';
+  const canManageBusinesses = ['basic', 'landlord', 'professional', 'management-company'].includes(packageTier);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b border-gray-200">
@@ -60,38 +65,47 @@ export function BusinessesList() {
             >
               <ArrowLeft size={20} className="text-gray-600" />
             </button>
-            <div>
+            <div className="flex-1">
               <Breadcrumbs items={[{ label: 'Businesses' }]} className="mb-2" />
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Businesses</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                {isBasicOrLandlord ? 'My Business' : 'My Businesses'}
+              </h1>
               <p className="text-sm text-gray-600 mt-1">
-                {businesses.length} {businesses.length === 1 ? 'business' : 'businesses'}
+                {isFree ? (
+                  <span className="flex items-center gap-1">
+                    <Lock size={14} />
+                    Upgrade to a paid plan to manage business entities
+                  </span>
+                ) : (
+                  <>
+                    {businesses.length} {businesses.length === 1 ? 'business' : 'businesses'}
+                    {isBasicOrLandlord && ' (Landlord Plan: 1 business entity)'}
+                  </>
+                )}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setShowImportWizard(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
-            >
-              <Upload size={18} />
-              Import
-            </button>
-            <button
-              onClick={() => setShowBusinessWizard(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
-            >
-              <Zap size={18} />
-              Setup Wizard
-            </button>
-            <button
-              onClick={() => navigate('/businesses/new')}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-            >
-              <Plus size={18} />
-              New Business
-            </button>
-          </div>
+          {!isFree && (
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                onClick={() => setShowImportWizard(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
+              >
+                <Upload size={18} />
+                Import
+              </button>
+              {(!isBasicOrLandlord || businesses.length === 0) && (
+                <button
+                  onClick={() => setShowBusinessWizard(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                >
+                  <Zap size={18} />
+                  {businesses.length > 0 ? 'Add Another Business' : 'New Business Wizard'}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -102,7 +116,24 @@ export function BusinessesList() {
           </div>
         )}
 
-        {businesses.length === 0 ? (
+        {isFree ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-8 h-8 text-blue-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Business Entities Available in Paid Plans</h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              Upgrade to the Landlord Plan or higher to organize your properties under business entities for better accounting and tax management.
+            </p>
+            <button
+              onClick={() => navigate('/settings')}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+            >
+              View Plans
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        ) : businesses.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
             <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No Businesses Yet</h3>

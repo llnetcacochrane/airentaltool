@@ -415,47 +415,71 @@ export function OperationsCenter() {
         <div>
           <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Access</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <button
-              onClick={() => navigate('/businesses')}
-              className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-blue-200"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition">
-                  <Building2 className="w-6 h-6 text-blue-600" />
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">My Businesses</h3>
-              <p className="text-sm text-gray-600">View all business entities</p>
-            </button>
+            {(() => {
+              const packageTier = userProfile?.selected_tier || 'free';
+              const isFree = packageTier === 'free';
+              const canManageBusinesses = ['basic', 'landlord', 'professional', 'management-company'].includes(packageTier);
 
-            <button
-              onClick={() => navigate('/properties')}
-              className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-green-200"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition">
-                  <Home className="w-6 h-6 text-green-600" />
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-green-600 transition" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">All Properties</h3>
-              <p className="text-sm text-gray-600">Browse all properties</p>
-            </button>
+              return (
+                <>
+                  {canManageBusinesses && (
+                    <button
+                      onClick={() => navigate('/businesses')}
+                      className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-blue-200"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition">
+                          <Building2 className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                        {packageTier === 'basic' || packageTier === 'landlord' ? 'My Business' : 'My Businesses'}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {packageTier === 'basic' || packageTier === 'landlord'
+                          ? 'Manage business entity'
+                          : 'View all business entities'}
+                      </p>
+                    </button>
+                  )}
 
-            <button
-              onClick={() => navigate('/tenants')}
-              className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-amber-200"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition">
-                  <Users className="w-6 h-6 text-amber-600" />
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-amber-600 transition" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">All Tenants</h3>
-              <p className="text-sm text-gray-600">Manage all tenants</p>
-            </button>
+                  <button
+                    onClick={() => navigate('/properties')}
+                    className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-green-200"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition">
+                        <Home className="w-6 h-6 text-green-600" />
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-green-600 transition" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                      {isFree ? 'My Properties' : 'All Properties'}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {isFree ? 'Manage your properties (max 5 units)' : 'Browse all properties'}
+                    </p>
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/tenants')}
+                    className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-amber-200"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition">
+                        <Users className="w-6 h-6 text-amber-600" />
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-amber-600 transition" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                      {isFree ? 'My Tenants' : 'All Tenants'}
+                    </h3>
+                    <p className="text-sm text-gray-600">Manage all tenants</p>
+                  </button>
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
