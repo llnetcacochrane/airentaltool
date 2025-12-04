@@ -309,6 +309,199 @@ export const pdfGenerationService = {
     }).format(value);
   },
 
+  async generateAgreementPDF(agreement: any): Promise<void> {
+    const doc = new jsPDF();
+    let yPosition = 20;
+
+    doc.setFontSize(22);
+    doc.text(agreement.agreement_title, 105, yPosition, { align: 'center' });
+    yPosition += 10;
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(agreement.agreement_type?.toUpperCase() || 'LEASE AGREEMENT', 105, yPosition, { align: 'center' });
+    yPosition += 15;
+
+    doc.setDrawColor(200);
+    doc.line(20, yPosition, 190, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.text('PARTIES TO THE AGREEMENT', 20, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(10);
+    doc.text('Landlord:', 20, yPosition);
+    yPosition += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(60);
+    doc.text(`Name: ${agreement.landlord_name}`, 25, yPosition);
+    yPosition += 5;
+    doc.text(`Email: ${agreement.landlord_email}`, 25, yPosition);
+    if (agreement.landlord_phone) {
+      yPosition += 5;
+      doc.text(`Phone: ${agreement.landlord_phone}`, 25, yPosition);
+    }
+    yPosition += 10;
+
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text('Tenant:', 20, yPosition);
+    yPosition += 5;
+    doc.setFontSize(9);
+    doc.setTextColor(60);
+    doc.text(`Name: ${agreement.tenant_name}`, 25, yPosition);
+    yPosition += 5;
+    doc.text(`Email: ${agreement.tenant_email}`, 25, yPosition);
+    if (agreement.tenant_phone) {
+      yPosition += 5;
+      doc.text(`Phone: ${agreement.tenant_phone}`, 25, yPosition);
+    }
+    yPosition += 15;
+
+    doc.setDrawColor(200);
+    doc.line(20, yPosition, 190, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.text('PROPERTY INFORMATION', 20, yPosition);
+    yPosition += 8;
+
+    doc.setFontSize(9);
+    doc.setTextColor(60);
+    const addressLines = doc.splitTextToSize(`Address: ${agreement.property_address}`, 170);
+    doc.text(addressLines, 20, yPosition);
+    yPosition += addressLines.length * 5 + 3;
+
+    if (agreement.property_description) {
+      const descLines = doc.splitTextToSize(`Description: ${agreement.property_description}`, 170);
+      doc.text(descLines, 20, yPosition);
+      yPosition += descLines.length * 5 + 10;
+    } else {
+      yPosition += 10;
+    }
+
+    doc.setDrawColor(200);
+    doc.line(20, yPosition, 190, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.text('LEASE TERMS', 20, yPosition);
+    yPosition += 10;
+
+    const leaseTermsData = [
+      ['Lease Start Date', this.formatDate(agreement.start_date)],
+      ['Lease End Date', this.formatDate(agreement.end_date)],
+      ['Monthly Rent', this.formatCurrency(agreement.rent_amount)],
+      ['Payment Frequency', agreement.payment_frequency],
+      ['Payment Due Day', `Day ${agreement.payment_due_day} of each month`],
+      ['Security Deposit', this.formatCurrency(agreement.security_deposit)],
+    ];
+
+    if (agreement.late_fee_amount) {
+      leaseTermsData.push(['Late Fee', this.formatCurrency(agreement.late_fee_amount)]);
+      leaseTermsData.push(['Grace Period', `${agreement.late_fee_grace_days} days`]);
+    }
+
+    autoTable(doc, {
+      startY: yPosition,
+      body: leaseTermsData,
+      theme: 'plain',
+      styles: { fontSize: 9 },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 70 },
+        1: { cellWidth: 100 },
+      },
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 15;
+
+    if (yPosition > 240) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setDrawColor(200);
+    doc.line(20, yPosition, 190, yPosition);
+    yPosition += 10;
+
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.text('AGREEMENT DETAILS', 20, yPosition);
+    yPosition += 8;
+
+    doc.setFontSize(9);
+    doc.setTextColor(60);
+    const agreementLines = doc.splitTextToSize(agreement.generated_text, 170);
+
+    for (let i = 0; i < agreementLines.length; i++) {
+      if (yPosition > 270) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      doc.text(agreementLines[i], 20, yPosition);
+      yPosition += 5;
+    }
+
+    if (agreement.status === 'executed' || agreement.tenant_signed || agreement.landlord_signed) {
+      if (yPosition > 200) {
+        doc.addPage();
+        yPosition = 20;
+      } else {
+        yPosition += 20;
+      }
+
+      doc.setDrawColor(200);
+      doc.line(20, yPosition, 190, yPosition);
+      yPosition += 10;
+
+      doc.setFontSize(12);
+      doc.setTextColor(0);
+      doc.text('SIGNATURES', 20, yPosition);
+      yPosition += 10;
+
+      if (agreement.landlord_signed) {
+        doc.setFontSize(10);
+        doc.text('Landlord:', 20, yPosition);
+        yPosition += 8;
+        doc.setFontSize(9);
+        doc.setTextColor(60);
+        doc.text(`Signed by: ${agreement.landlord_name}`, 25, yPosition);
+        yPosition += 5;
+        doc.text(`Date: ${this.formatDate(agreement.landlord_signed_at)}`, 25, yPosition);
+        yPosition += 15;
+      }
+
+      if (agreement.tenant_signed) {
+        doc.setFontSize(10);
+        doc.setTextColor(0);
+        doc.text('Tenant:', 20, yPosition);
+        yPosition += 8;
+        doc.setFontSize(9);
+        doc.setTextColor(60);
+        doc.text(`Signed by: ${agreement.tenant_name}`, 25, yPosition);
+        yPosition += 5;
+        doc.text(`Date: ${this.formatDate(agreement.tenant_signed_at)}`, 25, yPosition);
+        yPosition += 10;
+      }
+    }
+
+    const filename = `lease-agreement-${agreement.tenant_name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
+    const blob = doc.output('blob');
+    this.downloadPDF(blob, filename);
+  },
+
+  formatDate(dateString: string): string {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  },
+
   downloadPDF(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

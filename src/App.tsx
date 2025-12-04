@@ -39,6 +39,8 @@ import { AIApiKeys } from './pages/AIApiKeys';
 import { EmailDiagnostics } from './pages/EmailDiagnostics';
 import { GettingStarted } from './pages/GettingStarted';
 import { Welcome } from './pages/Welcome';
+import Agreements from './pages/Agreements';
+import AgreementSigning from './pages/AgreementSigning';
 
 function App() {
   return (
@@ -55,6 +57,7 @@ function App() {
           <Route path="/tenant-signup" element={<TenantSignup />} />
           <Route path="/apply/:code" element={<ApplicationLanding />} />
           <Route path="/apply/:code/form" element={<ApplicationForm />} />
+          <Route path="/agreement/:agreementId" element={<AgreementSigning />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route
@@ -152,6 +155,7 @@ function App() {
             <Route path="/property-owners" element={<PropertyOwners />} />
             <Route path="/tenants" element={<Tenants />} />
             <Route path="/applications" element={<Applications />} />
+            <Route path="/agreements" element={<Agreements />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/maintenance" element={<Maintenance />} />
