@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Mail, Phone, Building2, FolderOpen, X, ChevronRight } from 'lucide-react';
 import { clientService, Client } from '../services/clientService';
 import { useAuth } from '../context/AuthContext';
-import { usePortfolio } from '../context/PortfolioContext';
+import { useBusiness } from '../context/BusinessContext';
 import { EmptyStatePresets } from '../components/EmptyState';
 
 export default function PropertyOwners() {
   const { currentOrganization, supabaseUser, isPropertyManager } = useAuth();
-  const { refreshPortfolios } = usePortfolio();
+  const { refreshBusinesses } = useBusiness();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clientPortfolios, setClientPortfolios] = useState<any[]>([]);
@@ -94,7 +94,7 @@ export default function PropertyOwners() {
       setShowPortfolioForm(false);
       setPortfolioName('');
       await loadClientPortfolios(selectedClient.id);
-      await refreshPortfolios();
+      await refreshBusinesses();
     } catch (error) {
       console.error('Error creating portfolio:', error);
       alert('Failed to create portfolio');

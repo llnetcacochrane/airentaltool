@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { packageTierService } from '../services/packageTierService';
 import {
   Home, Building2, Users, CheckCircle, ArrowRight, Package,
   Sparkles, TrendingUp, FileText, Zap
@@ -68,62 +69,87 @@ export function Welcome() {
   };
 
   const loadPackageInfo = async (tierSlug: string) => {
-    const tierFeatures: Record<string, string[]> = {
-      free: [
-        'Up to 5 rental units',
-        'Basic property management',
-        'Tenant management',
-        'Rent tracking',
-        'Maintenance requests',
-      ],
-      landlord: [
-        'Unlimited rental units',
-        'Multiple properties',
-        'Business entities for tax organization',
-        'Expense tracking',
-        'Document storage',
-        'Advanced reporting',
-      ],
-      professional: [
-        'Everything in Landlord, plus:',
-        'Property owner management',
-        'AI-powered recommendations',
-        'Rent optimization',
-        'Bulk operations',
-        'Priority email support',
-      ],
-      enterprise: [
-        'Everything in Professional, plus:',
-        'White-label branding',
-        'API access',
-        'Custom integrations',
-        '24/7 priority support',
-        'Dedicated account manager',
-      ],
-    };
+    try {
+      // Fetch package tier from database to get actual limits
+      const tier = await packageTierService.getPackageTierBySlug(tierSlug);
 
-    const tierNames: Record<string, string> = {
-      free: 'Free',
-      landlord: 'Landlord',
-      professional: 'Professional',
-      enterprise: 'Enterprise',
-    };
+      if (tier) {
+        // Build dynamic features list based on actual package limits
+        const features: string[] = [];
 
-    const tierLimits: Record<string, { units: number; properties: number }> = {
-      free: { units: 5, properties: 5 },
-      landlord: { units: -1, properties: -1 },
-      professional: { units: -1, properties: -1 },
-      enterprise: { units: -1, properties: -1 },
-    };
+        // Add property limits
+        if (tier.max_properties === 999999) {
+          features.push('Unlimited Properties');
+        } else {
+          features.push(`Up to ${tier.max_properties} ${tier.max_properties === 1 ? 'Property' : 'Properties'}`);
+        }
 
-    const limits = tierLimits[tierSlug] || tierLimits.free;
+        // Add unit limits
+        if (tier.max_units === 999999) {
+          features.push('Unlimited Units');
+        } else {
+          features.push(`Up to ${tier.max_units} ${tier.max_units === 1 ? 'Unit' : 'Units'}`);
+        }
 
-    setPackageInfo({
-      tier_name: tierNames[tierSlug] || 'Free',
-      max_units: limits.units,
-      max_properties: limits.properties,
-      features: tierFeatures[tierSlug] || tierFeatures.free,
-    });
+        // Add tenant limits
+        if (tier.max_tenants === 999999) {
+          features.push('Unlimited Tenants');
+        } else {
+          features.push(`Up to ${tier.max_tenants} ${tier.max_tenants === 1 ? 'Tenant' : 'Tenants'}`);
+        }
+
+        // Add feature flags from the package
+        const tierFeatures = tier.features as Record<string, boolean> || {};
+        if (tierFeatures.basic_property_management !== false) features.push('Property Management');
+        if (tierFeatures.tenant_management !== false) features.push('Tenant Management');
+        if (tierFeatures.rent_tracking !== false) features.push('Rent Tracking');
+        if (tierFeatures.maintenance_requests !== false) features.push('Maintenance Requests');
+        if (tierFeatures.expense_tracking) features.push('Expense Tracking');
+        if (tierFeatures.document_storage) features.push('Document Storage');
+        if (tierFeatures.advanced_reporting) features.push('Advanced Reporting');
+        if (tierFeatures.property_owner_management) features.push('Property Owner Management');
+        if (tierFeatures.ai_recommendations) features.push('AI-Powered Recommendations');
+        if (tierFeatures.rent_optimization) features.push('Rent Optimization');
+        if (tierFeatures.bulk_operations) features.push('Bulk Operations');
+        if (tierFeatures.priority_support) features.push('Priority Support');
+        if (tierFeatures.white_label) features.push('White-Label Branding');
+        if (tierFeatures.api_access) features.push('API Access');
+
+        setPackageInfo({
+          tier_name: tier.display_name,
+          max_units: tier.max_units === 999999 ? -1 : tier.max_units,
+          max_properties: tier.max_properties === 999999 ? -1 : tier.max_properties,
+          features: features,
+        });
+      } else {
+        // Fallback for when tier is not found in database
+        setPackageInfo({
+          tier_name: 'Free',
+          max_units: 1,
+          max_properties: 1,
+          features: [
+            'Up to 1 Property',
+            'Up to 1 Unit',
+            'Basic Property Management',
+            'Tenant Management',
+            'Rent Tracking',
+          ],
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load package info:', error);
+      // Fallback on error
+      setPackageInfo({
+        tier_name: 'Free',
+        max_units: 1,
+        max_properties: 1,
+        features: [
+          'Up to 1 Property',
+          'Up to 1 Unit',
+          'Basic Property Management',
+        ],
+      });
+    }
   };
 
   const handleNextStep = () => {

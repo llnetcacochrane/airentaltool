@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { usePortfolio } from '../context/PortfolioContext';
+import { useBusiness } from '../context/BusinessContext';
 import { propertyService } from '../services/propertyService';
 import { Property } from '../types';
 import { PropertyForm } from '../components/PropertyForm';
@@ -18,17 +18,17 @@ export function Properties() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { currentOrganization } = useAuth();
-  const { currentPortfolio } = usePortfolio();
+  const { currentBusiness } = useBusiness();
 
   useEffect(() => {
     loadData();
-  }, [currentOrganization?.id, currentPortfolio?.id]);
+  }, [currentOrganization?.id, currentBusiness?.id]);
 
   const loadData = async () => {
-    if (!currentOrganization && !currentPortfolio) return;
+    if (!currentBusiness) return;
     setIsLoading(true);
     try {
-      const propertiesData = await propertyService.getAllUserProperties();
+      const propertiesData = await propertyService.getBusinessProperties(currentBusiness.id);
       setProperties(propertiesData);
       setError('');
     } catch (err) {
@@ -39,15 +39,20 @@ export function Properties() {
   };
 
   const handleAddProperty = async (data: Partial<Property>) => {
-    if (!currentPortfolio) return;
+    if (!currentBusiness) return;
     setIsSubmitting(true);
     try {
-      await propertyService.createProperty(currentPortfolio.id, data);
+      await propertyService.createProperty(currentBusiness.id, data);
       await loadData();
       setShowAddForm(false);
       setError('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add property');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to add property';
+      if (errorMsg.includes('LIMIT_REACHED')) {
+        setError('You have reached the property limit for your package. Please upgrade to add more properties.');
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -25,7 +25,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { Footer } from './Footer';
-import PortfolioSelector from './PortfolioSelector';
+import BusinessSelector from './BusinessSelector';
 
 interface NavItem {
   name: string;
@@ -289,7 +289,7 @@ export function Layout() {
 
               {/* Right side controls */}
               <div className="flex items-center gap-4">
-                <PortfolioSelector />
+                <BusinessSelector />
 
                 {isSuperAdmin && (
                   <button
@@ -322,7 +322,7 @@ export function Layout() {
                         />
                         <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
                           <div className="px-4 py-2 text-xs text-gray-500 font-semibold uppercase">
-                            Switch Organization
+                            Switch Business
                           </div>
                           {organizations.map((org) => (
                             <button

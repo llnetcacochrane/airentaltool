@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { BrandingProvider } from './context/BrandingContext';
-import { PortfolioProvider } from './context/PortfolioContext';
+import { BusinessProvider } from './context/BusinessContext';
 import { TenantProvider } from './context/TenantContext';
 import { ToastProvider } from './components/Toast';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -58,7 +58,7 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <PortfolioProvider>
+        <BusinessProvider>
           <TenantProvider>
             <BrandingProvider>
               <ToastProvider>
@@ -198,7 +198,7 @@ function App() {
               </ToastProvider>
             </BrandingProvider>
           </TenantProvider>
-        </PortfolioProvider>
+        </BusinessProvider>
       </AuthProvider>
     </BrowserRouter>
   );

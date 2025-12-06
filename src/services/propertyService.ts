@@ -1,13 +1,17 @@
 import { supabase } from '../lib/supabase';
 import { Property, Unit } from '../types';
-import { portfolioService } from './portfolioService';
+import { businessService } from './businessService';
+import { addonService } from './addonService';
 
 export const propertyService = {
-  async getPortfolioProperties(portfolioId: string): Promise<Property[]> {
+  /**
+   * Get all properties for a business
+   */
+  async getBusinessProperties(businessId: string): Promise<Property[]> {
     const { data, error } = await supabase
       .from('properties')
       .select('*')
-      .eq('portfolio_id', portfolioId)
+      .eq('business_id', businessId)
       .eq('is_active', true)
       .order('name');
 
@@ -15,13 +19,19 @@ export const propertyService = {
     return data || [];
   },
 
+  /**
+   * Get all properties for the user's default business
+   */
   async getAllUserProperties(): Promise<Property[]> {
-    const defaultPortfolio = await portfolioService.getUserDefaultPortfolio();
-    if (!defaultPortfolio) return [];
+    const defaultBusiness = await businessService.getUserDefaultBusiness();
+    if (!defaultBusiness) return [];
 
-    return this.getPortfolioProperties(defaultPortfolio.id);
+    return this.getBusinessProperties(defaultBusiness.id);
   },
 
+  /**
+   * Get a single property by ID
+   */
   async getProperty(id: string): Promise<Property | null> {
     const { data, error } = await supabase
       .from('properties')
@@ -33,13 +43,38 @@ export const propertyService = {
     return data;
   },
 
-  async createProperty(portfolioId: string, property: Partial<Property>): Promise<Property> {
+  /**
+   * Create a new property under a business
+   * Checks organization limits before creation
+   */
+  async createProperty(businessId: string, property: Partial<Property>): Promise<Property> {
     const user = (await supabase.auth.getUser()).data.user;
+
+    // First, get the business to find the organization_id
+    const { data: businessData, error: businessError } = await supabase
+      .from('businesses')
+      .select('organization_id')
+      .eq('id', businessId)
+      .single();
+
+    if (businessError) {
+      console.error('Failed to fetch business:', businessError);
+      throw new Error('Business not found');
+    }
+
+    // Check property limit
+    if (businessData.organization_id) {
+      const canAdd = await addonService.checkLimit(businessData.organization_id, 'property');
+      if (!canAdd) {
+        throw new Error('LIMIT_REACHED:property');
+      }
+    }
 
     const { data, error } = await supabase
       .from('properties')
       .insert({
-        portfolio_id: portfolioId,
+        business_id: businessId,
+        organization_id: businessData.organization_id,
         name: property.name,
         property_type: property.property_type,
         address_line1: property.address_line1,
@@ -66,6 +101,9 @@ export const propertyService = {
     return data;
   },
 
+  /**
+   * Update a property
+   */
   async updateProperty(id: string, updates: Partial<Property>): Promise<Property> {
     const { data, error } = await supabase
       .from('properties')
@@ -97,6 +135,9 @@ export const propertyService = {
     return data;
   },
 
+  /**
+   * Soft delete a property
+   */
   async deleteProperty(id: string): Promise<void> {
     const { error } = await supabase
       .from('properties')
@@ -106,6 +147,9 @@ export const propertyService = {
     if (error) throw error;
   },
 
+  /**
+   * Get all units for a property
+   */
   async getPropertyUnits(propertyId: string): Promise<Unit[]> {
     const { data, error } = await supabase
       .from('units')
@@ -118,6 +162,9 @@ export const propertyService = {
     return data || [];
   },
 
+  /**
+   * Get property statistics
+   */
   async getPropertyStats(propertyId: string): Promise<{
     total_units: number;
     occupied_units: number;
@@ -162,5 +209,27 @@ export const propertyService = {
       monthly_revenue_cents: monthlyRevenue,
       maintenance_requests_open: maintenance.count || 0,
     };
+  },
+
+  /**
+   * Get all properties for an organization
+   */
+  async getOrganizationProperties(organizationId: string): Promise<Property[]> {
+    const { data, error } = await supabase
+      .from('properties')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
+   * Check if user can create more properties
+   */
+  async canCreateProperty(organizationId: string): Promise<boolean> {
+    return addonService.checkLimit(organizationId, 'property');
   },
 };

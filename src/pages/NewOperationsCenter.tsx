@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { usePortfolio } from '../context/PortfolioContext';
+import { useBusiness } from '../context/BusinessContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { financialService } from '../services/financialService';
@@ -32,7 +32,7 @@ interface Alert {
 
 export function NewOperationsCenter() {
   const { currentOrganization, userProfile, packageType, isLandlord, isPropertyManager } = useAuth();
-  const { currentPortfolio } = usePortfolio();
+  const { currentBusiness } = useBusiness();
   const navigate = useNavigate();
 
   const [portfolioHealth, setPortfolioHealth] = useState<PortfolioHealth | null>(null);
@@ -50,7 +50,7 @@ export function NewOperationsCenter() {
 
   useEffect(() => {
     checkOnboardingAndLoad();
-  }, [currentOrganization?.id, currentPortfolio?.id]);
+  }, [currentOrganization?.id, currentBusiness?.id]);
 
   const checkOnboardingAndLoad = async () => {
     try {
@@ -66,8 +66,8 @@ export function NewOperationsCenter() {
   };
 
   const loadOperationsData = async () => {
-    const orgOrPortfolioId = currentOrganization?.id || currentPortfolio?.id;
-    if (!orgOrPortfolioId) {
+    const orgId = currentOrganization?.id;
+    if (!orgId) {
       setIsLoading(false);
       return;
     }
@@ -75,10 +75,10 @@ export function NewOperationsCenter() {
     setIsLoading(true);
     try {
       const [healthData, riskData, renewalData, summaryData] = await Promise.all([
-        portfolioHealthService.calculateHealthScore(orgOrPortfolioId),
-        paymentPredictionService.calculateTenantRiskScores(orgOrPortfolioId),
-        leaseRenewalService.getExpiringLeases(orgOrPortfolioId, 90),
-        financialService.getPortfolioSummary(orgOrPortfolioId),
+        portfolioHealthService.calculateHealthScore(orgId),
+        paymentPredictionService.calculateTenantRiskScores(orgId),
+        leaseRenewalService.getExpiringLeases(orgId, 90),
+        financialService.getPortfolioSummary(orgId),
       ]);
 
       setPortfolioHealth(healthData);
@@ -307,7 +307,7 @@ export function NewOperationsCenter() {
                 {isLandlord ? 'Portfolio Dashboard' : 'Operations Center'}
               </h1>
               <p className="text-gray-600 flex items-center gap-2">
-                <span>{currentOrganization?.name || currentPortfolio?.name || 'My Portfolio'}</span>
+                <span>{currentOrganization?.name || currentBusiness?.business_name || 'My Business'}</span>
                 {portfolioHealth && (
                   <>
                     <span className="text-gray-400">•</span>

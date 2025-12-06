@@ -1,13 +1,39 @@
 import { supabase } from '../lib/supabase';
 import { Tenant, Lease } from '../types';
-import { portfolioService } from './portfolioService';
+import { businessService } from './businessService';
+import { addonService } from './addonService';
 
 export const tenantService = {
-  async getPortfolioTenants(portfolioId: string): Promise<Tenant[]> {
+  /**
+   * Get all tenants for a business
+   */
+  async getBusinessTenants(businessId: string): Promise<Tenant[]> {
+    // Get all properties for this business
+    const { data: properties } = await supabase
+      .from('properties')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('is_active', true);
+
+    if (!properties || properties.length === 0) return [];
+
+    const propertyIds = properties.map(p => p.id);
+
+    // Get all units for those properties
+    const { data: units } = await supabase
+      .from('units')
+      .select('id')
+      .in('property_id', propertyIds)
+      .eq('is_active', true);
+
+    if (!units || units.length === 0) return [];
+
+    const unitIds = units.map(u => u.id);
+
     const { data, error } = await supabase
       .from('tenants')
       .select('*')
-      .eq('portfolio_id', portfolioId)
+      .in('unit_id', unitIds)
       .eq('is_active', true)
       .order('last_name');
 
@@ -15,13 +41,19 @@ export const tenantService = {
     return data || [];
   },
 
+  /**
+   * Get all tenants for the user's default business
+   */
   async getAllUserTenants(): Promise<Tenant[]> {
-    const defaultPortfolio = await portfolioService.getUserDefaultPortfolio();
-    if (!defaultPortfolio) return [];
+    const defaultBusiness = await businessService.getUserDefaultBusiness();
+    if (!defaultBusiness) return [];
 
-    return this.getPortfolioTenants(defaultPortfolio.id);
+    return this.getBusinessTenants(defaultBusiness.id);
   },
 
+  /**
+   * Get tenants for a unit
+   */
   async getTenantsByUnit(unitId: string): Promise<Tenant[]> {
     const { data, error } = await supabase
       .from('tenants')
@@ -34,6 +66,9 @@ export const tenantService = {
     return data || [];
   },
 
+  /**
+   * Get a single tenant
+   */
   async getTenant(id: string): Promise<Tenant | null> {
     const { data, error } = await supabase
       .from('tenants')
@@ -45,6 +80,10 @@ export const tenantService = {
     return data;
   },
 
+  /**
+   * Create a tenant
+   * Now uses organizationId instead of portfolio
+   */
   async createTenant(organizationId: string, unitId: string, tenant: Partial<Tenant>): Promise<Tenant> {
     const canAdd = await addonService.checkLimit(organizationId, 'tenant');
     if (!canAdd) {
@@ -96,6 +135,9 @@ export const tenantService = {
     return data;
   },
 
+  /**
+   * Update a tenant
+   */
   async updateTenant(id: string, updates: Partial<Tenant>): Promise<Tenant> {
     const { data, error } = await supabase
       .from('tenants')
@@ -131,6 +173,9 @@ export const tenantService = {
     return data;
   },
 
+  /**
+   * Soft delete a tenant
+   */
   async deleteTenant(id: string): Promise<void> {
     // Get tenant to find unit_id
     const { data: tenant } = await supabase
@@ -165,6 +210,9 @@ export const tenantService = {
     }
   },
 
+  /**
+   * Get active tenants for an organization
+   */
   async getActiveTenants(organizationId: string): Promise<Tenant[]> {
     const { data, error } = await supabase
       .from('tenants')
@@ -178,6 +226,9 @@ export const tenantService = {
     return data || [];
   },
 
+  /**
+   * Get active lease for a unit
+   */
   async getTenantLease(unitId: string): Promise<Lease | null> {
     const { data, error } = await supabase
       .from('leases')
@@ -190,6 +241,9 @@ export const tenantService = {
     return data;
   },
 
+  /**
+   * Search tenants
+   */
   async searchTenants(organizationId: string, searchTerm: string): Promise<Tenant[]> {
     const { data, error } = await supabase
       .from('tenants')
@@ -203,6 +257,9 @@ export const tenantService = {
     return data || [];
   },
 
+  /**
+   * Invite tenant to portal
+   */
   async inviteTenantToPortal(tenantId: string): Promise<void> {
     const { error } = await supabase
       .from('tenants')
@@ -215,6 +272,9 @@ export const tenantService = {
     if (error) throw error;
   },
 
+  /**
+   * Get tenant statistics
+   */
   async getTenantStats(tenantId: string): Promise<{
     payments_made: number;
     payments_pending: number;
@@ -250,5 +310,12 @@ export const tenantService = {
       maintenance_requests: maintenanceCount.count || 0,
       lease_end_date: lease.data?.lease_end_date,
     };
+  },
+
+  /**
+   * Check if user can create more tenants
+   */
+  async canCreateTenant(organizationId: string): Promise<boolean> {
+    return addonService.checkLimit(organizationId, 'tenant');
   },
 };

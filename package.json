@@ -1,7 +1,7 @@
 {
   "name": "ai-rental-tools",
   "private": true,
-  "version": "4.2.12-beta",
+  "version": "4.3.1-beta",
   "type": "module",
   "scripts": {
     "dev": "vite",

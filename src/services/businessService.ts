@@ -2,7 +2,65 @@ import { supabase } from '../lib/supabase';
 import { Business } from '../types';
 import { addonService } from './addonService';
 
+export interface BusinessWithStats extends Business {
+  property_count?: number;
+  is_owned?: boolean;
+}
+
 export const businessService = {
+  /**
+   * Get all businesses accessible to the current user
+   */
+  async getUserBusinesses(): Promise<BusinessWithStats[]> {
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) return [];
+
+    const { data, error } = await supabase.rpc('get_user_businesses', {
+      p_user_id: user.id,
+    });
+
+    if (error) {
+      console.error('Error fetching user businesses:', error);
+      throw error;
+    }
+    return data || [];
+  },
+
+  /**
+   * Get the user's default business
+   */
+  async getUserDefaultBusiness(): Promise<Business | null> {
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) return null;
+
+    const { data: businessId, error } = await supabase.rpc('get_user_default_business', {
+      p_user_id: user.id,
+    });
+
+    if (error) {
+      console.error('Error fetching default business:', error);
+      return null;
+    }
+
+    if (!businessId) return null;
+
+    const { data: business, error: businessError } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('id', businessId)
+      .maybeSingle();
+
+    if (businessError) {
+      console.error('Error fetching business details:', businessError);
+      return null;
+    }
+
+    return business;
+  },
+
+  /**
+   * Get all businesses for an organization
+   */
   async getAllBusinesses(organizationId: string): Promise<Business[]> {
     const { data, error } = await supabase
       .from('businesses')
@@ -15,6 +73,9 @@ export const businessService = {
     return data || [];
   },
 
+  /**
+   * Get a single business by ID
+   */
   async getBusiness(id: string): Promise<Business | null> {
     const { data, error } = await supabase
       .from('businesses')
@@ -26,7 +87,12 @@ export const businessService = {
     return data;
   },
 
+  /**
+   * Create a new business
+   * Checks organization limits before creation
+   */
   async createBusiness(organizationId: string, business: Partial<Business>): Promise<Business> {
+    // Check limits
     const canAdd = await addonService.checkLimit(organizationId, 'business');
     if (!canAdd) {
       throw new Error('LIMIT_REACHED:business');
@@ -38,6 +104,7 @@ export const businessService = {
       .from('businesses')
       .insert({
         organization_id: organizationId,
+        owner_user_id: user?.id,
         business_name: business.business_name,
         legal_name: business.legal_name,
         business_type: business.business_type,
@@ -55,6 +122,7 @@ export const businessService = {
         currency: business.currency || 'CAD',
         timezone: business.timezone || 'America/Toronto',
         notes: business.notes,
+        is_default: false,
         created_by: user?.id,
       })
       .select()
@@ -64,6 +132,53 @@ export const businessService = {
     return data;
   },
 
+  /**
+   * Create the default business for a new user
+   */
+  async createDefaultBusiness(
+    organizationId: string,
+    businessName: string,
+    userData?: {
+      email?: string;
+      phone?: string;
+      addressLine1?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      country?: string;
+    }
+  ): Promise<Business> {
+    const user = (await supabase.auth.getUser()).data.user;
+
+    const { data, error } = await supabase
+      .from('businesses')
+      .insert({
+        organization_id: organizationId,
+        owner_user_id: user?.id,
+        business_name: businessName,
+        email: userData?.email || user?.email,
+        phone: userData?.phone,
+        address_line1: userData?.addressLine1,
+        city: userData?.city,
+        state: userData?.state,
+        postal_code: userData?.postalCode,
+        country: userData?.country || 'CA',
+        currency: 'CAD',
+        timezone: 'America/Toronto',
+        is_default: true,
+        is_active: true,
+        created_by: user?.id,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Update a business
+   */
   async updateBusiness(id: string, updates: Partial<Business>): Promise<Business> {
     const { data, error } = await supabase
       .from('businesses')
@@ -95,7 +210,21 @@ export const businessService = {
     return data;
   },
 
+  /**
+   * Soft delete a business
+   */
   async deleteBusiness(id: string): Promise<void> {
+    // Check if this is the default business
+    const { data: business } = await supabase
+      .from('businesses')
+      .select('is_default')
+      .eq('id', id)
+      .single();
+
+    if (business?.is_default) {
+      throw new Error('Cannot delete your default business');
+    }
+
     const { error } = await supabase
       .from('businesses')
       .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -104,6 +233,9 @@ export const businessService = {
     if (error) throw error;
   },
 
+  /**
+   * Get statistics for a business
+   */
   async getBusinessStats(businessId: string): Promise<{
     total_properties: number;
     total_units: number;
@@ -157,5 +289,35 @@ export const businessService = {
       total_tenants: tenantsCount.count || 0,
       monthly_revenue_cents: monthlyRevenue,
     };
+  },
+
+  /**
+   * Check if user can create more businesses
+   */
+  async canCreateBusiness(organizationId: string): Promise<boolean> {
+    return addonService.checkLimit(organizationId, 'business');
+  },
+
+  /**
+   * Set a business as the default for the user
+   */
+  async setDefaultBusiness(businessId: string): Promise<void> {
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) throw new Error('User not authenticated');
+
+    // First, unset any existing defaults for this user
+    await supabase
+      .from('businesses')
+      .update({ is_default: false })
+      .eq('owner_user_id', user.id);
+
+    // Then set the new default
+    const { error } = await supabase
+      .from('businesses')
+      .update({ is_default: true })
+      .eq('id', businessId)
+      .eq('owner_user_id', user.id);
+
+    if (error) throw error;
   },
 };

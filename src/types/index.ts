@@ -131,8 +131,18 @@ export interface OrganizationMember {
 
 export interface User {
   id: string;
+  user_id?: string;
   first_name?: string;
   last_name?: string;
+  phone?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state_province?: string;
+  postal_code?: string;
+  country?: string;
+  organization_name?: string;
+  selected_tier?: string;
   avatar_url?: string;
   preferences?: Record<string, any>;
   created_at: string;

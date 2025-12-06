@@ -89,7 +89,7 @@ export function Settings() {
 
   const allTabs = [
     { id: 'profile', label: 'Profile', icon: User, requiresOrg: false },
-    { id: 'organization', label: 'Organization', icon: Building2, requiresOrg: true },
+    { id: 'business', label: 'Business', icon: Building2, requiresOrg: true },
     { id: 'branding', label: 'Branding', icon: Palette, requiresOrg: true },
     { id: 'team', label: 'Team Members', icon: UsersIcon, requiresOrg: true },
     { id: 'notifications', label: 'Notifications', icon: Bell, requiresOrg: false },
@@ -113,7 +113,7 @@ export function Settings() {
             </button>
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600 mt-1">Manage your account and organization preferences</p>
+          <p className="text-gray-600 mt-1">Manage your account and business preferences</p>
         </div>
       </div>
 
@@ -207,14 +207,14 @@ export function Settings() {
               </div>
             )}
 
-            {activeTab === 'organization' && (
+            {activeTab === 'business' && (
               <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Organization Details</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-6">Business Details</h2>
 
                 <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Organization Name
+                      Business Name
                     </label>
                     <input
                       type="text"
@@ -226,7 +226,7 @@ export function Settings() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Company Name
+                      Legal Name
                     </label>
                     <input
                       type="text"
@@ -234,6 +234,7 @@ export function Settings() {
                       disabled
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Official legal name of your business (if different from business name)</p>
                   </div>
 
                   <div>
@@ -242,7 +243,7 @@ export function Settings() {
                     </label>
                     <div className="flex items-center gap-3">
                       <span className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-semibold capitalize">
-                        {currentOrganization?.account_tier || 'Solo'}
+                        {currentOrganization?.account_tier || 'Free'}
                       </span>
                       <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
                         Upgrade Plan
@@ -265,7 +266,7 @@ export function Settings() {
             {activeTab === 'branding' && (
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-2">White Label Branding</h2>
-                <p className="text-gray-600 mb-6">Customize the application appearance for your organization</p>
+                <p className="text-gray-600 mb-6">Customize the application appearance for your business</p>
 
                 {message && (
                   <div className={`mb-4 p-4 rounded-lg ${
@@ -279,7 +280,7 @@ export function Settings() {
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
                       <p className="font-semibold text-gray-900">Enable White Label Branding</p>
-                      <p className="text-sm text-gray-600 mt-1">Customize logo, name, and colors for your organization</p>
+                      <p className="text-sm text-gray-600 mt-1">Customize logo, name, and colors for your business</p>
                     </div>
                     <button
                       onClick={() => setBrandingData({ ...brandingData, white_label_enabled: !brandingData.white_label_enabled })}

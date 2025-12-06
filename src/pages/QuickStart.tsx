@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useBusiness } from '../context/BusinessContext';
 import { propertyService } from '../services/propertyService';
 import { unitService } from '../services/unitService';
 import { tenantService } from '../services/tenantService';
-import { authService } from '../services/authService';
+import { businessService } from '../services/businessService';
 import { supabase } from '../lib/supabase';
 import {
   Building2,
@@ -31,6 +32,7 @@ interface OnboardingProgress {
 export function QuickStart() {
   const navigate = useNavigate();
   const { currentOrganization, userProfile, supabaseUser, createOrganization } = useAuth();
+  const { currentBusiness, refreshBusinesses } = useBusiness();
   const [currentStep, setCurrentStep] = useState(1);
   const [progress, setProgress] = useState<OnboardingProgress>({
     hasProperty: false,
@@ -76,24 +78,29 @@ export function QuickStart() {
 
   const [createdPropertyId, setCreatedPropertyId] = useState<string | null>(null);
   const [createdUnitId, setCreatedUnitId] = useState<string | null>(null);
+  const [userBusinessId, setUserBusinessId] = useState<string | null>(null);
 
   // Auto-create organization for new users who don't have one
+  // This is a fallback - organization should be created during registration
   useEffect(() => {
     const ensureOrganization = async () => {
       if (!supabaseUser || currentOrganization || isCreatingOrg) return;
 
       // User is logged in but has no organization - create one automatically
+      // This is a fallback case; registration should create org/business
       setIsCreatingOrg(true);
       try {
-        const firstName = userProfile?.first_name || 'My';
+        const firstName = userProfile?.first_name || 'User';
+        const lastName = userProfile?.last_name || '';
+        const businessName = userProfile?.organization_name ||
+          (firstName && lastName ? `${firstName} ${lastName}` : `${firstName}'s Business`);
         const tierSlug = userProfile?.selected_tier || 'free';
-        const orgName = `${firstName}'s Properties`;
         const orgSlug = `${firstName.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now()}`;
 
-        await createOrganization(orgName, orgSlug, undefined, tierSlug);
+        await createOrganization(businessName, orgSlug, undefined, tierSlug);
       } catch (err) {
         console.error('Failed to create organization:', err);
-        setError('Failed to set up your account. Please try again.');
+        setError('Failed to set up your account. Please try again or contact support.');
       } finally {
         setIsCreatingOrg(false);
       }
@@ -104,7 +111,7 @@ export function QuickStart() {
 
   useEffect(() => {
     loadProgress();
-  }, [currentOrganization?.id]);
+  }, [currentOrganization?.id, currentBusiness?.id]);
 
   const loadProgress = async () => {
     if (!currentOrganization?.id) {
@@ -113,6 +120,55 @@ export function QuickStart() {
     }
 
     try {
+      // Get user's default business, or create one if it doesn't exist
+      let business = await businessService.getUserDefaultBusiness();
+
+      if (!business && currentOrganization) {
+        // Create a default business for this user (fallback if registration didn't create one)
+        const businessName = userProfile?.organization_name ||
+          (userProfile?.first_name && userProfile?.last_name
+            ? `${userProfile.first_name} ${userProfile.last_name}`
+            : userProfile?.first_name || 'My Business');
+
+        try {
+          business = await businessService.createDefaultBusiness(
+            currentOrganization.id,
+            businessName,
+            {
+              email: supabaseUser?.email,
+              phone: userProfile?.phone || undefined,
+              addressLine1: userProfile?.address_line1 || undefined,
+              city: userProfile?.city || undefined,
+              state: userProfile?.state_province || undefined,
+              postalCode: userProfile?.postal_code || undefined,
+              country: userProfile?.country || 'CA',
+            }
+          );
+
+          // Refresh businesses in context
+          await refreshBusinesses();
+        } catch (bizError) {
+          console.error('Failed to create business:', bizError);
+          // Try to use currentBusiness from context as fallback
+          if (currentBusiness) {
+            business = currentBusiness;
+          }
+        }
+      }
+
+      // Also check currentBusiness from context
+      if (!business && currentBusiness) {
+        business = currentBusiness;
+      }
+
+      if (business) {
+        setUserBusinessId(business.id);
+      } else {
+        setError('Unable to find your business. Please refresh the page. If the problem persists, please contact support.');
+        setIsLoading(false);
+        return;
+      }
+
       const [propertiesRes, unitsRes, tenantsRes] = await Promise.all([
         supabase.from('properties').select('id', { count: 'exact', head: true })
           .eq('organization_id', currentOrganization.id).eq('is_active', true),
@@ -156,26 +212,35 @@ export function QuickStart() {
       return;
     }
 
+    if (!userBusinessId) {
+      setError('Unable to find your business. Please try again.');
+      return;
+    }
+
     setIsSaving(true);
     setError('');
 
     try {
-      const property = await propertyService.createProperty({
+      const property = await propertyService.createProperty(userBusinessId, {
         name: propertyData.name,
-        address: propertyData.address,
+        address_line1: propertyData.address,
         city: propertyData.city,
-        state_province: propertyData.state_province,
+        state: propertyData.state_province,
         postal_code: propertyData.postal_code,
-        country: 'Canada',
+        country: 'CA',
         property_type: propertyData.property_type,
-        total_units: propertyData.total_units,
       });
 
       setCreatedPropertyId(property.id);
       setProgress(prev => ({ ...prev, hasProperty: true, propertyCount: prev.propertyCount + 1 }));
       setCurrentStep(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create property');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create property';
+      if (errorMsg.includes('LIMIT_REACHED')) {
+        setError('You have reached the property limit for your package. Please upgrade to add more properties.');
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -188,11 +253,16 @@ export function QuickStart() {
       return;
     }
 
+    if (!currentOrganization?.id) {
+      setError('Unable to find your organization. Please try again.');
+      return;
+    }
+
     setIsSaving(true);
     setError('');
 
     try {
-      const unit = await unitService.createUnit(propertyId, {
+      const unit = await unitService.createUnit(currentOrganization.id, propertyId, {
         unit_number: unitData.unit_number || '1',
         bedrooms: unitData.bedrooms,
         bathrooms: unitData.bathrooms,
@@ -203,7 +273,12 @@ export function QuickStart() {
       setProgress(prev => ({ ...prev, hasUnit: true, unitCount: prev.unitCount + 1 }));
       setCurrentStep(3);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create unit');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create unit';
+      if (errorMsg.includes('LIMIT_REACHED')) {
+        setError('You have reached the unit limit for your package. Please upgrade to add more units.');
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -221,16 +296,20 @@ export function QuickStart() {
       return;
     }
 
+    if (!currentOrganization?.id) {
+      setError('Unable to find your organization. Please try again.');
+      return;
+    }
+
     setIsSaving(true);
     setError('');
 
     try {
-      await tenantService.createTenant({
+      await tenantService.createTenant(currentOrganization.id, unitId, {
         first_name: tenantData.first_name,
         last_name: tenantData.last_name,
         email: tenantData.email,
         phone: tenantData.phone,
-        unit_id: unitId,
         lease_start_date: tenantData.lease_start_date || undefined,
         lease_end_date: tenantData.lease_end_date || undefined,
       });
@@ -238,7 +317,12 @@ export function QuickStart() {
       setProgress(prev => ({ ...prev, hasTenant: true, tenantCount: prev.tenantCount + 1 }));
       setCurrentStep(4);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create tenant');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create tenant';
+      if (errorMsg.includes('LIMIT_REACHED')) {
+        setError('You have reached the tenant limit for your package. Please upgrade to add more tenants.');
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -674,7 +758,7 @@ export function QuickStart() {
                 <div className="bg-green-50 rounded-lg p-4 text-left">
                   <Home className="w-8 h-8 text-green-600 mb-2" />
                   <h3 className="font-semibold text-gray-900 mb-1">Add More Properties</h3>
-                  <p className="text-sm text-gray-600">Expand your portfolio with additional rentals</p>
+                  <p className="text-sm text-gray-600">Expand your business with additional rentals</p>
                 </div>
                 <div className="bg-purple-50 rounded-lg p-4 text-left">
                   <Users className="w-8 h-8 text-purple-600 mb-2" />

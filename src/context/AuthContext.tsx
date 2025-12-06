@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
-import { authService } from '../services/authService';
+import { authService, ExtendedRegistrationData } from '../services/authService';
 import { propertyOwnerService } from '../services/propertyOwnerService';
 import { packageTierService, PackageTier } from '../services/packageTierService';
 import { Organization, OrganizationMember, User, UserRole } from '../types';
@@ -34,7 +34,7 @@ interface AuthContextType {
   isPropertyManager: boolean;
   // Actions
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string, tierSlug?: string) => Promise<void>;
+  register: (email: string, password: string, firstName: string, lastName: string, tierSlug?: string, extendedData?: ExtendedRegistrationData) => Promise<void>;
   logout: () => Promise<void>;
   switchOrganization: (organizationId: string) => Promise<void>;
   createOrganization: (name: string, slug: string, companyName?: string, tierSlug?: string) => Promise<Organization>;
@@ -243,8 +243,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await authService.login(email, password);
   };
 
-  const register = async (email: string, password: string, firstName: string, lastName: string, tierSlug?: string) => {
-    await authService.register(email, password, firstName, lastName, tierSlug);
+  const register = async (email: string, password: string, firstName: string, lastName: string, tierSlug?: string, extendedData?: ExtendedRegistrationData) => {
+    await authService.register(email, password, firstName, lastName, tierSlug, extendedData);
   };
 
   const logout = async () => {

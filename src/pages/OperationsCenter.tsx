@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { usePortfolio } from '../context/PortfolioContext';
+import { useBusiness } from '../context/BusinessContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { financialService } from '../services/financialService';
@@ -29,7 +29,7 @@ interface Alert {
 
 export function OperationsCenter() {
   const { currentOrganization, userProfile } = useAuth();
-  const { currentPortfolio } = usePortfolio();
+  const { currentBusiness } = useBusiness();
   const navigate = useNavigate();
   const [portfolioHealth, setPortfolioHealth] = useState<PortfolioHealth | null>(null);
   const [riskScores, setRiskScores] = useState<PaymentRiskScore[]>([]);
@@ -40,7 +40,7 @@ export function OperationsCenter() {
 
   useEffect(() => {
     checkOnboardingAndLoad();
-  }, [currentOrganization?.id, currentPortfolio?.id]);
+  }, [currentOrganization?.id, currentBusiness?.id]);
 
   const checkOnboardingAndLoad = async () => {
     try {

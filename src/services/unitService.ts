@@ -1,13 +1,28 @@
 import { supabase } from '../lib/supabase';
 import { Unit, Tenant, Lease } from '../types';
-import { portfolioService } from './portfolioService';
+import { businessService } from './businessService';
+import { addonService } from './addonService';
 
 export const unitService = {
-  async getPortfolioUnits(portfolioId: string): Promise<Unit[]> {
+  /**
+   * Get all units for a business
+   */
+  async getBusinessUnits(businessId: string): Promise<Unit[]> {
+    // Get all properties for this business first
+    const { data: properties } = await supabase
+      .from('properties')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('is_active', true);
+
+    if (!properties || properties.length === 0) return [];
+
+    const propertyIds = properties.map(p => p.id);
+
     const { data, error } = await supabase
       .from('units')
       .select('*')
-      .eq('portfolio_id', portfolioId)
+      .in('property_id', propertyIds)
       .eq('is_active', true)
       .order('unit_number');
 
@@ -15,13 +30,19 @@ export const unitService = {
     return data || [];
   },
 
+  /**
+   * Get all units for the user's default business
+   */
   async getAllUserUnits(): Promise<Unit[]> {
-    const defaultPortfolio = await portfolioService.getUserDefaultPortfolio();
-    if (!defaultPortfolio) return [];
+    const defaultBusiness = await businessService.getUserDefaultBusiness();
+    if (!defaultBusiness) return [];
 
-    return this.getPortfolioUnits(defaultPortfolio.id);
+    return this.getBusinessUnits(defaultBusiness.id);
   },
 
+  /**
+   * Get units by property
+   */
   async getUnitsByProperty(propertyId: string): Promise<Unit[]> {
     const { data, error } = await supabase
       .from('units')
@@ -34,6 +55,9 @@ export const unitService = {
     return data || [];
   },
 
+  /**
+   * Get a single unit
+   */
   async getUnit(id: string): Promise<Unit | null> {
     const { data, error } = await supabase
       .from('units')
@@ -45,13 +69,23 @@ export const unitService = {
     return data;
   },
 
-  async createUnit(portfolioId: string, propertyId: string, unit: Partial<Unit>): Promise<Unit> {
+  /**
+   * Create a unit in a property
+   * Now takes organizationId instead of portfolioId for limit checking
+   */
+  async createUnit(organizationId: string, propertyId: string, unit: Partial<Unit>): Promise<Unit> {
+    // Check unit limit
+    const canAdd = await addonService.checkLimit(organizationId, 'unit');
+    if (!canAdd) {
+      throw new Error('LIMIT_REACHED:unit');
+    }
+
     const user = (await supabase.auth.getUser()).data.user;
 
     const { data, error } = await supabase
       .from('units')
       .insert({
-        portfolio_id: portfolioId,
+        organization_id: organizationId,
         property_id: propertyId,
         unit_number: unit.unit_number,
         unit_name: unit.unit_name,
@@ -75,6 +109,9 @@ export const unitService = {
     return data;
   },
 
+  /**
+   * Update a unit
+   */
   async updateUnit(id: string, updates: Partial<Unit>): Promise<Unit> {
     const { data, error } = await supabase
       .from('units')
@@ -102,6 +139,9 @@ export const unitService = {
     return data;
   },
 
+  /**
+   * Soft delete a unit
+   */
   async deleteUnit(id: string): Promise<void> {
     const { error } = await supabase
       .from('units')
@@ -111,6 +151,9 @@ export const unitService = {
     if (error) throw error;
   },
 
+  /**
+   * Get tenants for a unit
+   */
   async getUnitTenants(unitId: string): Promise<Tenant[]> {
     const { data, error } = await supabase
       .from('tenants')
@@ -123,6 +166,9 @@ export const unitService = {
     return data || [];
   },
 
+  /**
+   * Get active lease for a unit
+   */
   async getUnitLease(unitId: string): Promise<Lease | null> {
     const { data, error } = await supabase
       .from('leases')
@@ -135,11 +181,24 @@ export const unitService = {
     return data;
   },
 
-  async getVacantUnits(portfolioId: string): Promise<Unit[]> {
+  /**
+   * Get vacant units for a business
+   */
+  async getVacantUnits(businessId: string): Promise<Unit[]> {
+    const { data: properties } = await supabase
+      .from('properties')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('is_active', true);
+
+    if (!properties || properties.length === 0) return [];
+
+    const propertyIds = properties.map(p => p.id);
+
     const { data, error } = await supabase
       .from('units')
       .select('*')
-      .eq('portfolio_id', portfolioId)
+      .in('property_id', propertyIds)
       .eq('is_active', true)
       .eq('occupancy_status', 'vacant')
       .order('available_date');
@@ -148,11 +207,24 @@ export const unitService = {
     return data || [];
   },
 
-  async getOccupiedUnits(portfolioId: string): Promise<Unit[]> {
+  /**
+   * Get occupied units for a business
+   */
+  async getOccupiedUnits(businessId: string): Promise<Unit[]> {
+    const { data: properties } = await supabase
+      .from('properties')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('is_active', true);
+
+    if (!properties || properties.length === 0) return [];
+
+    const propertyIds = properties.map(p => p.id);
+
     const { data, error } = await supabase
       .from('units')
       .select('*')
-      .eq('portfolio_id', portfolioId)
+      .in('property_id', propertyIds)
       .eq('is_active', true)
       .eq('occupancy_status', 'occupied')
       .order('unit_number');
@@ -161,6 +233,9 @@ export const unitService = {
     return data || [];
   },
 
+  /**
+   * Update unit occupancy status
+   */
   async updateOccupancyStatus(unitId: string, status: 'vacant' | 'occupied' | 'maintenance' | 'reserved'): Promise<void> {
     const { error } = await supabase
       .from('units')
@@ -173,6 +248,9 @@ export const unitService = {
     if (error) throw error;
   },
 
+  /**
+   * Get unit statistics
+   */
   async getUnitStats(unitId: string): Promise<{
     tenant_count: number;
     lease_active: boolean;
@@ -205,5 +283,12 @@ export const unitService = {
       monthly_rent_cents: lease.data?.monthly_rent_cents || 0,
       maintenance_requests_open: maintenanceCount.count || 0,
     };
+  },
+
+  /**
+   * Check if user can create more units
+   */
+  async canCreateUnit(organizationId: string): Promise<boolean> {
+    return addonService.checkLimit(organizationId, 'unit');
   },
 };

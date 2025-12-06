@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { Building2, ArrowRight, Check, Upload, Zap, FileText, Download, Home, Users } from 'lucide-react';
 import { propertyService } from '../services/propertyService';
+import { unitService } from '../services/unitService';
 import { tenantService } from '../services/tenantService';
+import { businessService } from '../services/businessService';
 
 type SetupMethod = 'quick' | 'import' | 'skip';
 
@@ -75,24 +78,38 @@ export function Onboarding() {
 
     setIsLoading(true);
     try {
-      const property = await propertyService.createProperty({
+      // Get or create user's default business
+      let business = await businessService.getUserDefaultBusiness();
+
+      if (!business && currentOrganization) {
+        // Create a default business if one doesn't exist
+        business = await businessService.createDefaultBusiness(
+          currentOrganization.id,
+          organizationName || 'My Business'
+        );
+      }
+
+      if (!business) {
+        throw new Error('Unable to find or create a business. Please try again.');
+      }
+
+      const property = await propertyService.createProperty(business.id, {
         name: propertyName,
-        address: propertyAddress,
+        address_line1: propertyAddress,
         city: propertyCity,
-        state_province: propertyProvince,
+        state: propertyProvince,
         postal_code: propertyPostal,
-        country: 'Canada',
+        country: 'CA',
         property_type: 'residential',
-        total_units: numberOfUnits,
       });
 
       for (let i = 1; i <= numberOfUnits; i++) {
-        await propertyService.createUnit(property.id, {
+        await unitService.createUnit(currentOrganization!.id, property.id, {
           unit_number: i.toString(),
           bedrooms: 1,
           bathrooms: 1,
           square_feet: 800,
-          monthly_rent: 0,
+          monthly_rent_cents: 0,
         });
       }
 
@@ -107,13 +124,24 @@ export function Onboarding() {
   const handleQuickTenantSetup = async () => {
     setIsLoading(true);
     try {
-      if (tenantFirstName.trim() && tenantLastName.trim()) {
-        await tenantService.createTenant({
-          first_name: tenantFirstName,
-          last_name: tenantLastName,
-          email: tenantEmail,
-          phone: tenantPhone,
-        });
+      if (tenantFirstName.trim() && tenantLastName.trim() && currentOrganization) {
+        // Get first unit to assign tenant to
+        const { data: units } = await supabase
+          .from('units')
+          .select('id')
+          .eq('organization_id', currentOrganization.id)
+          .eq('is_active', true)
+          .limit(1)
+          .single();
+
+        if (units?.id) {
+          await tenantService.createTenant(currentOrganization.id, units.id, {
+            first_name: tenantFirstName,
+            last_name: tenantLastName,
+            email: tenantEmail,
+            phone: tenantPhone,
+          });
+        }
       }
       navigate('/dashboard');
     } catch (err) {
