@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { tenantInvitationService } from '../services/tenantInvitationService';
 import { authService } from '../services/authService';
+import { supabase } from '../lib/supabase';
 import { InvitationDetails } from '../types';
 import { Check, AlertCircle, Home, ArrowLeft } from 'lucide-react';
 
@@ -82,15 +83,59 @@ export function TenantSignup() {
 
     try {
       // Create auth account
-      await authService.register(
+      const user = await authService.register(
         formData.email,
         formData.password,
         formData.firstName,
         formData.lastName
       );
 
-      // Accept the invitation (this will be linked when tenant is created)
-      // For now, we'll show success and let them log in
+      if (user) {
+        // Link the tenant record to this user
+        // First, find the tenant record associated with this invitation
+        const { data: invitationData } = await supabase
+          .from('tenant_invitations')
+          .select('tenant_id')
+          .eq('id', invitation.invitation_id)
+          .maybeSingle();
+
+        if (invitationData?.tenant_id) {
+          // Update the existing tenant record with the user_id
+          await supabase
+            .from('tenants')
+            .update({
+              user_id: user.id,
+              email: formData.email,
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              phone: formData.phone,
+              has_portal_access: true,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', invitationData.tenant_id);
+        } else {
+          // Create a new tenant record linked to this user
+          await supabase
+            .from('tenants')
+            .insert({
+              organization_id: invitation.organization_id,
+              unit_id: invitation.unit_id,
+              user_id: user.id,
+              first_name: formData.firstName,
+              last_name: formData.lastName,
+              email: formData.email,
+              phone: formData.phone,
+              tenant_type: 'primary',
+              has_portal_access: true,
+              status: 'active',
+              security_deposit_paid_cents: 0,
+            });
+        }
+
+        // Mark invitation as accepted
+        await tenantInvitationService.acceptInvitation(invitation.invitation_id, user.id);
+      }
+
       setStep('success');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create account');
@@ -108,14 +153,17 @@ export function TenantSignup() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Account Created Successfully!</h2>
           <p className="text-gray-600 mb-6">
-            Your tenant portal account has been created. You can now log in to access your dashboard.
+            Your tenant portal account has been created. Please check your email to verify your account, then log in to access your dashboard.
           </p>
           <Link
             to="/login"
-            className="block w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+            className="block w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition mb-3"
           >
             Go to Login
           </Link>
+          <p className="text-sm text-gray-500">
+            After logging in, you'll be directed to your tenant dashboard at <span className="font-medium">/my-rental</span>
+          </p>
         </div>
       </div>
     );

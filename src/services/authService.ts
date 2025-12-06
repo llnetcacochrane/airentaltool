@@ -21,8 +21,6 @@ export const authService = {
       })
       .eq('user_id', authData.user.id);
 
-    console.log(`User registered with tier: ${tierSlug}`);
-
     return authData.user;
   },
 
@@ -66,8 +64,6 @@ export const authService = {
 
     if (!user) throw new Error('User not authenticated');
 
-    console.log('Creating organization for user:', user.id, 'with tier:', tierSlug);
-
     const { data, error } = await supabase
       .from('organizations')
       .insert({
@@ -92,8 +88,6 @@ export const authService = {
       throw new Error('Organization created but no data returned');
     }
 
-    console.log('Organization created:', data.id);
-
     const { error: memberError } = await supabase
       .from('organization_members')
       .insert({
@@ -109,8 +103,6 @@ export const authService = {
       throw new Error(`Failed to add member: ${memberError.message}`);
     }
 
-    console.log('Member added successfully');
-
     const { error: packageError } = await supabase.rpc('assign_package_to_organization', {
       p_org_id: data.id,
       p_tier_slug: tierSlug
@@ -118,8 +110,6 @@ export const authService = {
 
     if (packageError) {
       console.error('Package assignment error:', packageError);
-    } else {
-      console.log('Package assigned successfully');
     }
 
     return data;

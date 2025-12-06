@@ -5,6 +5,7 @@ import { propertyService } from '../services/propertyService';
 import { Property } from '../types';
 import { PropertyForm } from '../components/PropertyForm';
 import { UnitManagement } from '../components/UnitManagement';
+import { EmptyStatePresets } from '../components/EmptyState';
 import { Plus, MapPin, Home, Edit2, Trash2, Bed, Bath, Maximize, Calendar, X, DoorClosed } from 'lucide-react';
 
 export function Properties() {
@@ -99,14 +100,14 @@ export function Properties() {
   return (
     <div className="flex-1 overflow-auto">
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Properties</h1>
-            <p className="text-gray-600 mt-1">{properties.length} total properties</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Properties</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">{properties.length} total properties</p>
           </div>
           <button
             onClick={() => setShowAddForm(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition w-full sm:w-auto"
           >
             <Plus size={20} />
             Add Property
@@ -114,7 +115,7 @@ export function Properties() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
             <p className="text-red-800 text-sm">{error}</p>
@@ -125,18 +126,7 @@ export function Properties() {
         )}
 
         {properties.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <Home className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No properties yet</h3>
-            <p className="text-gray-600 mb-6">Start by adding your first rental property to begin tracking income, expenses, and tenants</p>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-            >
-              <Plus size={20} />
-              Add Your First Property
-            </button>
-          </div>
+          EmptyStatePresets.Properties(() => setShowAddForm(true))
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {properties.map((property) => (

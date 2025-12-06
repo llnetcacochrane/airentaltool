@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { expenseService } from '../services/expenseService';
 import { Expense } from '../types';
+import { EmptyStatePresets } from '../components/EmptyState';
 import { Plus, Receipt, Calendar, Search, Filter, X, Edit2, Trash2, TrendingDown } from 'lucide-react';
 
 export function Expenses() {
@@ -204,23 +205,15 @@ export function Expenses() {
         )}
 
         {filteredExpenses.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <Receipt className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {expenses.length === 0 ? 'No expenses yet' : 'No matching expenses'}
-            </h3>
-            <p className="text-gray-600 mb-6">
-              {expenses.length === 0
-                ? 'Start tracking your property-related expenses for better financial management'
-                : 'Try adjusting your search or filters'}
-            </p>
-            {expenses.length === 0 && (
-              <button className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
-                <Plus size={20} />
-                Add First Expense
-              </button>
-            )}
-          </div>
+          expenses.length === 0 ? (
+            EmptyStatePresets.Expenses()
+          ) : (
+            <div className="bg-white rounded-lg shadow p-12 text-center">
+              <Receipt className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No matching expenses</h3>
+              <p className="text-gray-600">Try adjusting your search or filters</p>
+            </div>
+          )
         ) : (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <table className="w-full">

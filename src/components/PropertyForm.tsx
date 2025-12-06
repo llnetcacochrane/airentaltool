@@ -3,6 +3,8 @@ import { Property, PropertyType, Business } from '../types';
 import { businessService } from '../services/businessService';
 import { useAuth } from '../context/AuthContext';
 import { X } from 'lucide-react';
+import { validators, validate, getFieldError, getInputClassName, ValidationError } from '../utils/formValidation';
+import { FieldError } from './FieldError';
 
 interface PropertyFormProps {
   property?: Property;
@@ -27,6 +29,8 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
   const { currentOrganization } = useAuth();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoadingBusinesses, setIsLoadingBusinesses] = useState(true);
+  const [errors, setErrors] = useState<ValidationError[]>([]);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState({
     business_id: property?.business_id || '',
@@ -68,11 +72,50 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
     }
   };
 
+  const validateForm = (): ValidationError[] => {
+    const validations = [
+      validators.required(formData.name, 'Property Name'),
+      validators.minLength(formData.name, 2, 'Property Name'),
+      validators.maxLength(formData.name, 100, 'Property Name'),
+      validators.required(formData.address_line1, 'Address'),
+      validators.required(formData.city, 'City'),
+      validators.required(formData.state, 'State/Province'),
+      validators.required(formData.postal_code, 'Postal Code'),
+      validators.postalCode(formData.postal_code, formData.country, 'Postal Code'),
+      validators.yearBuilt(formData.year_built, 'Year Built'),
+      validators.range(formData.bedrooms, 0, 50, 'Bedrooms'),
+      validators.range(formData.bathrooms, 0, 50, 'Bathrooms'),
+      validators.positive(formData.square_feet, 'Square Feet'),
+      validators.positive(formData.lot_size, 'Lot Size'),
+      validators.positive(formData.purchase_price_cents, 'Purchase Price'),
+      validators.positive(formData.current_value_cents, 'Current Value'),
+      validators.dateInPast(formData.purchase_date, 'Purchase Date'),
+    ];
+
+    if (currentOrganization && businesses.length > 0) {
+      validations.push(validators.required(formData.business_id, 'Business'));
+    }
+
+    return validations.filter((e): e is ValidationError => e !== null);
+  };
+
+  const handleBlur = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+    setErrors(validateForm());
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (currentOrganization && !formData.business_id) {
-      alert('Please select a business');
+    // Mark all fields as touched
+    const allTouched: Record<string, boolean> = {};
+    Object.keys(formData).forEach(key => { allTouched[key] = true; });
+    setTouched(allTouched);
+
+    const validationErrors = validateForm();
+    setErrors(validationErrors);
+
+    if (validationErrors.length > 0) {
       return;
     }
 
@@ -147,6 +190,17 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {errors.length > 0 && Object.keys(touched).length > 5 && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm font-medium text-red-800 mb-2">Please fix the following errors:</p>
+              <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                {errors.map((error, index) => (
+                  <li key={index}>{error.message}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             {currentOrganization && businesses.length > 0 && (
               <div className="col-span-2">
@@ -178,10 +232,11 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onBlur={() => handleBlur('name')}
+                className={getInputClassName(touched.name && !!getFieldError(errors, 'Property Name'))}
                 placeholder="e.g., Sunset Apartments"
-                required
               />
+              {touched.name && <FieldError error={getFieldError(errors, 'Property Name')} />}
             </div>
 
             <div>
@@ -210,9 +265,13 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
                 type="number"
                 value={formData.year_built}
                 onChange={(e) => setFormData({ ...formData, year_built: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onBlur={() => handleBlur('year_built')}
+                className={getInputClassName(touched.year_built && !!getFieldError(errors, 'Year Built'))}
                 placeholder="e.g., 2010"
+                min="1800"
+                max={new Date().getFullYear() + 5}
               />
+              {touched.year_built && <FieldError error={getFieldError(errors, 'Year Built')} />}
             </div>
 
             <div className="col-span-2">
@@ -223,10 +282,11 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
                 type="text"
                 value={formData.address_line1}
                 onChange={(e) => setFormData({ ...formData, address_line1: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onBlur={() => handleBlur('address_line1')}
+                className={getInputClassName(touched.address_line1 && !!getFieldError(errors, 'Address'))}
                 placeholder="Street address"
-                required
               />
+              {touched.address_line1 && <FieldError error={getFieldError(errors, 'Address')} />}
             </div>
 
             <div className="col-span-2">
@@ -250,9 +310,10 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
                 type="text"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
+                onBlur={() => handleBlur('city')}
+                className={getInputClassName(touched.city && !!getFieldError(errors, 'City'))}
               />
+              {touched.city && <FieldError error={getFieldError(errors, 'City')} />}
             </div>
 
             <div>
@@ -263,10 +324,11 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
                 type="text"
                 value={formData.state}
                 onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onBlur={() => handleBlur('state')}
+                className={getInputClassName(touched.state && !!getFieldError(errors, 'State/Province'))}
                 placeholder="e.g., ON"
-                required
               />
+              {touched.state && <FieldError error={getFieldError(errors, 'State/Province')} />}
             </div>
 
             <div>
@@ -276,10 +338,12 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
               <input
                 type="text"
                 value={formData.postal_code}
-                onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
+                onChange={(e) => setFormData({ ...formData, postal_code: e.target.value.toUpperCase() })}
+                onBlur={() => handleBlur('postal_code')}
+                className={getInputClassName(touched.postal_code && !!getFieldError(errors, 'Postal Code'))}
+                placeholder={formData.country === 'CA' ? 'A1A 1A1' : '12345'}
               />
+              {touched.postal_code && <FieldError error={getFieldError(errors, 'Postal Code')} />}
             </div>
 
             <div>

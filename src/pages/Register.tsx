@@ -37,8 +37,8 @@ export function Register() {
     try {
       await register(email, password, firstName, lastName, tierSlug);
 
-      // Navigate directly to dashboard - wizard will guide setup there
-      navigate('/dashboard');
+      // Navigate to quick-start for new users to set up their first property
+      navigate('/quick-start');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {

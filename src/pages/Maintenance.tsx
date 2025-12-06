@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { maintenanceService, MaintenanceRequest } from '../services/maintenanceService';
 import { propertyService } from '../services/propertyService';
 import { tenantService } from '../services/tenantService';
+import { EmptyStatePresets } from '../components/EmptyState';
 import { Wrench, Plus, AlertCircle, Clock, CheckCircle, X, Calendar } from 'lucide-react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
@@ -145,23 +146,15 @@ export function Maintenance() {
         </div>
 
         {filteredRequests.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <Wrench className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No maintenance requests</h3>
-            <p className="text-gray-600 mb-6">
-              {filter === 'all'
-                ? 'Get started by creating your first maintenance request'
-                : `No ${filter.replace('_', ' ')} requests found`}
-            </p>
-            {filter === 'all' && (
-              <button
-                onClick={() => setShowForm(true)}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-              >
-                Create Request
-              </button>
-            )}
-          </div>
+          filter === 'all' && requests.length === 0 ? (
+            EmptyStatePresets.Maintenance(() => setShowForm(true))
+          ) : (
+            <div className="bg-white rounded-lg shadow p-12 text-center">
+              <Wrench className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No {filter.replace('_', ' ')} requests</h3>
+              <p className="text-gray-600">Try a different filter to see other requests</p>
+            </div>
+          )
         ) : (
           <div className="grid grid-cols-1 gap-4">
             {filteredRequests.map((request) => (

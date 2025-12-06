@@ -5,6 +5,7 @@ import { fileStorageService } from '../services/fileStorageService';
 import { propertyService } from '../services/propertyService';
 import { unitService } from '../services/unitService';
 import { RentalApplication, Property, Unit } from '../types';
+import { EmptyStatePresets } from '../components/EmptyState';
 import {
   Users,
   TrendingUp,
@@ -435,7 +436,11 @@ export function Applications() {
         </div>
       )}
 
-      {pendingApps.length === 0 && (
+      {pendingApps.length === 0 && applications.length === 0 && (
+        EmptyStatePresets.Applications()
+      )}
+
+      {pendingApps.length === 0 && applications.length > 0 && (
         <div className="bg-white rounded-lg shadow p-12 text-center">
           <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No Pending Applications</h3>

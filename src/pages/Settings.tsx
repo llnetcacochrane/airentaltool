@@ -4,6 +4,7 @@ import { useBranding } from '../context/BrandingContext';
 import { authService } from '../services/authService';
 import { brandingService } from '../services/brandingService';
 import { useNavigate } from 'react-router-dom';
+import { UsageLimitsWidget } from '../components/UsageLimitsWidget';
 import { User, Building2, Users as UsersIcon, Bell, Lock, CreditCard, Palette, ArrowLeft } from 'lucide-react';
 
 export function Settings() {
@@ -494,41 +495,23 @@ export function Settings() {
             )}
 
             {activeTab === 'billing' && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Billing & Subscription</h2>
+              <div className="space-y-6">
+                <UsageLimitsWidget />
 
-                <div className="space-y-6">
-                  <div className="p-6 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="font-bold text-gray-900 text-lg capitalize">{currentOrganization?.account_tier || 'Solo'} Plan</h3>
-                        <p className="text-sm text-gray-600">Active subscription</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-3xl font-bold text-gray-900">$0</p>
-                        <p className="text-sm text-gray-600">per month</p>
-                      </div>
-                    </div>
-                    <button className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                      Upgrade Plan
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">Payment Method</h2>
+                  <div className="p-4 border border-gray-200 rounded-lg">
+                    <p className="text-gray-600 text-sm">No payment method on file</p>
+                    <button className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">
+                      Add Payment Method
                     </button>
                   </div>
+                </div>
 
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-4">Payment Method</h3>
-                    <div className="p-4 border border-gray-200 rounded-lg">
-                      <p className="text-gray-600 text-sm">No payment method on file</p>
-                      <button className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">
-                        Add Payment Method
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-4">Billing History</h3>
-                    <div className="text-center py-8 text-gray-500">
-                      <p className="text-sm">No billing history yet</p>
-                    </div>
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">Billing History</h2>
+                  <div className="text-center py-8 text-gray-500">
+                    <p className="text-sm">No billing history yet</p>
                   </div>
                 </div>
               </div>

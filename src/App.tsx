@@ -2,15 +2,17 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { BrandingProvider } from './context/BrandingContext';
 import { PortfolioProvider } from './context/PortfolioContext';
+import { TenantProvider } from './context/TenantContext';
+import { ToastProvider } from './components/Toast';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
-import { Landing } from './pages/Landing';
+import { TenantLayout } from './components/TenantLayout';
+import { NewLanding } from './pages/NewLanding';
 import { Pricing } from './pages/Pricing';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Onboarding } from './pages/Onboarding';
-import ProfileOnboarding from './pages/ProfileOnboarding';
-import { OperationsCenter } from './pages/OperationsCenter';
+import { NewOperationsCenter } from './pages/NewOperationsCenter';
 import { BusinessesList } from './pages/BusinessesList';
 import { BusinessDetail } from './pages/BusinessDetail';
 import { Properties } from './pages/Properties';
@@ -39,17 +41,29 @@ import { AIApiKeys } from './pages/AIApiKeys';
 import { EmailDiagnostics } from './pages/EmailDiagnostics';
 import { GettingStarted } from './pages/GettingStarted';
 import { Welcome } from './pages/Welcome';
+import { QuickStart } from './pages/QuickStart';
+import { Help } from './pages/Help';
 import Agreements from './pages/Agreements';
 import AgreementSigning from './pages/AgreementSigning';
+import {
+  TenantDashboard,
+  TenantPayments,
+  TenantMaintenance,
+  TenantDocuments,
+  TenantMessages,
+  TenantProfile,
+} from './pages/tenant';
 
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <PortfolioProvider>
-          <BrandingProvider>
-            <Routes>
-          <Route path="/" element={<Landing />} />
+          <TenantProvider>
+            <BrandingProvider>
+              <ToastProvider>
+              <Routes>
+          <Route path="/" element={<NewLanding />} />
           <Route path="/about" element={<About />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/diagnostics" element={<DiagnosticPanel />} />
@@ -60,14 +74,6 @@ function App() {
           <Route path="/agreement/:agreementId" element={<AgreementSigning />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route
-            path="/profile-onboarding"
-            element={
-              <ProtectedRoute>
-                <ProfileOnboarding />
-              </ProtectedRoute>
-            }
-          />
           <Route
             path="/onboarding"
             element={
@@ -81,6 +87,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Welcome />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quick-start"
+            element={
+              <ProtectedRoute>
+                <QuickStart />
               </ProtectedRoute>
             }
           />
@@ -147,8 +161,9 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route path="/dashboard" element={<OperationsCenter />} />
+            <Route path="/dashboard" element={<NewOperationsCenter />} />
             <Route path="/getting-started" element={<GettingStarted />} />
+            <Route path="/help" element={<Help />} />
             <Route path="/businesses" element={<BusinessesList />} />
             <Route path="/business/:businessId" element={<BusinessDetail />} />
             <Route path="/properties" element={<Properties />} />
@@ -164,8 +179,25 @@ function App() {
             <Route path="/addons" element={<Addons />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
-            </Routes>
-          </BrandingProvider>
+          {/* Tenant Portal Routes */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <TenantLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/my-rental" element={<TenantDashboard />} />
+            <Route path="/my-rental/payments" element={<TenantPayments />} />
+            <Route path="/my-rental/maintenance" element={<TenantMaintenance />} />
+            <Route path="/my-rental/documents" element={<TenantDocuments />} />
+            <Route path="/my-rental/messages" element={<TenantMessages />} />
+            <Route path="/my-rental/profile" element={<TenantProfile />} />
+          </Route>
+              </Routes>
+              </ToastProvider>
+            </BrandingProvider>
+          </TenantProvider>
         </PortfolioProvider>
       </AuthProvider>
     </BrowserRouter>

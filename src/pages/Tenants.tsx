@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { tenantService } from '../services/tenantService';
 import { Tenant } from '../types';
 import { TenantForm } from '../components/TenantForm';
+import { EmptyStatePresets } from '../components/EmptyState';
 import { Plus, Mail, Phone, Users, Edit2, Trash2, Briefcase, UserCheck, X } from 'lucide-react';
 
 export function Tenants() {
@@ -96,14 +97,14 @@ export function Tenants() {
   return (
     <div className="flex-1 overflow-auto">
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Tenants</h1>
-            <p className="text-gray-600 mt-1">{tenants.length} total tenants</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Tenants</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">{tenants.length} total tenants</p>
           </div>
           <button
             onClick={() => setShowAddForm(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition w-full sm:w-auto"
           >
             <Plus size={20} />
             Add Tenant
@@ -111,7 +112,7 @@ export function Tenants() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
             <p className="text-red-800 text-sm">{error}</p>
@@ -122,91 +123,132 @@ export function Tenants() {
         )}
 
         {tenants.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No tenants yet</h3>
-            <p className="text-gray-600 mb-6">Add your first tenant to start managing rental agreements and payments</p>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-            >
-              <Plus size={20} />
-              Add First Tenant
-            </button>
-          </div>
+          EmptyStatePresets.Tenants(() => setShowAddForm(true))
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Email</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Phone</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Occupation</th>
-                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tenants.map((tenant) => (
-                  <tr key={tenant.id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm">
+          <>
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+              {tenants.map((tenant) => (
+                <div key={tenant.id} className="bg-white rounded-lg shadow p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <button
+                      onClick={() => setSelectedTenant(tenant)}
+                      className="font-semibold text-gray-900 hover:text-blue-600 text-left"
+                    >
+                      {tenant.first_name} {tenant.last_name}
+                    </button>
+                    <div className="flex items-center gap-1">
                       <button
-                        onClick={() => setSelectedTenant(tenant)}
-                        className="font-medium text-gray-900 hover:text-blue-600 text-left"
+                        onClick={() => setEditingTenant(tenant)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                       >
-                        {tenant.first_name} {tenant.last_name}
+                        <Edit2 size={16} />
                       </button>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <button
+                        onClick={() => handleDeleteTenant(tenant.id)}
+                        disabled={deletingId === tenant.id}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <Mail size={14} />
+                      <span className="truncate">{tenant.email}</span>
+                    </div>
+                    {tenant.phone && (
                       <div className="flex items-center gap-2">
-                        <Mail size={14} />
-                        {tenant.email}
+                        <Phone size={14} />
+                        {tenant.phone}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {tenant.phone ? (
-                        <div className="flex items-center gap-2">
-                          <Phone size={14} />
-                          {tenant.phone}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {tenant.employer ? (
-                        <div className="flex items-center gap-2">
-                          <Briefcase size={14} />
-                          {tenant.employer}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => setEditingTenant(tenant)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                          title="Edit tenant"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTenant(tenant.id)}
-                          disabled={deletingId === tenant.id}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
-                          title="Delete tenant"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                    )}
+                    {tenant.employer && (
+                      <div className="flex items-center gap-2">
+                        <Briefcase size={14} />
+                        {tenant.employer}
                       </div>
-                    </td>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Phone</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Occupation</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {tenants.map((tenant) => (
+                    <tr key={tenant.id} className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm">
+                        <button
+                          onClick={() => setSelectedTenant(tenant)}
+                          className="font-medium text-gray-900 hover:text-blue-600 text-left"
+                        >
+                          {tenant.first_name} {tenant.last_name}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <Mail size={14} />
+                          {tenant.email}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {tenant.phone ? (
+                          <div className="flex items-center gap-2">
+                            <Phone size={14} />
+                            {tenant.phone}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {tenant.employer ? (
+                          <div className="flex items-center gap-2">
+                            <Briefcase size={14} />
+                            {tenant.employer}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setEditingTenant(tenant)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="Edit tenant"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTenant(tenant.id)}
+                            disabled={deletingId === tenant.id}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                            title="Delete tenant"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

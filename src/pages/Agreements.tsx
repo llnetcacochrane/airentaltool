@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Plus, Send, CheckCircle, Clock, Eye, Edit, Trash2, Download } from 'lucide-react';
 import { agreementService, AgreementTemplate, LeaseAgreement } from '../services/agreementService';
 import { AgreementBuilder } from '../components/AgreementBuilder';
+import { IssueAgreement } from '../components/IssueAgreement';
 import { pdfGenerationService } from '../services/pdfGenerationService';
+import { EmptyStatePresets } from '../components/EmptyState';
 
-type ViewMode = 'templates' | 'issued' | 'pending' | 'builder';
+type ViewMode = 'templates' | 'issued' | 'pending' | 'builder' | 'issue';
 
 export default function Agreements() {
   const [viewMode, setViewMode] = useState<ViewMode>('templates');
@@ -13,6 +15,7 @@ export default function Agreements() {
   const [pendingAgreements, setPendingAgreements] = useState<LeaseAgreement[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingTemplateId, setEditingTemplateId] = useState<string | undefined>();
+  const [issueTemplateId, setIssueTemplateId] = useState<string | undefined>();
 
   useEffect(() => {
     loadData();
@@ -57,6 +60,22 @@ export default function Agreements() {
   const handleCancelBuilder = () => {
     setViewMode('templates');
     setEditingTemplateId(undefined);
+  };
+
+  const handleIssueAgreement = (templateId?: string) => {
+    setIssueTemplateId(templateId);
+    setViewMode('issue');
+  };
+
+  const handleIssueComplete = () => {
+    setViewMode('pending');
+    setIssueTemplateId(undefined);
+    loadData();
+  };
+
+  const handleCancelIssue = () => {
+    setViewMode('templates');
+    setIssueTemplateId(undefined);
   };
 
   const handleDeleteTemplate = async (id: string) => {
@@ -105,6 +124,18 @@ export default function Agreements() {
     );
   }
 
+  if (viewMode === 'issue') {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <IssueAgreement
+          preselectedTemplateId={issueTemplateId}
+          onComplete={handleIssueComplete}
+          onCancel={handleCancelIssue}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
@@ -116,15 +147,26 @@ export default function Agreements() {
               <p className="text-gray-600">Create templates and manage tenant agreements</p>
             </div>
           </div>
-          {viewMode === 'templates' && (
-            <button
-              onClick={handleCreateNew}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Create Template
-            </button>
-          )}
+          <div className="flex gap-3">
+            {viewMode === 'templates' && templates.length > 0 && (
+              <button
+                onClick={() => handleIssueAgreement()}
+                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 flex items-center gap-2"
+              >
+                <Send className="w-5 h-5" />
+                Issue Agreement
+              </button>
+            )}
+            {viewMode === 'templates' && (
+              <button
+                onClick={handleCreateNew}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                Create Template
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-4 border-b border-gray-200">
@@ -170,17 +212,8 @@ export default function Agreements() {
           {viewMode === 'templates' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {templates.length === 0 ? (
-                <div className="col-span-full text-center py-12">
-                  <FileText className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No templates yet</h3>
-                  <p className="text-gray-600 mb-6">Create your first agreement template with AI assistance</p>
-                  <button
-                    onClick={handleCreateNew}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 inline-flex items-center gap-2"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Create First Template
-                  </button>
+                <div className="col-span-full">
+                  {EmptyStatePresets.Agreements()}
                 </div>
               ) : (
                 templates.map((template) => (
@@ -217,20 +250,29 @@ export default function Agreements() {
                       )}
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="space-y-2">
                       <button
-                        onClick={() => handleEdit(template.id)}
-                        className="flex-1 bg-blue-50 text-blue-600 px-4 py-2 rounded hover:bg-blue-100 flex items-center justify-center gap-2"
+                        onClick={() => handleIssueAgreement(template.id)}
+                        className="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center justify-center gap-2"
                       >
-                        <Edit className="w-4 h-4" />
-                        Edit
+                        <Send className="w-4 h-4" />
+                        Use Template
                       </button>
-                      <button
-                        onClick={() => handleDeleteTemplate(template.id)}
-                        className="bg-red-50 text-red-600 px-4 py-2 rounded hover:bg-red-100"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(template.id)}
+                          className="flex-1 bg-blue-50 text-blue-600 px-4 py-2 rounded hover:bg-blue-100 flex items-center justify-center gap-2"
+                        >
+                          <Edit className="w-4 h-4" />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTemplate(template.id)}
+                          className="bg-red-50 text-red-600 px-4 py-2 rounded hover:bg-red-100"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))

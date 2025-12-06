@@ -2,7 +2,11 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { authService } from '../services/authService';
 import { propertyOwnerService } from '../services/propertyOwnerService';
+import { packageTierService, PackageTier } from '../services/packageTierService';
 import { Organization, OrganizationMember, User, UserRole } from '../types';
+
+export type ClientType = 'landlord' | 'property_manager';
+export type PackageType = 'single_company' | 'management_company';
 
 interface AuthContextType {
   supabaseUser: SupabaseUser | null;
@@ -15,6 +19,13 @@ interface AuthContextType {
   isPropertyOwner: boolean;
   isLoading: boolean;
   isAuthenticated: boolean;
+  // Package/Client type info
+  packageTier: PackageTier | null;
+  packageType: PackageType | null;
+  clientType: ClientType;
+  isLandlord: boolean;
+  isPropertyManager: boolean;
+  // Actions
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, firstName: string, lastName: string, tierSlug?: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -24,6 +35,8 @@ interface AuthContextType {
   canManageProperties: () => boolean;
   canManagePayments: () => boolean;
   canViewReports: () => boolean;
+  canManageClients: () => boolean;
+  canManageBusinesses: () => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isPropertyOwner, setIsPropertyOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [packageTier, setPackageTier] = useState<PackageTier | null>(null);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -79,9 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const { my_role, my_member_id, ...cleanOrg } = defaultOrgRaw as any;
               setCurrentOrganization(cleanOrg as Organization);
 
-              console.log('Auth Init - Setting organization:', cleanOrg);
-              console.log('Auth Init - Role:', role, 'Member ID:', memberId);
-
               if (role && memberId) {
                 setCurrentMember({
                   id: memberId,
@@ -91,6 +102,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   is_active: true,
                   created_at: cleanOrg.created_at,
                 } as OrganizationMember);
+              }
+
+              // Load package tier for the organization
+              try {
+                const { tier } = await packageTierService.getEffectivePackageSettings(cleanOrg.id);
+                setPackageTier(tier);
+              } catch {
+                // Package tier loading is non-critical
               }
             }
           }
@@ -149,6 +168,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   created_at: cleanOrg.created_at,
                 } as OrganizationMember);
               }
+
+              // Load package tier for the organization
+              try {
+                const { tier } = await packageTierService.getEffectivePackageSettings(cleanOrg.id);
+                setPackageTier(tier);
+              } catch {
+                // Package tier loading is non-critical
+              }
             }
           }
         } else if (event === 'SIGNED_OUT') {
@@ -159,6 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setOrganizations([]);
           setCurrentOrganization(null);
           setCurrentMember(null);
+          setPackageTier(null);
           localStorage.removeItem('currentOrganizationId');
         }
       })();
@@ -184,6 +212,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setOrganizations([]);
     setCurrentOrganization(null);
     setCurrentMember(null);
+    setPackageTier(null);
     localStorage.removeItem('currentOrganizationId');
   };
 
@@ -211,6 +240,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           is_active: true,
           created_at: cleanOrg.created_at,
         } as OrganizationMember);
+      }
+
+      // Load package tier for the new organization
+      try {
+        const { tier } = await packageTierService.getEffectivePackageSettings(cleanOrg.id);
+        setPackageTier(tier);
+      } catch {
+        setPackageTier(null);
       }
     }
   };
@@ -259,6 +296,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return hasPermission('view_reports');
   };
 
+  // Derived package type values
+  const packageType: PackageType | null = packageTier?.package_type as PackageType || null;
+  const clientType: ClientType = packageType === 'management_company' ? 'property_manager' : 'landlord';
+  const isLandlord = clientType === 'landlord';
+  const isPropertyManager = clientType === 'property_manager';
+
+  // Property Manager specific permissions
+  const canManageClients = () => {
+    // Only property managers can manage clients (property owners)
+    if (!isPropertyManager) return false;
+    return hasPermission(['manage_properties', 'all']);
+  };
+
+  const canManageBusinesses = () => {
+    // Landlords manage their single business, property managers manage client businesses
+    return hasPermission(['manage_properties', 'all']);
+  };
+
   const currentRole = currentMember?.role || null;
 
   return (
@@ -274,6 +329,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isPropertyOwner,
         isLoading,
         isAuthenticated: !!supabaseUser,
+        // Package/Client type info
+        packageTier,
+        packageType,
+        clientType,
+        isLandlord,
+        isPropertyManager,
+        // Actions
         login,
         register,
         logout,
@@ -283,6 +345,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         canManageProperties,
         canManagePayments,
         canViewReports,
+        canManageClients,
+        canManageBusinesses,
       }}
     >
       {children}

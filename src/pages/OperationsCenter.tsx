@@ -12,6 +12,7 @@ import {
   ChevronRight, Building2, Home, Users, Bell, Clock, AlertTriangle,
   Sparkles, CheckCircle2, ArrowRight, Zap, FileText
 } from 'lucide-react';
+import { UsageLimitsWidget } from '../components/UsageLimitsWidget';
 
 interface Alert {
   id: string;
@@ -49,8 +50,8 @@ export function OperationsCenter() {
         navigate('/welcome');
         return;
       }
-    } catch (error) {
-      console.log('Could not check onboarding status:', error);
+    } catch {
+      // Onboarding check is non-critical
     }
 
     loadOperationsData();
@@ -426,6 +427,10 @@ export function OperationsCenter() {
               ))}
             </div>
           </div>
+        )}
+
+        {(userProfile?.selected_tier === 'free' || !userProfile?.selected_tier) && hasProperties && (
+          <UsageLimitsWidget compact />
         )}
 
         <div>
