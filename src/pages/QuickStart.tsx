@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { propertyService } from '../services/propertyService';
 import { unitService } from '../services/unitService';
 import { tenantService } from '../services/tenantService';
+import { authService } from '../services/authService';
 import { supabase } from '../lib/supabase';
 import {
   Building2,
@@ -29,7 +30,7 @@ interface OnboardingProgress {
 
 export function QuickStart() {
   const navigate = useNavigate();
-  const { currentOrganization, userProfile } = useAuth();
+  const { currentOrganization, userProfile, supabaseUser, createOrganization } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [progress, setProgress] = useState<OnboardingProgress>({
     hasProperty: false,
@@ -42,6 +43,7 @@ export function QuickStart() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [isCreatingOrg, setIsCreatingOrg] = useState(false);
 
   // Property form state
   const [propertyData, setPropertyData] = useState({
@@ -75,12 +77,40 @@ export function QuickStart() {
   const [createdPropertyId, setCreatedPropertyId] = useState<string | null>(null);
   const [createdUnitId, setCreatedUnitId] = useState<string | null>(null);
 
+  // Auto-create organization for new users who don't have one
+  useEffect(() => {
+    const ensureOrganization = async () => {
+      if (!supabaseUser || currentOrganization || isCreatingOrg) return;
+
+      // User is logged in but has no organization - create one automatically
+      setIsCreatingOrg(true);
+      try {
+        const firstName = userProfile?.first_name || 'My';
+        const tierSlug = userProfile?.selected_tier || 'free';
+        const orgName = `${firstName}'s Properties`;
+        const orgSlug = `${firstName.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now()}`;
+
+        await createOrganization(orgName, orgSlug, undefined, tierSlug);
+      } catch (err) {
+        console.error('Failed to create organization:', err);
+        setError('Failed to set up your account. Please try again.');
+      } finally {
+        setIsCreatingOrg(false);
+      }
+    };
+
+    ensureOrganization();
+  }, [supabaseUser, currentOrganization, isCreatingOrg, userProfile, createOrganization]);
+
   useEffect(() => {
     loadProgress();
   }, [currentOrganization?.id]);
 
   const loadProgress = async () => {
-    if (!currentOrganization?.id) return;
+    if (!currentOrganization?.id) {
+      // Still waiting for organization to be created
+      return;
+    }
 
     try {
       const [propertiesRes, unitsRes, tenantsRes] = await Promise.all([
@@ -248,10 +278,15 @@ export function QuickStart() {
     navigate('/dashboard');
   };
 
-  if (isLoading) {
+  if (isLoading || isCreatingOrg || (!currentOrganization && supabaseUser)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">
+            {isCreatingOrg ? 'Setting up your account...' : 'Loading...'}
+          </p>
+        </div>
       </div>
     );
   }
