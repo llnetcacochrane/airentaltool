@@ -1,5 +1,31 @@
 import { supabase } from '../lib/supabase';
 
+/**
+ * Super Admin Service
+ *
+ * TODO: SECURITY - Implement Multi-Factor Authentication (MFA) for Super Admins
+ *
+ * Super admin accounts have elevated privileges and should require additional
+ * security measures:
+ *
+ * 1. Enable MFA requirement in Supabase Auth settings for super admins
+ * 2. Add MFA enrollment check before granting super admin access
+ * 3. Consider implementing:
+ *    - Hardware key support (WebAuthn/FIDO2)
+ *    - Time-based OTP (TOTP) via authenticator apps
+ *    - Recovery codes with secure storage
+ *
+ * 4. Session security for super admins:
+ *    - Shorter session timeout (e.g., 15 minutes)
+ *    - Re-authentication for sensitive operations
+ *    - Activity logging and alerts
+ *
+ * 5. Audit logging:
+ *    - Log all super admin actions
+ *    - Store IP address and user agent
+ *    - Alert on suspicious activity patterns
+ */
+
 export type AdminType = 'system' | 'saas' | 'both' | 'none';
 
 export const superAdminService = {

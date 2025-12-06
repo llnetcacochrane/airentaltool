@@ -1,11 +1,21 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+// SECURITY: Restrict CORS to allowed origins only
+const getAllowedOrigin = (requestOrigin: string | null): string => {
+  const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') || 'https://airental.tools').split(',');
+  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+    return requestOrigin;
+  }
+  return allowedOrigins[0]; // Default to first allowed origin
 };
+
+const getCorsHeaders = (requestOrigin: string | null) => ({
+  "Access-Control-Allow-Origin": getAllowedOrigin(requestOrigin),
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+  "Access-Control-Max-Age": "86400",
+});
 
 interface CaptureOrderRequest {
   organization_id: string;
@@ -58,6 +68,9 @@ async function getPayPalAccessToken(clientId: string, clientSecret: string, envi
 }
 
 Deno.serve(async (req: Request) => {
+  const origin = req.headers.get('Origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 200,
@@ -141,11 +154,12 @@ Deno.serve(async (req: Request) => {
       );
     }
   } catch (error) {
+    // SECURITY: Log detailed error server-side but return generic message to client
     console.error('PayPal capture error:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to capture payment',
+        error: 'Failed to capture payment. Please try again or contact support.',
       }),
       {
         status: 500,

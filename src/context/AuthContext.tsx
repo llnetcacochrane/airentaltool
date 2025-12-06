@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { authService } from '../services/authService';
 import { propertyOwnerService } from '../services/propertyOwnerService';
@@ -7,6 +7,13 @@ import { Organization, OrganizationMember, User, UserRole } from '../types';
 
 export type ClientType = 'landlord' | 'property_manager';
 export type PackageType = 'single_company' | 'management_company';
+
+/**
+ * SECURITY: Session timeout configuration
+ * Automatically log out users after inactivity to prevent session hijacking
+ */
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes of inactivity
+const SESSION_WARNING_MS = 5 * 60 * 1000; // Show warning 5 minutes before timeout
 
 interface AuthContextType {
   supabaseUser: SupabaseUser | null;
@@ -51,6 +58,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isPropertyOwner, setIsPropertyOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [packageTier, setPackageTier] = useState<PackageTier | null>(null);
+  const [lastActivity, setLastActivity] = useState<number>(Date.now());
+
+  // SECURITY: Session timeout - track user activity
+  const updateActivity = useCallback(() => {
+    setLastActivity(Date.now());
+  }, []);
+
+  // SECURITY: Set up activity listeners and timeout check
+  useEffect(() => {
+    if (!supabaseUser) return;
+
+    // Track user activity
+    const activityEvents = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    activityEvents.forEach(event => {
+      window.addEventListener(event, updateActivity, { passive: true });
+    });
+
+    // Check for session timeout periodically
+    const timeoutCheck = setInterval(() => {
+      const inactiveTime = Date.now() - lastActivity;
+      if (inactiveTime >= SESSION_TIMEOUT_MS) {
+        // SECURITY: Auto-logout after inactivity
+        console.warn('Session timeout due to inactivity');
+        authService.logout();
+      } else if (inactiveTime >= SESSION_TIMEOUT_MS - SESSION_WARNING_MS) {
+        // TODO: Show warning toast to user about impending timeout
+        // Consider adding a modal with "Stay logged in" option
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, updateActivity);
+      });
+      clearInterval(timeoutCheck);
+    };
+  }, [supabaseUser, lastActivity, updateActivity]);
 
   useEffect(() => {
     const initializeAuth = async () => {

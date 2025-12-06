@@ -304,6 +304,28 @@ export const rentalApplicationService = {
 
   // AI-POWERED APPLICATION ANALYSIS
 
+  /**
+   * Anonymize PII before sending to AI services
+   * SECURITY: Prevents exposure of personal data to third-party AI providers
+   */
+  _anonymizeForAI(data: Record<string, any>): Record<string, any> {
+    const anonymized = { ...data };
+    // Replace emails with placeholder
+    if (anonymized.email) anonymized.email = '[EMAIL REDACTED]';
+    if (anonymized.applicant_email) anonymized.applicant_email = '[EMAIL REDACTED]';
+    // Replace phone numbers
+    if (anonymized.phone) anonymized.phone = '[PHONE REDACTED]';
+    if (anonymized.applicant_phone) anonymized.applicant_phone = '[PHONE REDACTED]';
+    // Replace specific addresses with general area if possible
+    if (anonymized.current_address) anonymized.current_address = '[ADDRESS REDACTED]';
+    // Replace names with initials
+    if (anonymized.applicant_first_name && anonymized.applicant_last_name) {
+      anonymized.applicant_name = `${anonymized.applicant_first_name.charAt(0)}. ${anonymized.applicant_last_name.charAt(0)}.`;
+    }
+    // Keep non-PII data for analysis
+    return anonymized;
+  },
+
   async generateApplicationInsights(
     application: RentalApplication,
     organizationId: string
@@ -314,13 +336,14 @@ export const rentalApplicationService = {
     recommendation: string;
   }> {
     try {
-      const systemPrompt = `You are an expert tenant screening specialist. Analyze rental applications objectively and provide fair, evidence-based assessments.`;
+      const systemPrompt = `You are an expert tenant screening specialist. Analyze rental applications objectively and provide fair, evidence-based assessments. Note: Personal identifying information has been anonymized for privacy.`;
 
+      // SECURITY: Anonymize PII before sending to AI service
       const userPrompt = `Analyze this rental application:
 
-Applicant: ${application.applicant_first_name} ${application.applicant_last_name}
-Email: ${application.applicant_email}
-Phone: ${application.applicant_phone || 'Not provided'}
+Applicant: [APPLICANT]
+Email: [EMAIL REDACTED]
+Phone: [PHONE REDACTED]
 
 Employment Information:
 - Employer: ${application.responses.employer || 'Not provided'}
@@ -329,15 +352,15 @@ Employment Information:
 - Employment Length: ${application.responses.employment_length || 'Not provided'} years
 
 Rental History:
-- Current Address: ${application.responses.current_address || 'Not provided'}
-- Current Landlord: ${application.responses.current_landlord || 'Not provided'}
+- Current Address: [ADDRESS REDACTED]
+- Current Landlord: ${application.responses.current_landlord ? '[LANDLORD NAME PROVIDED]' : 'Not provided'}
 - Move-in Date: ${application.responses.move_in_date || 'Not provided'}
 - Reason for Moving: ${application.responses.move_reason || 'Not provided'}
 
 Additional Information:
 - Pets: ${application.responses.pets || 'None'}
 - Number of Occupants: ${application.responses.occupants || 'Not provided'}
-- References: ${application.responses.references || 'None provided'}
+- References: ${application.responses.references ? '[REFERENCES PROVIDED]' : 'None provided'}
 
 AI Score: ${application.ai_score || 'Not calculated'}/100
 
@@ -381,14 +404,15 @@ Provide your analysis in this exact JSON format:
     organizationId: string
   ): Promise<string> {
     try {
-      const systemPrompt = `You are a tenant screening expert. Compare multiple rental applications and provide clear, objective recommendations.`;
+      const systemPrompt = `You are a tenant screening expert. Compare multiple rental applications and provide clear, objective recommendations. Note: Personal identifying information has been anonymized for privacy.`;
 
+      // SECURITY: Anonymize PII - only send non-identifying data to AI
       const applicantSummaries = applications.map((app, index) => `
-Applicant ${index + 1}: ${app.applicant_first_name} ${app.applicant_last_name}
+Applicant ${index + 1}: [APPLICANT ${index + 1}]
 - AI Score: ${app.ai_score || 'N/A'}/100
 - Monthly Income: $${app.responses.monthly_income || 'N/A'}
 - Employment: ${app.responses.employer || 'N/A'} (${app.responses.employment_length || 'N/A'} years)
-- Current Landlord: ${app.responses.current_landlord || 'Not provided'}
+- Current Landlord: ${app.responses.current_landlord ? '[PROVIDED]' : 'Not provided'}
 `).join('\n');
 
       const userPrompt = `Compare these ${applications.length} rental applications:

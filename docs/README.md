@@ -92,15 +92,17 @@ Welcome to the RentTrack documentation directory. This folder contains all techn
 
 ## 📦 Current Version
 
-**v2.1.0-beta** (2025-11-30)
+**v4.2.10-beta** (2025-12-06)
 
 Major release featuring:
-- ✅ Complete tenant application workflow
-- ✅ Separated payment systems (rent vs subscriptions)
-- ✅ RLS infinite recursion fix
-- ✅ Email notification system
-- ✅ File upload system
-- ✅ QR code generation
+- New conversion-optimized landing page
+- Redesigned modern dashboard with improved UX
+- New analytics components (MetricCard, ProgressRing, ChartCard)
+- New upsell system with context-aware upgrade prompts
+- Tooltip/help system for in-app guidance
+- Complete Tenant Portal with 6 new pages
+- Payment integrations (PayPal, Square)
+- Security hardening with 23 fixes (CORS, encryption, rate limiting, session timeout, CSP headers)
 
 See [VERSION_HISTORY.md](./VERSION_HISTORY.md) for complete changelog.
 
@@ -206,6 +208,6 @@ For issues, questions, or contributions:
 
 ---
 
-**Last Updated:** 2025-11-30
-**Current Version:** v2.1.0-beta
-**Documentation Status:** Up to date ✅
+**Last Updated:** 2025-12-06
+**Current Version:** v4.2.10-beta
+**Documentation Status:** Up to date

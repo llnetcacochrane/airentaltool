@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { TenantInvitation, InvitationDetails } from '../types';
+import { generateSecureInvitationCode } from '../utils/crypto';
 
 export const tenantInvitationService = {
   async createInvitation(
@@ -14,11 +15,25 @@ export const tenantInvitationService = {
   ): Promise<TenantInvitation> {
     const user = (await supabase.auth.getUser()).data.user;
 
-    // Generate invitation code
-    const { data: codeData, error: codeError } = await supabase
-      .rpc('generate_invitation_code');
+    // SECURITY: Generate cryptographically secure invitation code
+    // Using client-side secure generation instead of database function
+    // for better randomness (Web Crypto API)
+    let codeData: string;
+    try {
+      // Try database function first (for consistency)
+      const { data, error: codeError } = await supabase
+        .rpc('generate_invitation_code');
 
-    if (codeError) throw codeError;
+      if (codeError) {
+        // Fallback to client-side secure generation
+        codeData = generateSecureInvitationCode(12);
+      } else {
+        codeData = data;
+      }
+    } catch {
+      // Fallback to client-side secure generation
+      codeData = generateSecureInvitationCode(12);
+    }
 
     const { data, error } = await supabase
       .from('tenant_invitations')
@@ -130,7 +145,10 @@ export const tenantInvitationService = {
 
   getQRCodeUrl(code: string): string {
     const invitationUrl = this.getInvitationUrl(code);
-    // Using a free QR code API
+    // TODO: SECURITY - Replace external QR service with local generation
+    // Consider using 'qrcode' npm package for local generation to avoid
+    // sending invitation URLs to third-party services
+    // Example: import QRCode from 'qrcode'; QRCode.toDataURL(invitationUrl)
     return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(invitationUrl)}`;
   },
 };

@@ -1,8 +1,8 @@
 # RentTrack Quick Start Guide
 
-## 🚀 Version Management
+## Version Management
 
-**Current Version: v1.7.0-beta**
+**Current Version: v4.2.10-beta**
 
 ### Update Version (3 Steps)
 
@@ -12,7 +12,7 @@
 
 ---
 
-## 📝 Semantic Versioning
+## Semantic Versioning
 
 - **MAJOR** (x.0.0) - Breaking changes
 - **MINOR** (1.x.0) - New features
@@ -20,7 +20,7 @@
 
 ---
 
-## 🎯 Common Tasks
+## Common Tasks
 
 ### Make Yourself Super Admin
 ```sql
@@ -30,7 +30,7 @@ FROM auth.users WHERE email = 'your-email@example.com';
 ```
 
 ### Footer Shows Version
-All pages display: `v1.7.0-beta (2025-11-30)`
+All pages display: `v4.2.10-beta (2025-12-06)`
 
 ---
 

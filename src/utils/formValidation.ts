@@ -1,3 +1,24 @@
+/**
+ * Form Validation Utilities
+ *
+ * TODO: SECURITY - Server-Side Validation Required
+ *
+ * These validations are CLIENT-SIDE only and should NOT be relied upon
+ * for security. All validation must be duplicated server-side:
+ *
+ * 1. Password requirements should be enforced in Supabase auth config
+ *    and/or edge functions
+ * 2. Email format validation should be done server-side before sending
+ * 3. Input sanitization must happen server-side to prevent XSS/injection
+ *
+ * Current password requirements (implement server-side too):
+ * - Minimum 8 characters
+ * - At least one uppercase letter
+ * - At least one lowercase letter
+ * - At least one number
+ * - Consider requiring special characters for admin accounts
+ */
+
 // Form validation utilities
 
 export interface ValidationError {

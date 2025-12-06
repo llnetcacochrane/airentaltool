@@ -280,10 +280,48 @@ class AgreementService {
   }
 
   async getAgreement(id: string): Promise<LeaseAgreement> {
+    // SECURITY: RLS policies in Supabase should restrict access, but we also
+    // verify the user has permission to view this agreement
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) {
+      throw new Error('Unauthorized: Must be logged in to view agreements');
+    }
+
     const { data, error } = await supabase
       .from('lease_agreements')
       .select('*')
       .eq('id', id)
+      .single();
+
+    if (error) throw error;
+
+    // Additional authorization check: user must be the creator, landlord, or tenant
+    // TODO: Add proper RLS policies in Supabase for defense-in-depth
+    const canAccess =
+      data.created_by === user.user.id ||
+      data.landlord_email === user.user.email ||
+      data.tenant_email === user.user.email;
+
+    if (!canAccess) {
+      throw new Error('Unauthorized: You do not have permission to view this agreement');
+    }
+
+    return data;
+  }
+
+  /**
+   * Get agreement for public signing (uses signing token, not auth)
+   * SECURITY: This endpoint should be rate-limited and the signing token should expire
+   */
+  async getAgreementForSigning(id: string, signingToken?: string): Promise<LeaseAgreement> {
+    // TODO: Implement proper signing token validation
+    // For now, this allows unauthenticated access for signing purposes
+    // In production, implement a separate signed URL mechanism
+    const { data, error } = await supabase
+      .from('lease_agreements')
+      .select('*')
+      .eq('id', id)
+      .in('status', ['sent', 'viewed']) // Only allow access to pending agreements
       .single();
 
     if (error) throw error;
@@ -312,6 +350,12 @@ class AgreementService {
     signatureData: string,
     signatureMethod: 'digital' | 'typed' | 'esign_service' = 'digital'
   ): Promise<void> {
+    // TODO: SECURITY - Implement signature integrity verification
+    // 1. Hash the agreement content at time of signing to detect tampering
+    // 2. Store hash with signature for later verification
+    // 3. Consider using a third-party e-signature service (DocuSign, HelloSign)
+    //    for legally binding signatures with audit trails
+    // 4. Implement timestamp from a trusted time source
     const { error } = await supabase.rpc('sign_agreement', {
       p_agreement_id: agreementId,
       p_signer_type: signerType,

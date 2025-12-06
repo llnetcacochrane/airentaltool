@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { encryptValue, decryptValue, isEncrypted } from '../utils/crypto';
 
 export interface SystemSetting {
   id: string;
@@ -97,20 +98,28 @@ export const systemSettingsService = {
   async savePaymentGatewayKeys(gateway: 'stripe' | 'square' | 'paypal', keys: Record<string, string>): Promise<void> {
     const updates: any[] = [];
 
+    // SECURITY: Encrypt sensitive API keys before storing in database
+    const encryptIfNeeded = async (value: string, shouldEncrypt: boolean): Promise<string> => {
+      if (shouldEncrypt && value) {
+        return await encryptValue(value);
+      }
+      return value;
+    };
+
     if (gateway === 'stripe') {
       if (keys.publishable_key) {
         updates.push({
           setting_key: 'stripe_publishable_key',
-          setting_value: keys.publishable_key,
+          setting_value: keys.publishable_key, // Publishable key is not sensitive
           setting_type: 'api_key',
-          is_encrypted: true,
+          is_encrypted: false,
           description: 'Stripe Publishable Key',
         });
       }
       if (keys.secret_key) {
         updates.push({
           setting_key: 'stripe_secret_key',
-          setting_value: keys.secret_key,
+          setting_value: await encryptIfNeeded(keys.secret_key, true),
           setting_type: 'api_key',
           is_encrypted: true,
           description: 'Stripe Secret Key',
@@ -129,7 +138,7 @@ export const systemSettingsService = {
       if (keys.access_token) {
         updates.push({
           setting_key: 'square_access_token',
-          setting_value: keys.access_token,
+          setting_value: await encryptIfNeeded(keys.access_token, true),
           setting_type: 'api_key',
           is_encrypted: true,
           description: 'Square Access Token',
@@ -157,7 +166,7 @@ export const systemSettingsService = {
       if (keys.client_secret) {
         updates.push({
           setting_key: 'paypal_client_secret',
-          setting_value: keys.client_secret,
+          setting_value: await encryptIfNeeded(keys.client_secret, true),
           setting_type: 'api_key',
           is_encrypted: true,
           description: 'PayPal Client Secret',
@@ -170,6 +179,26 @@ export const systemSettingsService = {
         .from('system_settings')
         .upsert(update, { onConflict: 'setting_key' });
     }
+  },
+
+  /**
+   * Decrypt a sensitive setting value (for use in edge functions/backend)
+   * SECURITY: Only call this when you actually need the decrypted value
+   */
+  async getDecryptedSetting(key: string): Promise<string | null> {
+    const setting = await this.getSetting(key);
+    if (!setting || !setting.setting_value) return null;
+
+    if (setting.is_encrypted && isEncrypted(setting.setting_value)) {
+      try {
+        return await decryptValue(setting.setting_value);
+      } catch {
+        console.error(`Failed to decrypt setting: ${key}`);
+        return null;
+      }
+    }
+
+    return setting.setting_value;
   },
 
   async getAPIKeys(): Promise<Record<string, any>> {

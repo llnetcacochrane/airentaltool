@@ -1,9 +1,9 @@
 export const VERSION = {
-  major: 2,
-  minor: 8,
-  patch: 3,
+  major: 4,
+  minor: 2,
+  patch: 10,
   prerelease: 'beta',
-  buildDate: '2025-12-02',
+  buildDate: '2025-12-06',
 };
 
 export function getVersionString(): string {

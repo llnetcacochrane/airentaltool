@@ -4,10 +4,12 @@ import { FileText, CheckCircle, Download, AlertCircle, Loader } from 'lucide-rea
 import { agreementService, LeaseAgreement, AgreementSignature } from '../services/agreementService';
 import { DigitalSignature } from '../components/DigitalSignature';
 import { pdfGenerationService } from '../services/pdfGenerationService';
+import { useToast } from '../components/Toast';
 
 export default function AgreementSigning() {
   const { agreementId } = useParams<{ agreementId: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
   const [agreement, setAgreement] = useState<LeaseAgreement | null>(null);
   const [signatures, setSignatures] = useState<AgreementSignature[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,8 +35,9 @@ export default function AgreementSigning() {
         setAgreement(prev => prev ? { ...prev, status: 'viewed' } : null);
       }
     } catch (error) {
-      console.error('Error loading agreement:', error);
-      alert('Failed to load agreement');
+      // SECURITY: Don't expose error details to users
+      if (import.meta.env.DEV) console.error('Error loading agreement:', error);
+      toast.error('Failed to load agreement', 'Please check your access permissions.');
     } finally {
       setLoading(false);
     }
@@ -47,8 +50,8 @@ export default function AgreementSigning() {
       setShowSignatureModal(false);
       loadAgreement();
     } catch (error) {
-      console.error('Error signing agreement:', error);
-      alert('Failed to sign agreement');
+      if (import.meta.env.DEV) console.error('Error signing agreement:', error);
+      toast.error('Failed to sign agreement', 'Please try again or contact support.');
     } finally {
       setSigning(false);
     }
@@ -59,8 +62,8 @@ export default function AgreementSigning() {
     try {
       await pdfGenerationService.generateAgreementPDF(agreement);
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF');
+      if (import.meta.env.DEV) console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF', 'Please try again.');
     }
   };
 

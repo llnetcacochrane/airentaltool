@@ -1,6 +1,35 @@
 import { supabase } from '../lib/supabase';
 import { DocumentType } from '../types';
 
+/**
+ * TODO: SECURITY - Production File Storage Requirements
+ *
+ * Current implementation stores files as base64 in the database, which is
+ * NOT suitable for production due to:
+ * 1. Database size bloat
+ * 2. Performance issues with large files
+ * 3. Lack of CDN support
+ *
+ * For production, implement one of these solutions:
+ * 1. Supabase Storage (easiest):
+ *    - Use supabase.storage.from('documents').upload()
+ *    - Configure bucket policies for access control
+ *
+ * 2. AWS S3:
+ *    - Use pre-signed URLs for secure uploads/downloads
+ *    - Configure bucket policies and CORS
+ *    - Enable server-side encryption (SSE-S3 or SSE-KMS)
+ *
+ * 3. Google Cloud Storage or Azure Blob Storage
+ *
+ * Security considerations:
+ * - Scan uploaded files for malware
+ * - Validate file types server-side (not just by extension)
+ * - Set appropriate Content-Disposition headers
+ * - Implement file size limits
+ * - Use signed URLs with short expiration for downloads
+ */
+
 interface UploadedFile {
   id: string;
   application_id: string;
@@ -11,6 +40,23 @@ interface UploadedFile {
   mime_type: string;
   uploaded_at: string;
 }
+
+/**
+ * Sanitize file name to prevent path traversal and other attacks
+ */
+const sanitizeFileName = (fileName: string): string => {
+  // Remove path separators and null bytes
+  let sanitized = fileName.replace(/[\/\\:\*\?"<>\|\x00]/g, '_');
+  // Remove leading dots (hidden files) and spaces
+  sanitized = sanitized.replace(/^[\.\s]+/, '');
+  // Limit length
+  if (sanitized.length > 255) {
+    const ext = sanitized.split('.').pop() || '';
+    sanitized = sanitized.substring(0, 255 - ext.length - 1) + '.' + ext;
+  }
+  // Fallback if empty
+  return sanitized || 'unnamed_file';
+};
 
 export const fileStorageService = {
   /**
@@ -23,6 +69,9 @@ export const fileStorageService = {
     documentType: DocumentType
   ): Promise<UploadedFile> {
     try {
+      // SECURITY: Sanitize file name to prevent path traversal attacks
+      const safeFileName = sanitizeFileName(file.name);
+
       // Convert file to base64 for local storage
       const base64 = await this.fileToBase64(file);
 
@@ -32,7 +81,7 @@ export const fileStorageService = {
         .insert({
           application_id: applicationId,
           document_type: documentType,
-          file_name: file.name,
+          file_name: safeFileName,
           file_url: base64, // In production, this would be S3 URL
           file_size: file.size,
           mime_type: file.type,
@@ -43,8 +92,11 @@ export const fileStorageService = {
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Upload error:', error);
-      throw new Error('Failed to upload file: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      // SECURITY: Don't expose internal error details
+      if (import.meta.env.DEV) {
+        console.error('Upload error:', error);
+      }
+      throw new Error('Failed to upload file. Please try again.');
     }
   },
 
