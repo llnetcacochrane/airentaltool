@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useBusiness } from '../context/BusinessContext';
 import { propertyService } from '../services/propertyService';
 import { unitService } from '../services/unitService';
 import { tenantService } from '../services/tenantService';
@@ -31,8 +30,7 @@ interface OnboardingProgress {
 
 export function QuickStart() {
   const navigate = useNavigate();
-  const { currentOrganization, userProfile, supabaseUser, createOrganization } = useAuth();
-  const { currentBusiness, refreshBusinesses } = useBusiness();
+  const { currentBusiness, userProfile, supabaseUser, refreshBusinesses } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [progress, setProgress] = useState<OnboardingProgress>({
     hasProperty: false,
@@ -45,7 +43,7 @@ export function QuickStart() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-  const [isCreatingOrg, setIsCreatingOrg] = useState(false);
+  const [isCreatingBusiness, setIsCreatingBusiness] = useState(false);
 
   // Property form state
   const [propertyData, setPropertyData] = useState({
@@ -80,41 +78,48 @@ export function QuickStart() {
   const [createdUnitId, setCreatedUnitId] = useState<string | null>(null);
   const [userBusinessId, setUserBusinessId] = useState<string | null>(null);
 
-  // Auto-create organization for new users who don't have one
-  // This is a fallback - organization should be created during registration
+  // Auto-create business for new users who don't have one
+  // This is a fallback - business should be created during registration
   useEffect(() => {
-    const ensureOrganization = async () => {
-      if (!supabaseUser || currentOrganization || isCreatingOrg) return;
+    const ensureBusiness = async () => {
+      if (!supabaseUser || currentBusiness || isCreatingBusiness) return;
 
-      // User is logged in but has no organization - create one automatically
-      // This is a fallback case; registration should create org/business
-      setIsCreatingOrg(true);
+      // User is logged in but has no business - create one automatically
+      // This is a fallback case; registration should create business
+      setIsCreatingBusiness(true);
       try {
         const firstName = userProfile?.first_name || 'User';
         const lastName = userProfile?.last_name || '';
         const businessName = userProfile?.organization_name ||
           (firstName && lastName ? `${firstName} ${lastName}` : `${firstName}'s Business`);
-        const tierSlug = userProfile?.selected_tier || 'free';
-        const orgSlug = `${firstName.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now()}`;
 
-        await createOrganization(businessName, orgSlug, undefined, tierSlug);
+        await businessService.createDefaultBusiness(businessName, {
+          email: supabaseUser?.email,
+          phone: userProfile?.phone || undefined,
+          addressLine1: userProfile?.address_line1 || undefined,
+          city: userProfile?.city || undefined,
+          state: userProfile?.state_province || undefined,
+          postalCode: userProfile?.postal_code || undefined,
+          country: userProfile?.country || 'CA',
+        });
+        await refreshBusinesses();
       } catch (err) {
-        console.error('Failed to create organization:', err);
+        console.error('Failed to create business:', err);
         setError('Failed to set up your account. Please try again or contact support.');
       } finally {
-        setIsCreatingOrg(false);
+        setIsCreatingBusiness(false);
       }
     };
 
-    ensureOrganization();
-  }, [supabaseUser, currentOrganization, isCreatingOrg, userProfile, createOrganization]);
+    ensureBusiness();
+  }, [supabaseUser, currentBusiness, isCreatingBusiness, userProfile, refreshBusinesses]);
 
   useEffect(() => {
     loadProgress();
-  }, [currentOrganization?.id, currentBusiness?.id]);
+  }, [currentBusiness?.id, currentBusiness?.id]);
 
   const loadProgress = async () => {
-    if (!currentOrganization?.id) {
+    if (!currentBusiness?.id) {
       // Still waiting for organization to be created
       return;
     }
@@ -123,7 +128,7 @@ export function QuickStart() {
       // Get user's default business, or create one if it doesn't exist
       let business = await businessService.getUserDefaultBusiness();
 
-      if (!business && currentOrganization) {
+      if (!business && currentBusiness) {
         // Create a default business for this user (fallback if registration didn't create one)
         const businessName = userProfile?.organization_name ||
           (userProfile?.first_name && userProfile?.last_name
@@ -132,7 +137,7 @@ export function QuickStart() {
 
         try {
           business = await businessService.createDefaultBusiness(
-            currentOrganization.id,
+            currentBusiness.id,
             businessName,
             {
               email: supabaseUser?.email,
@@ -171,11 +176,11 @@ export function QuickStart() {
 
       const [propertiesRes, unitsRes, tenantsRes] = await Promise.all([
         supabase.from('properties').select('id', { count: 'exact', head: true })
-          .eq('organization_id', currentOrganization.id).eq('is_active', true),
+          .eq('organization_id', currentBusiness.id).eq('is_active', true),
         supabase.from('units').select('id', { count: 'exact', head: true })
-          .eq('organization_id', currentOrganization.id).eq('is_active', true),
+          .eq('organization_id', currentBusiness.id).eq('is_active', true),
         supabase.from('tenants').select('id', { count: 'exact', head: true })
-          .eq('organization_id', currentOrganization.id).eq('is_active', true),
+          .eq('organization_id', currentBusiness.id).eq('is_active', true),
       ]);
 
       const propertyCount = propertiesRes.count || 0;
@@ -253,7 +258,7 @@ export function QuickStart() {
       return;
     }
 
-    if (!currentOrganization?.id) {
+    if (!currentBusiness?.id) {
       setError('Unable to find your organization. Please try again.');
       return;
     }
@@ -262,7 +267,7 @@ export function QuickStart() {
     setError('');
 
     try {
-      const unit = await unitService.createUnit(currentOrganization.id, propertyId, {
+      const unit = await unitService.createUnit(currentBusiness.id, propertyId, {
         unit_number: unitData.unit_number || '1',
         bedrooms: unitData.bedrooms,
         bathrooms: unitData.bathrooms,
@@ -296,7 +301,7 @@ export function QuickStart() {
       return;
     }
 
-    if (!currentOrganization?.id) {
+    if (!currentBusiness?.id) {
       setError('Unable to find your organization. Please try again.');
       return;
     }
@@ -305,7 +310,7 @@ export function QuickStart() {
     setError('');
 
     try {
-      await tenantService.createTenant(currentOrganization.id, unitId, {
+      await tenantService.createTenant(currentBusiness.id, unitId, {
         first_name: tenantData.first_name,
         last_name: tenantData.last_name,
         email: tenantData.email,
@@ -329,11 +334,11 @@ export function QuickStart() {
   };
 
   const getFirstPropertyId = async (): Promise<string | null> => {
-    if (!currentOrganization?.id) return null;
+    if (!currentBusiness?.id) return null;
     const { data } = await supabase
       .from('properties')
       .select('id')
-      .eq('organization_id', currentOrganization.id)
+      .eq('organization_id', currentBusiness.id)
       .eq('is_active', true)
       .limit(1)
       .single();
@@ -341,11 +346,11 @@ export function QuickStart() {
   };
 
   const getFirstUnitId = async (): Promise<string | null> => {
-    if (!currentOrganization?.id) return null;
+    if (!currentBusiness?.id) return null;
     const { data } = await supabase
       .from('units')
       .select('id')
-      .eq('organization_id', currentOrganization.id)
+      .eq('organization_id', currentBusiness.id)
       .eq('is_active', true)
       .limit(1)
       .single();
@@ -362,13 +367,13 @@ export function QuickStart() {
     navigate('/dashboard');
   };
 
-  if (isLoading || isCreatingOrg || (!currentOrganization && supabaseUser)) {
+  if (isLoading || isCreatingBusiness || (!currentBusiness && supabaseUser)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">
-            {isCreatingOrg ? 'Setting up your account...' : 'Loading...'}
+            {isCreatingBusiness ? 'Setting up your account...' : 'Loading...'}
           </p>
         </div>
       </div>

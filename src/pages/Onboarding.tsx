@@ -20,7 +20,7 @@ export function Onboarding() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { createOrganization, currentOrganization } = useAuth();
+  const { currentBusiness, refreshBusinesses, supabaseUser, userProfile } = useAuth();
 
   const [propertyName, setPropertyName] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
@@ -35,36 +35,47 @@ export function Onboarding() {
   const [tenantPhone, setTenantPhone] = useState('');
   const [monthlyRent, setMonthlyRent] = useState('');
 
-  const handleCreateOrganization = async (e?: React.FormEvent) => {
+  const handleCreateBusiness = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setError('');
 
     if (!organizationName.trim()) {
-      setError('Organization name is required');
+      setError('Business name is required');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const baseSlug = organizationName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
+      // Check if user already has a business from registration
+      if (currentBusiness) {
+        // Update the existing business with the new name if different
+        if (currentBusiness.business_name !== organizationName) {
+          await businessService.updateBusiness(currentBusiness.id, {
+            business_name: organizationName,
+            legal_name: companyName || undefined,
+          });
+          await refreshBusinesses();
+        }
+        setStep(2);
+        return;
+      }
 
-      const uniqueSuffix = Math.random().toString(36).substring(2, 8);
-      const slug = `${baseSlug}-${uniqueSuffix}`;
-
-      await createOrganization(organizationName, slug, companyName, tierSlug);
+      // Create new business if none exists
+      await businessService.createDefaultBusiness(organizationName, {
+        email: supabaseUser?.email,
+        phone: userProfile?.phone || undefined,
+        addressLine1: userProfile?.address_line1 || undefined,
+        city: userProfile?.city || undefined,
+        state: userProfile?.state_province || undefined,
+        postalCode: userProfile?.postal_code || undefined,
+        country: userProfile?.country || 'CA',
+      });
+      await refreshBusinesses();
       setStep(2);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create organization';
-
-      if (errorMessage.includes('duplicate key') || errorMessage.includes('organizations_slug_key')) {
-        setError('An organization with this name already exists. Please try a different name.');
-      } else {
-        setError(errorMessage);
-      }
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create business';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -81,10 +92,10 @@ export function Onboarding() {
       // Get or create user's default business
       let business = await businessService.getUserDefaultBusiness();
 
-      if (!business && currentOrganization) {
+      if (!business && currentBusiness) {
         // Create a default business if one doesn't exist
         business = await businessService.createDefaultBusiness(
-          currentOrganization.id,
+          currentBusiness.id,
           organizationName || 'My Business'
         );
       }
@@ -104,7 +115,7 @@ export function Onboarding() {
       });
 
       for (let i = 1; i <= numberOfUnits; i++) {
-        await unitService.createUnit(currentOrganization!.id, property.id, {
+        await unitService.createUnit(currentBusiness!.id, property.id, {
           unit_number: i.toString(),
           bedrooms: 1,
           bathrooms: 1,
@@ -124,18 +135,18 @@ export function Onboarding() {
   const handleQuickTenantSetup = async () => {
     setIsLoading(true);
     try {
-      if (tenantFirstName.trim() && tenantLastName.trim() && currentOrganization) {
+      if (tenantFirstName.trim() && tenantLastName.trim() && currentBusiness) {
         // Get first unit to assign tenant to
         const { data: units } = await supabase
           .from('units')
           .select('id')
-          .eq('organization_id', currentOrganization.id)
+          .eq('organization_id', currentBusiness.id)
           .eq('is_active', true)
           .limit(1)
           .single();
 
         if (units?.id) {
-          await tenantService.createTenant(currentOrganization.id, units.id, {
+          await tenantService.createTenant(currentBusiness.id, units.id, {
             first_name: tenantFirstName,
             last_name: tenantLastName,
             email: tenantEmail,
@@ -245,12 +256,12 @@ export function Onboarding() {
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   Welcome! Let's set up your account
                 </h2>
-                <p className="text-gray-600">Tell us about your organization</p>
+                <p className="text-gray-600">Tell us about your business</p>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Organization Name *
+                  Business Name *
                 </label>
                 <input
                   type="text"
@@ -283,7 +294,7 @@ export function Onboarding() {
 
               <button
                 type="button"
-                onClick={handleCreateOrganization}
+                onClick={handleCreateBusiness}
                 disabled={isLoading}
                 className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 transition"
               >

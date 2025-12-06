@@ -3,12 +3,13 @@ import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
 import { authService } from '../services/authService';
 import { brandingService } from '../services/brandingService';
+import { businessService } from '../services/businessService';
 import { useNavigate } from 'react-router-dom';
 import { UsageLimitsWidget } from '../components/UsageLimitsWidget';
 import { User, Building2, Users as UsersIcon, Bell, Lock, CreditCard, Palette, ArrowLeft } from 'lucide-react';
 
 export function Settings() {
-  const { userProfile, supabaseUser, currentOrganization, currentRole } = useAuth();
+  const { userProfile, supabaseUser, currentBusiness, currentRole, refreshBusinesses } = useAuth();
   const { branding, refreshBranding } = useBranding();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
@@ -18,6 +19,18 @@ export function Settings() {
   const [profileData, setProfileData] = useState({
     first_name: '',
     last_name: '',
+  });
+
+  const [businessData, setBusinessData] = useState({
+    business_name: '',
+    legal_name: '',
+    phone: '',
+    email: '',
+    address_line1: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    country: '',
   });
 
   const [brandingData, setBrandingData] = useState({
@@ -37,32 +50,57 @@ export function Settings() {
   }, [userProfile]);
 
   useEffect(() => {
+    if (currentBusiness) {
+      setBusinessData({
+        business_name: currentBusiness.business_name || '',
+        legal_name: currentBusiness.legal_name || '',
+        phone: currentBusiness.phone || '',
+        email: currentBusiness.email || '',
+        address_line1: currentBusiness.address_line1 || '',
+        city: currentBusiness.city || '',
+        state: currentBusiness.state || '',
+        postal_code: currentBusiness.postal_code || '',
+        country: currentBusiness.country || '',
+      });
+    }
+  }, [currentBusiness]);
+
+  useEffect(() => {
     loadBrandingData();
-  }, [currentOrganization?.id]);
+  }, [currentBusiness?.id]);
 
   const loadBrandingData = async () => {
-    if (!currentOrganization) return;
-    try {
-      const orgBranding = await brandingService.getOrganizationBranding(currentOrganization.id);
-      if (orgBranding) {
-        setBrandingData({
-          white_label_enabled: orgBranding.white_label_enabled,
-          application_name: orgBranding.application_name || '',
-          logo_url: orgBranding.logo_url || '',
-          primary_color: orgBranding.primary_color || '',
-        });
+    // Branding is now tied to business, not organization
+    // For now, we skip branding if no business
+    if (!currentBusiness) return;
+
+    // Try to load organization branding if business has org_id (backward compat)
+    if (currentBusiness.organization_id) {
+      try {
+        const orgBranding = await brandingService.getOrganizationBranding(currentBusiness.organization_id);
+        if (orgBranding) {
+          setBrandingData({
+            white_label_enabled: orgBranding.white_label_enabled,
+            application_name: orgBranding.application_name || '',
+            logo_url: orgBranding.logo_url || '',
+            primary_color: orgBranding.primary_color || '',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load branding:', err);
       }
-    } catch (err) {
-      console.error('Failed to load branding:', err);
     }
   };
 
   const handleSaveBranding = async () => {
-    if (!currentOrganization) return;
+    if (!currentBusiness?.organization_id) {
+      setMessage('Branding requires organization setup');
+      return;
+    }
     setIsSaving(true);
     setMessage('');
     try {
-      await brandingService.upsertOrganizationBranding(currentOrganization.id, brandingData);
+      await brandingService.upsertOrganizationBranding(currentBusiness.organization_id, brandingData);
       await refreshBranding();
       setMessage('Branding updated successfully');
     } catch (err) {
@@ -87,17 +125,32 @@ export function Settings() {
     }
   };
 
+  const handleSaveBusiness = async () => {
+    if (!currentBusiness) return;
+    setIsSaving(true);
+    setMessage('');
+    try {
+      await businessService.updateBusiness(currentBusiness.id, businessData);
+      await refreshBusinesses();
+      setMessage('Business updated successfully');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Failed to update business');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const allTabs = [
-    { id: 'profile', label: 'Profile', icon: User, requiresOrg: false },
-    { id: 'business', label: 'Business', icon: Building2, requiresOrg: true },
-    { id: 'branding', label: 'Branding', icon: Palette, requiresOrg: true },
-    { id: 'team', label: 'Team Members', icon: UsersIcon, requiresOrg: true },
-    { id: 'notifications', label: 'Notifications', icon: Bell, requiresOrg: false },
-    { id: 'security', label: 'Security', icon: Lock, requiresOrg: false },
-    { id: 'billing', label: 'Billing', icon: CreditCard, requiresOrg: false },
+    { id: 'profile', label: 'Profile', icon: User, requiresBusiness: false },
+    { id: 'business', label: 'Business', icon: Building2, requiresBusiness: true },
+    { id: 'branding', label: 'Branding', icon: Palette, requiresBusiness: true },
+    { id: 'team', label: 'Team Members', icon: UsersIcon, requiresBusiness: true },
+    { id: 'notifications', label: 'Notifications', icon: Bell, requiresBusiness: false },
+    { id: 'security', label: 'Security', icon: Lock, requiresBusiness: false },
+    { id: 'billing', label: 'Billing', icon: CreditCard, requiresBusiness: false },
   ];
 
-  const tabs = allTabs.filter(tab => !tab.requiresOrg || currentOrganization);
+  const tabs = allTabs.filter(tab => !tab.requiresBusiness || currentBusiness);
 
   return (
     <div className="flex-1 overflow-auto">
@@ -211,43 +264,124 @@ export function Settings() {
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Business Details</h2>
 
+                {message && (
+                  <div className={`mb-4 p-4 rounded-lg ${
+                    message.includes('success') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+                  }`}>
+                    {message}
+                  </div>
+                )}
+
                 <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Business Name
-                    </label>
-                    <input
-                      type="text"
-                      value={currentOrganization?.name || ''}
-                      disabled
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Business Name
+                      </label>
+                      <input
+                        type="text"
+                        value={businessData.business_name}
+                        onChange={(e) => setBusinessData({ ...businessData, business_name: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Legal Name
+                      </label>
+                      <input
+                        type="text"
+                        value={businessData.legal_name}
+                        onChange={(e) => setBusinessData({ ...businessData, legal_name: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Official legal name (if different from business name)</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={businessData.email}
+                        onChange={(e) => setBusinessData({ ...businessData, email: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Phone
+                      </label>
+                      <input
+                        type="tel"
+                        value={businessData.phone}
+                        onChange={(e) => setBusinessData({ ...businessData, phone: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Legal Name
+                      Address
                     </label>
                     <input
                       type="text"
-                      value={currentOrganization?.company_name || ''}
-                      disabled
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                      value={businessData.address_line1}
+                      onChange={(e) => setBusinessData({ ...businessData, address_line1: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Official legal name of your business (if different from business name)</p>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Account Tier
-                    </label>
-                    <div className="flex items-center gap-3">
-                      <span className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg font-semibold capitalize">
-                        {currentOrganization?.account_tier || 'Free'}
-                      </span>
-                      <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
-                        Upgrade Plan
-                      </button>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        value={businessData.city}
+                        onChange={(e) => setBusinessData({ ...businessData, city: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        State/Province
+                      </label>
+                      <input
+                        type="text"
+                        value={businessData.state}
+                        onChange={(e) => setBusinessData({ ...businessData, state: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Postal Code
+                      </label>
+                      <input
+                        type="text"
+                        value={businessData.postal_code}
+                        onChange={(e) => setBusinessData({ ...businessData, postal_code: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Country
+                      </label>
+                      <input
+                        type="text"
+                        value={businessData.country}
+                        onChange={(e) => setBusinessData({ ...businessData, country: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
                     </div>
                   </div>
 
@@ -256,8 +390,18 @@ export function Settings() {
                       Your Role
                     </label>
                     <span className="inline-block px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium capitalize">
-                      {currentRole}
+                      {currentRole || 'Owner'}
                     </span>
+                  </div>
+
+                  <div className="flex items-center justify-end pt-4 border-t border-gray-200">
+                    <button
+                      onClick={handleSaveBusiness}
+                      disabled={isSaving}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                    >
+                      {isSaving ? 'Saving...' : 'Save Business'}
+                    </button>
                   </div>
                 </div>
               </div>

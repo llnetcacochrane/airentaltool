@@ -17,18 +17,18 @@ export function BusinessesList() {
   const [error, setError] = useState('');
   const [showBusinessWizard, setShowBusinessWizard] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
-  const { currentOrganization, userProfile } = useAuth();
+  const { currentBusiness, userProfile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     loadBusinesses();
-  }, [currentOrganization?.id]);
+  }, [currentBusiness?.id]);
 
   const loadBusinesses = async () => {
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
     setIsLoading(true);
     try {
-      const data = await businessService.getAllBusinesses(currentOrganization.id);
+      const data = await businessService.getAllBusinesses(currentBusiness.id);
       setBusinesses(data);
       setError('');
     } catch (err) {

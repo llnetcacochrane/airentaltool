@@ -83,6 +83,78 @@ export interface PackageUpgradeNotification {
 }
 
 export const packageTierService = {
+  /**
+   * Get tier by slug (alias for getPackageTierBySlug)
+   */
+  async getTierBySlug(slug: string): Promise<PackageTier | null> {
+    return this.getPackageTierBySlug(slug);
+  },
+
+  /**
+   * Get effective package settings for a user (no organization required)
+   */
+  async getEffectivePackageSettingsForUser(userId: string): Promise<{
+    tier: PackageTier | null;
+    effective: {
+      monthly_price_cents: number;
+      annual_price_cents: number;
+      max_businesses: number;
+      max_properties: number;
+      max_units: number;
+      max_tenants: number;
+      max_users: number;
+      max_payment_methods: number;
+      features: Record<string, boolean>;
+    };
+  }> {
+    // Get user's selected tier from profile
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('selected_tier')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError);
+    }
+
+    const tierSlug = profile?.selected_tier || 'free';
+    const tier = await this.getPackageTierBySlug(tierSlug);
+
+    if (!tier) {
+      // Return defaults for free tier
+      return {
+        tier: null,
+        effective: {
+          monthly_price_cents: 0,
+          annual_price_cents: 0,
+          max_businesses: 1,
+          max_properties: 5,
+          max_units: 10,
+          max_tenants: 10,
+          max_users: 1,
+          max_payment_methods: 1,
+          features: {},
+        },
+      };
+    }
+
+    return {
+      tier,
+      effective: {
+        monthly_price_cents: tier.monthly_price_cents,
+        annual_price_cents: tier.annual_price_cents,
+        max_businesses: tier.max_businesses,
+        max_properties: tier.max_properties,
+        max_units: tier.max_units,
+        max_tenants: tier.max_tenants,
+        max_users: tier.max_users,
+        max_payment_methods: tier.max_payment_methods,
+        features: tier.features || {},
+      },
+    };
+  },
+
   async getAllPackageTiers(): Promise<PackageTier[]> {
     const { data, error } = await supabase
       .from('package_tiers')

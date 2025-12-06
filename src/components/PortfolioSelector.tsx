@@ -9,24 +9,24 @@ interface PortfolioWithClient extends Portfolio {
 }
 
 export default function PortfolioSelector() {
-  const { currentPortfolio, portfolios, setCurrentPortfolio, needsOrganization } = usePortfolio();
-  const { isPropertyManager, currentOrganization } = useAuth();
+  const { currentPortfolio, portfolios, setCurrentPortfolio, needsBusiness } = usePortfolio();
+  const { isPropertyManager, currentBusiness } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = useState(false);
 
   // Load clients for Property Managers
   useEffect(() => {
-    if (isPropertyManager && currentOrganization) {
+    if (isPropertyManager && currentBusiness) {
       loadClients();
     }
-  }, [isPropertyManager, currentOrganization?.id]);
+  }, [isPropertyManager, currentBusiness?.id]);
 
   const loadClients = async () => {
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
     setLoadingClients(true);
     try {
-      const data = await portfolioService.getClients(currentOrganization.id);
+      const data = await portfolioService.getClients(currentBusiness.id);
       setClients(data);
     } catch (error) {
       console.error('Error loading clients:', error);
@@ -36,7 +36,7 @@ export default function PortfolioSelector() {
   };
 
   // For Property Managers, always show the selector even with just 1 portfolio
-  const shouldShow = isPropertyManager || (needsOrganization && portfolios.length > 1);
+  const shouldShow = isPropertyManager || (needsBusiness && portfolios.length > 1);
 
   if (!shouldShow) {
     return null;

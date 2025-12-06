@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { authService, ExtendedRegistrationData } from '../services/authService';
+import { businessService, BusinessWithStats } from '../services/businessService';
 import { propertyOwnerService } from '../services/propertyOwnerService';
 import { packageTierService, PackageTier } from '../services/packageTierService';
-import { Organization, OrganizationMember, User, UserRole } from '../types';
+import { User, UserRole, Business } from '../types';
 
 export type ClientType = 'landlord' | 'property_manager';
 export type PackageType = 'single_company' | 'management_company';
@@ -18,9 +19,10 @@ const SESSION_WARNING_MS = 5 * 60 * 1000; // Show warning 5 minutes before timeo
 interface AuthContextType {
   supabaseUser: SupabaseUser | null;
   userProfile: User | null;
-  organizations: Organization[];
-  currentOrganization: Organization | null;
-  currentMember: OrganizationMember | null;
+  // Business-centric architecture - NO organizations
+  businesses: BusinessWithStats[];
+  currentBusiness: Business | null;
+  // Role is now tied to business ownership
   currentRole: UserRole | null;
   isSuperAdmin: boolean;
   isPropertyOwner: boolean;
@@ -36,8 +38,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, firstName: string, lastName: string, tierSlug?: string, extendedData?: ExtendedRegistrationData) => Promise<void>;
   logout: () => Promise<void>;
-  switchOrganization: (organizationId: string) => Promise<void>;
-  createOrganization: (name: string, slug: string, companyName?: string, tierSlug?: string) => Promise<Organization>;
+  switchBusiness: (businessId: string) => Promise<void>;
+  refreshBusinesses: () => Promise<void>;
   hasPermission: (permission: string | string[]) => boolean;
   canManageProperties: () => boolean;
   canManagePayments: () => boolean;
@@ -51,9 +53,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
-  const [currentMember, setCurrentMember] = useState<OrganizationMember | null>(null);
+  const [businesses, setBusinesses] = useState<BusinessWithStats[]>([]);
+  const [currentBusiness, setCurrentBusiness] = useState<Business | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isPropertyOwner, setIsPropertyOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -96,6 +97,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [supabaseUser, lastActivity, updateActivity]);
 
+  // Load businesses for user
+  const loadBusinesses = useCallback(async () => {
+    try {
+      const userBusinesses = await businessService.getUserBusinesses();
+      setBusinesses(userBusinesses);
+
+      // Set current business from localStorage or default
+      const savedBusinessId = localStorage.getItem('currentBusinessId');
+      let business: Business | null = null;
+
+      if (savedBusinessId) {
+        business = userBusinesses.find(b => b.id === savedBusinessId) || null;
+      }
+
+      if (!business && userBusinesses.length > 0) {
+        // Find default business or use first one
+        business = userBusinesses.find(b => b.is_default) || userBusinesses[0];
+      }
+
+      if (business) {
+        setCurrentBusiness(business);
+        localStorage.setItem('currentBusinessId', business.id);
+      }
+
+      return business;
+    } catch (error) {
+      console.error('Error loading businesses:', error);
+      return null;
+    }
+  }, []);
+
+  // Load package tier for user
+  const loadPackageTier = useCallback(async (userId: string) => {
+    try {
+      const { tier } = await packageTierService.getEffectivePackageSettingsForUser(userId);
+      setPackageTier(tier);
+    } catch (error) {
+      console.error('Error loading package tier:', error);
+      // Try to get from user profile as fallback
+      try {
+        const profile = await authService.getUserProfile(userId);
+        if (profile?.selected_tier) {
+          const tier = await packageTierService.getTierBySlug(profile.selected_tier);
+          setPackageTier(tier);
+        }
+      } catch {
+        // Package tier loading is non-critical
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -112,51 +164,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const propertyOwner = await propertyOwnerService.isPropertyOwner();
           setIsPropertyOwner(propertyOwner);
 
-          const orgsRaw = await authService.getOrganizations();
+          // Load businesses (replaces organization loading)
+          await loadBusinesses();
 
-          // Clean organization data by removing membership fields
-          const orgs = (orgsRaw || []).map((org: any) => {
-            const { my_role, my_member_id, ...cleanOrg } = org;
-            return cleanOrg as Organization;
-          });
-
-          setOrganizations(orgs);
-
-          if (orgsRaw && orgsRaw.length > 0) {
-            const savedOrgId = localStorage.getItem('currentOrganizationId');
-            const defaultOrgRaw = savedOrgId
-              ? orgsRaw.find((o) => o.id === savedOrgId) || orgsRaw[0]
-              : orgsRaw[0];
-
-            if (defaultOrgRaw) {
-              // Extract membership data
-              const role = (defaultOrgRaw as any).my_role;
-              const memberId = (defaultOrgRaw as any).my_member_id;
-
-              // Create clean organization object
-              const { my_role, my_member_id, ...cleanOrg } = defaultOrgRaw as any;
-              setCurrentOrganization(cleanOrg as Organization);
-
-              if (role && memberId) {
-                setCurrentMember({
-                  id: memberId,
-                  organization_id: cleanOrg.id,
-                  user_id: user.id,
-                  role: role,
-                  is_active: true,
-                  created_at: cleanOrg.created_at,
-                } as OrganizationMember);
-              }
-
-              // Load package tier for the organization
-              try {
-                const { tier } = await packageTierService.getEffectivePackageSettings(cleanOrg.id);
-                setPackageTier(tier);
-              } catch {
-                // Package tier loading is non-critical
-              }
-            }
-          }
+          // Load package tier
+          await loadPackageTier(user.id);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -177,67 +189,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsSuperAdmin(superAdmin);
           const propertyOwner = await propertyOwnerService.isPropertyOwner();
           setIsPropertyOwner(propertyOwner);
-          const orgsRaw = await authService.getOrganizations();
 
-          // Clean organization data by removing membership fields
-          const orgs = (orgsRaw || []).map((org: any) => {
-            const { my_role, my_member_id, ...cleanOrg } = org;
-            return cleanOrg as Organization;
-          });
+          // Load businesses
+          await loadBusinesses();
 
-          setOrganizations(orgs);
-
-          if (orgsRaw && orgsRaw.length > 0) {
-            const savedOrgId = localStorage.getItem('currentOrganizationId');
-            const defaultOrgRaw = savedOrgId
-              ? orgsRaw.find((o) => o.id === savedOrgId) || orgsRaw[0]
-              : orgsRaw[0];
-
-            if (defaultOrgRaw) {
-              // Extract membership data
-              const role = (defaultOrgRaw as any).my_role;
-              const memberId = (defaultOrgRaw as any).my_member_id;
-
-              // Create clean organization object
-              const { my_role, my_member_id, ...cleanOrg } = defaultOrgRaw as any;
-              setCurrentOrganization(cleanOrg as Organization);
-
-              if (role && memberId) {
-                setCurrentMember({
-                  id: memberId,
-                  organization_id: cleanOrg.id,
-                  user_id: session.user.id,
-                  role: role,
-                  is_active: true,
-                  created_at: cleanOrg.created_at,
-                } as OrganizationMember);
-              }
-
-              // Load package tier for the organization
-              try {
-                const { tier } = await packageTierService.getEffectivePackageSettings(cleanOrg.id);
-                setPackageTier(tier);
-              } catch {
-                // Package tier loading is non-critical
-              }
-            }
-          }
+          // Load package tier
+          await loadPackageTier(session.user.id);
         } else if (event === 'SIGNED_OUT') {
           setSupabaseUser(null);
           setUserProfile(null);
           setIsSuperAdmin(false);
           setIsPropertyOwner(false);
-          setOrganizations([]);
-          setCurrentOrganization(null);
-          setCurrentMember(null);
+          setBusinesses([]);
+          setCurrentBusiness(null);
           setPackageTier(null);
-          localStorage.removeItem('currentOrganizationId');
+          localStorage.removeItem('currentBusinessId');
         }
       })();
     });
 
     return () => unsubscribe.data?.subscription?.unsubscribe?.();
-  }, []);
+  }, [loadBusinesses, loadPackageTier]);
 
   const login = async (email: string, password: string) => {
     await authService.login(email, password);
@@ -253,65 +225,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserProfile(null);
     setIsSuperAdmin(false);
     setIsPropertyOwner(false);
-    setOrganizations([]);
-    setCurrentOrganization(null);
-    setCurrentMember(null);
+    setBusinesses([]);
+    setCurrentBusiness(null);
     setPackageTier(null);
-    localStorage.removeItem('currentOrganizationId');
+    localStorage.removeItem('currentBusinessId');
   };
 
-  const switchOrganization = async (organizationId: string) => {
-    // Re-fetch to get membership data
-    const orgsRaw = await authService.getOrganizations();
-    const orgRaw = orgsRaw.find((o: any) => o.id === organizationId);
-
-    if (orgRaw) {
-      // Extract membership data
-      const role = (orgRaw as any).my_role;
-      const memberId = (orgRaw as any).my_member_id;
-
-      // Create clean organization object
-      const { my_role, my_member_id, ...cleanOrg } = orgRaw as any;
-      setCurrentOrganization(cleanOrg as Organization);
-      localStorage.setItem('currentOrganizationId', organizationId);
-
-      if (supabaseUser && role && memberId) {
-        setCurrentMember({
-          id: memberId,
-          organization_id: cleanOrg.id,
-          user_id: supabaseUser.id,
-          role: role,
-          is_active: true,
-          created_at: cleanOrg.created_at,
-        } as OrganizationMember);
-      }
-
-      // Load package tier for the new organization
-      try {
-        const { tier } = await packageTierService.getEffectivePackageSettings(cleanOrg.id);
-        setPackageTier(tier);
-      } catch {
-        setPackageTier(null);
-      }
+  const switchBusiness = async (businessId: string) => {
+    const business = businesses.find(b => b.id === businessId);
+    if (business) {
+      setCurrentBusiness(business);
+      localStorage.setItem('currentBusinessId', businessId);
     }
   };
 
-  const createOrganization = async (name: string, slug: string, companyName?: string, tierSlug?: string) => {
-    const newOrg = await authService.createOrganization(name, slug, companyName, tierSlug);
-    if (newOrg) {
-      setOrganizations([...organizations, newOrg]);
-      await switchOrganization(newOrg.id);
-    }
-    return newOrg;
+  const refreshBusinesses = async () => {
+    await loadBusinesses();
   };
 
   const hasPermission = (permission: string | string[]): boolean => {
+    // Property owners have limited permissions
     if (isPropertyOwner) {
       return permission === 'view_reports' || (Array.isArray(permission) && permission.includes('view_reports'));
     }
 
-    if (!currentMember) return false;
+    // Business owners have all permissions on their businesses
+    if (currentBusiness) {
+      return true; // Owner of business has all permissions
+    }
 
+    // Define permission sets (for future team member support)
     const permissions: Record<UserRole, string[]> = {
       owner: ['all'],
       admin: ['manage_team', 'manage_properties', 'manage_payments', 'view_reports', 'manage_settings'],
@@ -320,7 +263,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       viewer: ['view_reports'],
     };
 
-    const userPermissions = permissions[currentMember.role] || [];
+    // Default to owner permissions for business owners
+    const userPermissions = permissions.owner;
 
     if (userPermissions.includes('all')) return true;
 
@@ -354,20 +298,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const canManageBusinesses = () => {
-    // Landlords manage their single business, property managers manage client businesses
+    // All authenticated users can manage their businesses
     return hasPermission(['manage_properties', 'all']);
   };
 
-  const currentRole = currentMember?.role || null;
+  // Current role - business owners are always 'owner'
+  const currentRole: UserRole = currentBusiness ? 'owner' : 'viewer';
 
   return (
     <AuthContext.Provider
       value={{
         supabaseUser,
         userProfile,
-        organizations,
-        currentOrganization,
-        currentMember,
+        businesses,
+        currentBusiness,
         currentRole,
         isSuperAdmin,
         isPropertyOwner,
@@ -383,8 +327,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
-        switchOrganization,
-        createOrganization,
+        switchBusiness,
+        refreshBusinesses,
         hasPermission,
         canManageProperties,
         canManagePayments,

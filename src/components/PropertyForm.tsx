@@ -26,7 +26,7 @@ const propertyTypes: { value: PropertyType; label: string }[] = [
 ];
 
 export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: PropertyFormProps) {
-  const { currentOrganization } = useAuth();
+  const { currentBusiness } = useAuth();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoadingBusinesses, setIsLoadingBusinesses] = useState(true);
   const [errors, setErrors] = useState<ValidationError[]>([]);
@@ -55,15 +55,15 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
 
   useEffect(() => {
     loadBusinesses();
-  }, [currentOrganization?.id]);
+  }, [currentBusiness?.id]);
 
   const loadBusinesses = async () => {
-    if (!currentOrganization) {
+    if (!currentBusiness) {
       setIsLoadingBusinesses(false);
       return;
     }
     try {
-      const data = await businessService.getAllBusinesses(currentOrganization.id);
+      const data = await businessService.getAllBusinesses(currentBusiness.id);
       setBusinesses(data);
     } catch (error) {
       console.error('Failed to load businesses:', error);
@@ -92,7 +92,7 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
       validators.dateInPast(formData.purchase_date, 'Purchase Date'),
     ];
 
-    if (currentOrganization && businesses.length > 0) {
+    if (currentBusiness && businesses.length > 0) {
       validations.push(validators.required(formData.business_id, 'Business'));
     }
 
@@ -153,7 +153,7 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
     );
   }
 
-  if (currentOrganization && businesses.length === 0) {
+  if (currentBusiness && businesses.length === 0) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
@@ -202,7 +202,7 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            {currentOrganization && businesses.length > 0 && (
+            {currentBusiness && businesses.length > 0 && (
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Business <span className="text-red-500">*</span>

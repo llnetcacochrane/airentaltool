@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Organization, OrganizationMember, User, AuthSession } from '../types';
+import { User } from '../types';
 
 export interface ExtendedRegistrationData {
   phone: string;
@@ -13,6 +13,11 @@ export interface ExtendedRegistrationData {
 }
 
 export const authService = {
+  /**
+   * Register a new user
+   * Creates: User (auth) -> User Profile -> Business
+   * NO organization is created - Business is the top-level entity
+   */
   async register(
     email: string,
     password: string,
@@ -47,7 +52,7 @@ export const authService = {
       profileUpdate.state_province = extendedData.stateProvince;
       profileUpdate.postal_code = extendedData.postalCode;
       profileUpdate.country = extendedData.country;
-      // Store business name for business/organization naming
+      // Store business name for business naming (note: field still called organization_name in DB)
       profileUpdate.organization_name = extendedData.businessName;
     }
 
@@ -59,85 +64,40 @@ export const authService = {
 
     if (profileError) {
       console.error('Failed to update user profile:', profileError);
-      // Don't throw - continue to try creating org/business
+      // Don't throw - continue to try creating business
     }
 
-    // Create organization for the user
+    // Create the default business directly - NO ORGANIZATION
     const businessName = extendedData?.businessName || `${firstName} ${lastName}`;
-    const orgSlug = `${firstName.toLowerCase().replace(/[^a-z0-9]/g, '')}-${Date.now()}`;
 
     try {
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
+      const { error: bizError } = await supabase
+        .from('businesses')
         .insert({
-          owner_id: userId,
-          name: businessName,
-          slug: orgSlug,
+          organization_id: null,  // No organization - business is top-level
+          owner_user_id: userId,
+          business_name: businessName,
+          email: email,
+          phone: extendedData?.phone || null,
+          address_line1: extendedData?.addressLine1 || null,
+          address_line2: extendedData?.addressLine2 || null,
+          city: extendedData?.city || null,
+          state: extendedData?.stateProvince || null,
+          postal_code: extendedData?.postalCode || null,
+          country: extendedData?.country || 'CA',
           currency: 'CAD',
           timezone: 'America/Toronto',
-          account_tier: tierSlug,
-          subscription_status: 'trial',
-        })
-        .select()
-        .maybeSingle();
+          is_default: true,
+          is_active: true,
+          created_by: userId,
+        });
 
-      if (orgError) {
-        console.error('Failed to create organization:', orgError);
-      } else if (org) {
-        // Add user as organization member (owner)
-        const { error: memberError } = await supabase
-          .from('organization_members')
-          .insert({
-            organization_id: org.id,
-            user_id: userId,
-            role: 'owner',
-            is_active: true,
-            joined_at: new Date().toISOString(),
-          });
-
-        if (memberError) {
-          console.error('Failed to add organization member:', memberError);
-        }
-
-        // Assign package to organization
-        try {
-          await supabase.rpc('assign_package_to_organization', {
-            p_org_id: org.id,
-            p_tier_slug: tierSlug
-          });
-        } catch (pkgError) {
-          console.error('Failed to assign package:', pkgError);
-        }
-
-        // Create the default business
-        const { error: bizError } = await supabase
-          .from('businesses')
-          .insert({
-            organization_id: org.id,
-            owner_user_id: userId,
-            business_name: businessName,
-            email: email,
-            phone: extendedData?.phone || null,
-            address_line1: extendedData?.addressLine1 || null,
-            address_line2: extendedData?.addressLine2 || null,
-            city: extendedData?.city || null,
-            state: extendedData?.stateProvince || null,
-            postal_code: extendedData?.postalCode || null,
-            country: extendedData?.country || 'CA',
-            currency: 'CAD',
-            timezone: 'America/Toronto',
-            is_default: true,
-            is_active: true,
-            created_by: userId,
-          });
-
-        if (bizError) {
-          console.error('Failed to create default business:', bizError);
-        }
+      if (bizError) {
+        console.error('Failed to create default business:', bizError);
       }
     } catch (err) {
-      console.error('Error during organization/business creation:', err);
-      // Don't throw - user is still created, they can set up org later
+      console.error('Error during business creation:', err);
+      // Don't throw - user is still created, they can set up business later
     }
 
     return authData.user;
@@ -176,75 +136,6 @@ export const authService = {
     return supabase.auth.onAuthStateChange(callback);
   },
 
-  async createOrganization(name: string, slug: string, companyName?: string, tierSlug: string = 'basic') {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) throw new Error('User not authenticated');
-
-    const { data, error } = await supabase
-      .from('organizations')
-      .insert({
-        owner_id: user.id,
-        name,
-        slug,
-        company_name: companyName,
-        currency: 'CAD',
-        timezone: 'America/Toronto',
-        account_tier: tierSlug,
-        subscription_status: 'trial',
-      })
-      .select()
-      .maybeSingle();
-
-    if (error) {
-      console.error('Organization creation error:', error);
-      throw new Error(`Failed to create organization: ${error.message}`);
-    }
-
-    if (!data) {
-      throw new Error('Organization created but no data returned');
-    }
-
-    const { error: memberError } = await supabase
-      .from('organization_members')
-      .insert({
-        organization_id: data.id,
-        user_id: user.id,
-        role: 'owner',
-        is_active: true,
-        joined_at: new Date().toISOString(),
-      });
-
-    if (memberError) {
-      console.error('Member insertion error:', memberError);
-      throw new Error(`Failed to add member: ${memberError.message}`);
-    }
-
-    const { error: packageError } = await supabase.rpc('assign_package_to_organization', {
-      p_org_id: data.id,
-      p_tier_slug: tierSlug
-    });
-
-    if (packageError) {
-      console.error('Package assignment error:', packageError);
-    }
-
-    return data;
-  },
-
-  async getOrganizations(): Promise<Organization[]> {
-    const { data, error } = await supabase.rpc('get_my_organizations');
-
-    if (error) {
-      console.error('Error fetching organizations:', error);
-      return [];
-    }
-
-    return (data as any[]) || [];
-  },
-
   async getUserProfile(userId: string): Promise<User | null> {
     const { data, error } = await supabase
       .from('user_profiles')
@@ -266,29 +157,6 @@ export const authService = {
 
     if (error) return false;
     return !!data;
-  },
-
-  async getOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
-    const { data, error } = await supabase
-      .from('organization_members')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .eq('is_active', true);
-
-    if (error) throw error;
-    return data || [];
-  },
-
-  async getMemberRole(organizationId: string, userId: string): Promise<string | null> {
-    const { data, error } = await supabase
-      .from('organization_members')
-      .select('role')
-      .eq('organization_id', organizationId)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (error) throw error;
-    return data?.role || null;
   },
 
   async sendPasswordReset(email: string) {

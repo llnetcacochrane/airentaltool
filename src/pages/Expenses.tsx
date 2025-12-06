@@ -11,17 +11,17 @@ export function Expenses() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const { currentOrganization } = useAuth();
+  const { currentBusiness } = useAuth();
 
   useEffect(() => {
     loadExpenses();
-  }, [currentOrganization?.id]);
+  }, [currentBusiness?.id]);
 
   const loadExpenses = async () => {
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
     setIsLoading(true);
     try {
-      const data = await expenseService.getExpenses(currentOrganization.id);
+      const data = await expenseService.getExpenses(currentBusiness.id);
       setExpenses(data);
       setError('');
     } catch (err) {

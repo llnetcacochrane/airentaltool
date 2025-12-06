@@ -57,11 +57,11 @@ const secondaryNavigation: NavItem[] = [
 
 export function Layout() {
   const [profileOpen, setProfileOpen] = useState(false);
-  const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
+  const [businessDropdownOpen, setBusinessDropdownOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { supabaseUser, currentOrganization, organizations, switchOrganization, logout, userProfile, isSuperAdmin, packageType, isPropertyManager } = useAuth();
+  const { supabaseUser, currentBusiness, businesses, switchBusiness, logout, userProfile, isSuperAdmin, packageType } = useAuth();
   const { branding } = useBranding();
 
   const userTier = userProfile?.selected_tier || 'free';
@@ -75,9 +75,9 @@ export function Layout() {
     }
   };
 
-  const handleSwitchOrganization = async (orgId: string) => {
-    await switchOrganization(orgId);
-    setOrgDropdownOpen(false);
+  const handleSwitchBusiness = async (businessId: string) => {
+    await switchBusiness(businessId);
+    setBusinessDropdownOpen(false);
     navigate('/dashboard');
   };
 
@@ -301,40 +301,40 @@ export function Layout() {
                   </button>
                 )}
 
-                {organizations && organizations.length > 1 && (
+                {businesses && businesses.length > 1 && (
                   <div className="relative">
                     <button
-                      onClick={() => setOrgDropdownOpen(!orgDropdownOpen)}
+                      onClick={() => setBusinessDropdownOpen(!businessDropdownOpen)}
                       className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
                     >
-                      <Building2 size={18} />
+                      <Briefcase size={18} />
                       <span className="hidden sm:inline max-w-[150px] truncate">
-                        {currentOrganization?.name}
+                        {currentBusiness?.business_name}
                       </span>
                       <ChevronDown size={16} />
                     </button>
 
-                    {orgDropdownOpen && (
+                    {businessDropdownOpen && (
                       <>
                         <div
                           className="fixed inset-0 z-10"
-                          onClick={() => setOrgDropdownOpen(false)}
+                          onClick={() => setBusinessDropdownOpen(false)}
                         />
                         <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
                           <div className="px-4 py-2 text-xs text-gray-500 font-semibold uppercase">
                             Switch Business
                           </div>
-                          {organizations.map((org) => (
+                          {businesses.map((biz) => (
                             <button
-                              key={org.id}
-                              onClick={() => handleSwitchOrganization(org.id)}
+                              key={biz.id}
+                              onClick={() => handleSwitchBusiness(biz.id)}
                               className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition ${
-                                org.id === currentOrganization?.id
+                                biz.id === currentBusiness?.id
                                   ? 'bg-blue-50 text-blue-700 font-medium'
                                   : 'text-gray-700'
                               }`}
                             >
-                              {org.name}
+                              {biz.business_name}
                             </button>
                           ))}
                         </div>

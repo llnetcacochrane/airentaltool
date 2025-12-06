@@ -6,7 +6,7 @@ import { useBusiness } from '../context/BusinessContext';
 import { EmptyStatePresets } from '../components/EmptyState';
 
 export default function PropertyOwners() {
-  const { currentOrganization, supabaseUser, isPropertyManager } = useAuth();
+  const { currentBusiness, supabaseUser, isPropertyManager } = useAuth();
   const { refreshBusinesses } = useBusiness();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -28,16 +28,16 @@ export default function PropertyOwners() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (currentOrganization) {
+    if (currentBusiness) {
       loadClients();
     }
-  }, [currentOrganization?.id]);
+  }, [currentBusiness?.id]);
 
   const loadClients = async () => {
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
     try {
       setLoading(true);
-      const data = await clientService.getClients(currentOrganization.id);
+      const data = await clientService.getClients(currentBusiness.id);
       setClients(data);
     } catch (error) {
       console.error('Error loading clients:', error);
@@ -58,14 +58,14 @@ export default function PropertyOwners() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
 
     setIsSubmitting(true);
     try {
       if (editingClient) {
         await clientService.updateClient(editingClient.id, formData);
       } else {
-        await clientService.createClient(currentOrganization.id, formData);
+        await clientService.createClient(currentBusiness.id, formData);
       }
       setShowForm(false);
       setEditingClient(null);
@@ -81,14 +81,14 @@ export default function PropertyOwners() {
 
   const handleCreatePortfolio = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClient || !currentOrganization || !supabaseUser) return;
+    if (!selectedClient || !currentBusiness || !supabaseUser) return;
 
     setIsSubmitting(true);
     try {
       await clientService.createPortfolioForClient(
         selectedClient.id,
         supabaseUser.id,
-        currentOrganization.id,
+        currentBusiness.id,
         portfolioName
       );
       setShowPortfolioForm(false);

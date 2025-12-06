@@ -9,19 +9,19 @@ export function Reports() {
   const [forecast, setForecast] = useState<CashFlowForecast[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('month');
-  const { currentOrganization } = useAuth();
+  const { currentBusiness } = useAuth();
 
   useEffect(() => {
     loadReports();
-  }, [currentOrganization?.id]);
+  }, [currentBusiness?.id]);
 
   const loadReports = async () => {
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
     setIsLoading(true);
     try {
       const [summaryData, forecastData] = await Promise.all([
-        financialService.getPortfolioSummary(currentOrganization.id),
-        paymentPredictionService.forecastCashFlow(currentOrganization.id, 6),
+        financialService.getPortfolioSummary(currentBusiness.id),
+        paymentPredictionService.forecastCashFlow(currentBusiness.id, 6),
       ]);
       setSummary(summaryData);
       setForecast(forecastData);

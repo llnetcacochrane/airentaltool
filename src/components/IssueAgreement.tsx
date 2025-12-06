@@ -17,7 +17,7 @@ interface IssueAgreementProps {
 type Step = 'template' | 'tenant' | 'details' | 'review';
 
 export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, preselectedTenantId }: IssueAgreementProps) {
-  const { currentOrganization, userProfile } = useAuth();
+  const { currentBusiness, userProfile } = useAuth();
   const [currentStep, setCurrentStep] = useState<Step>('template');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -164,7 +164,7 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
 
       const landlordName = userProfile?.first_name && userProfile?.last_name
         ? `${userProfile.first_name} ${userProfile.last_name}`
-        : currentOrganization?.name || 'Property Manager';
+        : currentBusiness?.name || 'Property Manager';
 
       // Create the agreement
       const agreement = await agreementService.createAgreement({
@@ -561,7 +561,7 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
                   <p className="text-gray-900">
                     {userProfile?.first_name && userProfile?.last_name
                       ? `${userProfile.first_name} ${userProfile.last_name}`
-                      : currentOrganization?.name || 'Property Manager'}
+                      : currentBusiness?.name || 'Property Manager'}
                   </p>
                   <p className="text-sm text-gray-500">{userProfile?.email}</p>
                 </div>

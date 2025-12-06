@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useBusiness } from '../context/BusinessContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { financialService } from '../services/financialService';
@@ -31,8 +30,7 @@ interface Alert {
 }
 
 export function NewOperationsCenter() {
-  const { currentOrganization, userProfile, packageType, isLandlord, isPropertyManager } = useAuth();
-  const { currentBusiness } = useBusiness();
+  const { currentBusiness, userProfile, packageType, isLandlord, isPropertyManager } = useAuth();
   const navigate = useNavigate();
 
   const [portfolioHealth, setPortfolioHealth] = useState<PortfolioHealth | null>(null);
@@ -50,7 +48,7 @@ export function NewOperationsCenter() {
 
   useEffect(() => {
     checkOnboardingAndLoad();
-  }, [currentOrganization?.id, currentBusiness?.id]);
+  }, [currentBusiness?.id]);
 
   const checkOnboardingAndLoad = async () => {
     try {
@@ -66,7 +64,7 @@ export function NewOperationsCenter() {
   };
 
   const loadOperationsData = async () => {
-    const orgId = currentOrganization?.id;
+    const orgId = currentBusiness?.id;
     if (!orgId) {
       setIsLoading(false);
       return;
@@ -307,7 +305,7 @@ export function NewOperationsCenter() {
                 {isLandlord ? 'Portfolio Dashboard' : 'Operations Center'}
               </h1>
               <p className="text-gray-600 flex items-center gap-2">
-                <span>{currentOrganization?.name || currentBusiness?.business_name || 'My Business'}</span>
+                <span>{currentBusiness?.name || currentBusiness?.business_name || 'My Business'}</span>
                 {portfolioHealth && (
                   <>
                     <span className="text-gray-400">•</span>

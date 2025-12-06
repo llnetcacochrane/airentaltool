@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 export function GettingStarted() {
-  const { userProfile, currentOrganization } = useAuth();
+  const { userProfile, currentBusiness } = useAuth();
   const navigate = useNavigate();
   const packageTier = userProfile?.selected_tier || 'free';
 

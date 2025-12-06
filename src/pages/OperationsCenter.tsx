@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useBusiness } from '../context/BusinessContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { financialService } from '../services/financialService';
@@ -28,8 +27,7 @@ interface Alert {
 }
 
 export function OperationsCenter() {
-  const { currentOrganization, userProfile } = useAuth();
-  const { currentBusiness } = useBusiness();
+  const { currentBusiness, userProfile } = useAuth();
   const navigate = useNavigate();
   const [portfolioHealth, setPortfolioHealth] = useState<PortfolioHealth | null>(null);
   const [riskScores, setRiskScores] = useState<PaymentRiskScore[]>([]);
@@ -40,7 +38,7 @@ export function OperationsCenter() {
 
   useEffect(() => {
     checkOnboardingAndLoad();
-  }, [currentOrganization?.id, currentBusiness?.id]);
+  }, [currentBusiness?.id]);
 
   const checkOnboardingAndLoad = async () => {
     try {
@@ -58,7 +56,7 @@ export function OperationsCenter() {
   };
 
   const loadOperationsData = async () => {
-    const orgOrPortfolioId = currentOrganization?.id || currentPortfolio?.id;
+    const orgOrPortfolioId = currentBusiness?.id || currentPortfolio?.id;
     if (!orgOrPortfolioId) {
       setIsLoading(false);
       return;
@@ -218,7 +216,7 @@ export function OperationsCenter() {
     );
   }
 
-  if (!currentOrganization && !currentPortfolio) {
+  if (!currentBusiness && !currentPortfolio) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8">
@@ -239,7 +237,7 @@ export function OperationsCenter() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Operations Center</h1>
-              <p className="text-sm text-gray-600 mt-1">{currentOrganization?.name || currentPortfolio?.name || 'My Portfolio'}</p>
+              <p className="text-sm text-gray-600 mt-1">{currentBusiness?.name || currentPortfolio?.name || 'My Portfolio'}</p>
             </div>
             {alerts.length > 0 && (
               <div className="flex items-center gap-2 px-4 py-2 bg-red-50 rounded-lg">

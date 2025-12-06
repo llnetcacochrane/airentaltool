@@ -65,7 +65,7 @@ export function SuperAdminDashboard() {
     try {
       const adminOrgId = await superAdminService.getOrCreateAdminOrg();
       if (adminOrgId) {
-        localStorage.setItem('currentOrganizationId', adminOrgId);
+        localStorage.setItem('currentBusinessId', adminOrgId);
         navigate('/dashboard');
         window.location.reload();
       } else {

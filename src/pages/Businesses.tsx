@@ -20,7 +20,7 @@ export function Businesses() {
   const [limitStatus, setLimitStatus] = useState<any>(null);
   const [showBusinessWizard, setShowBusinessWizard] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
-  const { currentOrganization } = useAuth();
+  const { currentBusiness } = useAuth();
 
   const [formData, setFormData] = useState({
     business_name: '',
@@ -42,12 +42,12 @@ export function Businesses() {
   useEffect(() => {
     loadBusinesses();
     loadLimitStatus();
-  }, [currentOrganization?.id]);
+  }, [currentBusiness?.id]);
 
   const loadLimitStatus = async () => {
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
     try {
-      const status = await addonService.getLimitStatus(currentOrganization.id);
+      const status = await addonService.getLimitStatus(currentBusiness.id);
       setLimitStatus(status);
     } catch (err) {
       console.error('Failed to load limit status:', err);
@@ -55,10 +55,10 @@ export function Businesses() {
   };
 
   const loadBusinesses = async () => {
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
     setIsLoading(true);
     try {
-      const data = await businessService.getAllBusinesses(currentOrganization.id);
+      const data = await businessService.getAllBusinesses(currentBusiness.id);
       setBusinesses(data);
       setError('');
     } catch (err) {
@@ -112,7 +112,7 @@ export function Businesses() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
     setIsSubmitting(true);
 
     try {
@@ -136,7 +136,7 @@ export function Businesses() {
       if (editingBusiness) {
         await businessService.updateBusiness(editingBusiness.id, data);
       } else {
-        await businessService.createBusiness(currentOrganization.id, data);
+        await businessService.createBusiness(currentBusiness.id, data);
       }
 
       await loadBusinesses();

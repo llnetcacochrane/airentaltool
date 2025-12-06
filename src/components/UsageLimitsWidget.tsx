@@ -37,21 +37,21 @@ interface UsageData {
 }
 
 export function UsageLimitsWidget({ compact = false }: UsageLimitsWidgetProps) {
-  const { currentOrganization, userProfile } = useAuth();
+  const { currentBusiness, userProfile } = useAuth();
   const navigate = useNavigate();
   const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadUsageData();
-  }, [currentOrganization?.id]);
+  }, [currentBusiness?.id]);
 
   const loadUsageData = async () => {
-    if (!currentOrganization?.id) return;
+    if (!currentBusiness?.id) return;
 
     try {
-      const limitData = await packageTierService.checkPackageLimits(currentOrganization.id);
-      const packageSettings = await packageTierService.getEffectivePackageSettings(currentOrganization.id);
+      const limitData = await packageTierService.checkPackageLimits(currentBusiness.id);
+      const packageSettings = await packageTierService.getEffectivePackageSettings(currentBusiness.id);
 
       setUsageData({
         current_usage: limitData.current_usage,

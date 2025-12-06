@@ -15,17 +15,17 @@ export function Tenants() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
-  const { currentOrganization } = useAuth();
+  const { currentBusiness } = useAuth();
 
   useEffect(() => {
     loadTenants();
-  }, [currentOrganization?.id]);
+  }, [currentBusiness?.id]);
 
   const loadTenants = async () => {
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
     setIsLoading(true);
     try {
-      const data = await tenantService.getAllTenants(currentOrganization.id);
+      const data = await tenantService.getAllTenants(currentBusiness.id);
       setTenants(data);
       setError('');
     } catch (err) {
@@ -36,10 +36,10 @@ export function Tenants() {
   };
 
   const handleAddTenant = async (data: Partial<Tenant>) => {
-    if (!currentOrganization || !data.unit_id) return;
+    if (!currentBusiness || !data.unit_id) return;
     setIsSubmitting(true);
     try {
-      await tenantService.createTenant(currentOrganization.id, data.unit_id, data);
+      await tenantService.createTenant(currentBusiness.id, data.unit_id, data);
       await loadTenants();
       setShowAddForm(false);
       setError('');

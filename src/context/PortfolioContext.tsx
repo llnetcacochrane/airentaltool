@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Portfolio, portfolioService } from '../services/portfolioService';
 import { useAuth } from './AuthContext';
 
@@ -9,18 +9,18 @@ interface PortfolioContextType {
   error: string | null;
   setCurrentPortfolio: (portfolio: Portfolio) => void;
   refreshPortfolios: () => Promise<void>;
-  needsOrganization: boolean;
+  needsBusiness: boolean;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(undefined);
 
 export function PortfolioProvider({ children }: { children: ReactNode }) {
-  const { supabaseUser, currentOrganization } = useAuth();
+  const { supabaseUser, currentBusiness } = useAuth();
   const [currentPortfolio, setCurrentPortfolio] = useState<Portfolio | null>(null);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [needsOrganization, setNeedsOrganization] = useState(false);
+  const [needsBusiness, setNeedsBusiness] = useState(false);
 
   const loadPortfolios = async () => {
     if (!supabaseUser) {
@@ -34,14 +34,14 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
 
-      const [defaultPortfolio, allPortfolios, needsOrg] = await Promise.all([
+      const [defaultPortfolio, allPortfolios, needsBiz] = await Promise.all([
         portfolioService.getUserDefaultPortfolio(),
         portfolioService.getUserPortfolios(),
-        portfolioService.userNeedsOrganization(),
+        portfolioService.userNeedsBusiness(),
       ]);
 
       setPortfolios(allPortfolios);
-      setNeedsOrganization(needsOrg);
+      setNeedsBusiness(needsBiz);
 
       if (defaultPortfolio) {
         setCurrentPortfolio(defaultPortfolio);
@@ -58,7 +58,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadPortfolios();
-  }, [supabaseUser?.id, currentOrganization?.id]);
+  }, [supabaseUser?.id, currentBusiness?.id]);
 
   const refreshPortfolios = async () => {
     await loadPortfolios();
@@ -71,7 +71,7 @@ export function PortfolioProvider({ children }: { children: ReactNode }) {
     error,
     setCurrentPortfolio,
     refreshPortfolios,
-    needsOrganization,
+    needsBusiness,
   };
 
   return (

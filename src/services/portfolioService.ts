@@ -122,16 +122,20 @@ export const portfolioService = {
     if (error) throw error;
   },
 
-  async userNeedsOrganization(): Promise<boolean> {
+  async userNeedsBusiness(): Promise<boolean> {
     const user = (await supabase.auth.getUser()).data.user;
     if (!user) return false;
 
-    const { data, error } = await supabase.rpc('user_needs_organization', {
-      p_user_id: user.id,
-    });
+    // Check if user has any businesses
+    const { data, error } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('owner_user_id', user.id)
+      .eq('is_active', true)
+      .limit(1);
 
-    if (error) return false;
-    return data || false;
+    if (error) return true; // Assume needs business if check fails
+    return !data || data.length === 0;
   },
 
   async getClients(organizationId: string): Promise<Client[]> {

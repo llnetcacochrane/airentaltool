@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useBusiness } from '../context/BusinessContext';
 import { propertyService } from '../services/propertyService';
 import { Property } from '../types';
 import { PropertyForm } from '../components/PropertyForm';
@@ -17,12 +16,11 @@ export function Properties() {
   const [viewingProperty, setViewingProperty] = useState<Property | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const { currentOrganization } = useAuth();
-  const { currentBusiness } = useBusiness();
+  const { currentBusiness } = useAuth();
 
   useEffect(() => {
     loadData();
-  }, [currentOrganization?.id, currentBusiness?.id]);
+  }, [currentBusiness?.id]);
 
   const loadData = async () => {
     if (!currentBusiness) return;
@@ -235,7 +233,7 @@ export function Properties() {
         />
       )}
 
-      {viewingProperty && currentOrganization && (
+      {viewingProperty && currentBusiness && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-6xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
@@ -253,7 +251,7 @@ export function Properties() {
 
             <UnitManagement
               propertyId={viewingProperty.id}
-              organizationId={currentOrganization.id}
+              organizationId={currentBusiness.id}
             />
           </div>
         </div>

@@ -151,7 +151,8 @@ export interface User {
 
 export interface Business {
   id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
+  owner_user_id?: string;  // Direct owner of the business
   business_name: string;
   legal_name?: string;
   business_type?: string;
@@ -169,6 +170,7 @@ export interface Business {
   currency: string;
   timezone: string;
   is_active: boolean;
+  is_default?: boolean;  // True for user's primary business
   notes?: string;
   created_at: string;
   updated_at: string;

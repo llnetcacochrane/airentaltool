@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase';
 import { Business } from '../types';
-import { addonService } from './addonService';
 
 export interface BusinessWithStats extends Business {
   property_count?: number;
@@ -9,7 +8,8 @@ export interface BusinessWithStats extends Business {
 
 export const businessService = {
   /**
-   * Get all businesses accessible to the current user
+   * Get all businesses owned by the current user
+   * No organization dependency - businesses are directly owned by users
    */
   async getUserBusinesses(): Promise<BusinessWithStats[]> {
     const user = (await supabase.auth.getUser()).data.user;
@@ -59,13 +59,16 @@ export const businessService = {
   },
 
   /**
-   * Get all businesses for an organization
+   * Get all businesses owned by the current user (direct query)
    */
-  async getAllBusinesses(organizationId: string): Promise<Business[]> {
+  async getOwnedBusinesses(): Promise<Business[]> {
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) return [];
+
     const { data, error } = await supabase
       .from('businesses')
       .select('*')
-      .eq('organization_id', organizationId)
+      .eq('owner_user_id', user.id)
       .eq('is_active', true)
       .order('business_name');
 
@@ -88,23 +91,29 @@ export const businessService = {
   },
 
   /**
-   * Create a new business
-   * Checks organization limits before creation
+   * Create a new business for the current user
+   * Checks user's tier limits before creation
    */
-  async createBusiness(organizationId: string, business: Partial<Business>): Promise<Business> {
-    // Check limits
-    const canAdd = await addonService.checkLimit(organizationId, 'business');
-    if (!canAdd) {
+  async createBusiness(business: Partial<Business>): Promise<Business> {
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) throw new Error('User not authenticated');
+
+    // Check limits using user-based function
+    const { data: canAdd, error: limitError } = await supabase.rpc('check_business_limit_for_user', {
+      p_user_id: user.id,
+    });
+
+    if (limitError) {
+      console.error('Error checking business limit:', limitError);
+    } else if (!canAdd) {
       throw new Error('LIMIT_REACHED:business');
     }
-
-    const user = (await supabase.auth.getUser()).data.user;
 
     const { data, error } = await supabase
       .from('businesses')
       .insert({
-        organization_id: organizationId,
-        owner_user_id: user?.id,
+        organization_id: null,  // No organization
+        owner_user_id: user.id,
         business_name: business.business_name,
         legal_name: business.legal_name,
         business_type: business.business_type,
@@ -123,7 +132,7 @@ export const businessService = {
         timezone: business.timezone || 'America/Toronto',
         notes: business.notes,
         is_default: false,
-        created_by: user?.id,
+        created_by: user.id,
       })
       .select()
       .single();
@@ -136,7 +145,6 @@ export const businessService = {
    * Create the default business for a new user
    */
   async createDefaultBusiness(
-    organizationId: string,
     businessName: string,
     userData?: {
       email?: string;
@@ -149,14 +157,15 @@ export const businessService = {
     }
   ): Promise<Business> {
     const user = (await supabase.auth.getUser()).data.user;
+    if (!user) throw new Error('User not authenticated');
 
     const { data, error } = await supabase
       .from('businesses')
       .insert({
-        organization_id: organizationId,
-        owner_user_id: user?.id,
+        organization_id: null,  // No organization
+        owner_user_id: user.id,
         business_name: businessName,
-        email: userData?.email || user?.email,
+        email: userData?.email || user.email,
         phone: userData?.phone,
         address_line1: userData?.addressLine1,
         city: userData?.city,
@@ -167,7 +176,7 @@ export const businessService = {
         timezone: 'America/Toronto',
         is_default: true,
         is_active: true,
-        created_by: user?.id,
+        created_by: user.id,
       })
       .select()
       .single();
@@ -294,8 +303,20 @@ export const businessService = {
   /**
    * Check if user can create more businesses
    */
-  async canCreateBusiness(organizationId: string): Promise<boolean> {
-    return addonService.checkLimit(organizationId, 'business');
+  async canCreateBusiness(): Promise<boolean> {
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) return false;
+
+    const { data, error } = await supabase.rpc('check_business_limit_for_user', {
+      p_user_id: user.id,
+    });
+
+    if (error) {
+      console.error('Error checking business limit:', error);
+      return true; // Allow by default if check fails
+    }
+
+    return data === true;
   },
 
   /**

@@ -8,7 +8,7 @@ import { Wrench, Plus, AlertCircle, Clock, CheckCircle, X, Calendar } from 'luci
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
 export function Maintenance() {
-  const { currentOrganization } = useAuth();
+  const { currentBusiness } = useAuth();
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
@@ -18,19 +18,19 @@ export function Maintenance() {
   const [filter, setFilter] = useState<string>('all');
 
   useEffect(() => {
-    if (currentOrganization) {
+    if (currentBusiness) {
       loadData();
     }
-  }, [currentOrganization]);
+  }, [currentBusiness]);
 
   const loadData = async () => {
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
     setIsLoading(true);
     try {
       const [requestsData, propertiesData, tenantsData] = await Promise.all([
-        maintenanceService.getRequests(currentOrganization.id),
-        propertyService.getAllProperties(currentOrganization.id),
-        tenantService.getAllTenants(currentOrganization.id),
+        maintenanceService.getRequests(currentBusiness.id),
+        propertyService.getAllProperties(currentBusiness.id),
+        tenantService.getAllTenants(currentBusiness.id),
       ]);
       setRequests(requestsData);
       setProperties(propertiesData);
@@ -217,7 +217,7 @@ export function Maintenance() {
           request={editingRequest}
           properties={properties}
           tenants={tenants}
-          organizationId={currentOrganization?.id || ''}
+          organizationId={currentBusiness?.id || ''}
           onClose={handleCloseForm}
           onSuccess={handleSaveSuccess}
         />

@@ -19,7 +19,7 @@ const tenantTypes: { value: TenantType; label: string }[] = [
 ];
 
 export function TenantForm({ tenant, onSubmit, onCancel, isSubmitting }: TenantFormProps) {
-  const { currentOrganization } = useAuth();
+  const { currentBusiness } = useAuth();
   const [units, setUnits] = useState<Unit[]>([]);
   const [isLoadingUnits, setIsLoadingUnits] = useState(true);
 
@@ -45,15 +45,15 @@ export function TenantForm({ tenant, onSubmit, onCancel, isSubmitting }: TenantF
 
   useEffect(() => {
     loadUnits();
-  }, [currentOrganization?.id]);
+  }, [currentBusiness?.id]);
 
   const loadUnits = async () => {
-    if (!currentOrganization) {
+    if (!currentBusiness) {
       setIsLoadingUnits(false);
       return;
     }
     try {
-      const data = await unitService.getAllUnits(currentOrganization.id);
+      const data = await unitService.getAllUnits(currentBusiness.id);
       setUnits(data.filter(u => u.occupancy_status === 'vacant' || u.id === tenant?.unit_id));
     } catch (error) {
       console.error('Failed to load units:', error);

@@ -11,7 +11,7 @@ interface BrandingContextType {
 const BrandingContext = createContext<BrandingContextType | undefined>(undefined);
 
 export function BrandingProvider({ children }: { children: ReactNode }) {
-  const { currentOrganization } = useAuth();
+  const { currentBusiness } = useAuth();
   const [branding, setBranding] = useState<EffectiveBranding>({
     application_name: 'AI Rental Tools',
     logo_url: '/AiRentalTools-logo1t.svg',
@@ -24,7 +24,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadBranding = async () => {
-    if (!currentOrganization?.id) {
+    if (!currentBusiness?.id) {
       const systemBranding = await brandingService.getSystemBranding();
       setBranding({
         application_name: systemBranding.application_name,
@@ -40,7 +40,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const effectiveBranding = await brandingService.getEffectiveBranding(currentOrganization.id);
+      const effectiveBranding = await brandingService.getEffectiveBranding(currentBusiness.id);
       setBranding(effectiveBranding);
     } catch (error) {
       console.error('Failed to load branding:', error);
@@ -51,7 +51,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadBranding();
-  }, [currentOrganization?.id]);
+  }, [currentBusiness?.id]);
 
   const refreshBranding = async () => {
     setIsLoading(true);

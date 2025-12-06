@@ -11,7 +11,7 @@ interface WelcomeWizardProps {
 }
 
 export function WelcomeWizard({ onClose }: WelcomeWizardProps) {
-  const { currentOrganization, userProfile } = useAuth();
+  const { currentBusiness, userProfile } = useAuth();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
 

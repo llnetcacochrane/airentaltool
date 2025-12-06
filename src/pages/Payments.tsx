@@ -11,17 +11,17 @@ export function Payments() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const { currentOrganization } = useAuth();
+  const { currentBusiness } = useAuth();
 
   useEffect(() => {
     loadPayments();
-  }, [currentOrganization?.id]);
+  }, [currentBusiness?.id]);
 
   const loadPayments = async () => {
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
     setIsLoading(true);
     try {
-      const data = await paymentService.getPayments(currentOrganization.id);
+      const data = await paymentService.getPayments(currentBusiness.id);
       setPayments(data);
       setError('');
     } catch (err) {

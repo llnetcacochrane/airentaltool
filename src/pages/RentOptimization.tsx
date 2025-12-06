@@ -5,22 +5,22 @@ import { TrendingUp, TrendingDown, Minus, Sparkles, DollarSign, Target, AlertCir
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
 export function RentOptimization() {
-  const { currentOrganization } = useAuth();
+  const { currentBusiness } = useAuth();
   const [recommendations, setRecommendations] = useState<RentRecommendation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProperty, setSelectedProperty] = useState<RentRecommendation | null>(null);
 
   useEffect(() => {
-    if (currentOrganization) {
+    if (currentBusiness) {
       loadRecommendations();
     }
-  }, [currentOrganization]);
+  }, [currentBusiness]);
 
   const loadRecommendations = async () => {
-    if (!currentOrganization) return;
+    if (!currentBusiness) return;
     setIsLoading(true);
     try {
-      const data = await rentOptimizationService.analyzeAllProperties(currentOrganization.id);
+      const data = await rentOptimizationService.analyzeAllProperties(currentBusiness.id);
       setRecommendations(data);
     } catch (err) {
       console.error('Failed to load rent recommendations:', err);
