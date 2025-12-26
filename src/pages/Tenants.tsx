@@ -4,7 +4,13 @@ import { tenantService } from '../services/tenantService';
 import { Tenant } from '../types';
 import { TenantForm } from '../components/TenantForm';
 import { EmptyStatePresets } from '../components/EmptyState';
+import { SlidePanel } from '../components/SlidePanel';
 import { Plus, Mail, Phone, Users, Edit2, Trash2, Briefcase, UserCheck, X } from 'lucide-react';
+import { ExportButton } from '../components/ExportButton';
+import { exportTenants } from '../utils/exportHelpers';
+import { ExportFormat } from '../services/dataExportService';
+import { useBulkSelection, BulkActionBar, CommonBulkActions } from '../components/BulkActionBar';
+import { Checkbox } from '../components/Checkbox';
 
 export function Tenants() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -16,6 +22,7 @@ export function Tenants() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const { currentBusiness } = useAuth();
+  const bulkSelection = useBulkSelection(tenants);
 
   useEffect(() => {
     loadTenants();
@@ -25,7 +32,7 @@ export function Tenants() {
     if (!currentBusiness) return;
     setIsLoading(true);
     try {
-      const data = await tenantService.getAllTenants(currentBusiness.id);
+      const data = await tenantService.getBusinessTenants(currentBusiness.id);
       setTenants(data);
       setError('');
     } catch (err) {
@@ -81,6 +88,21 @@ export function Tenants() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    try {
+      await Promise.all(
+        bulkSelection.selectedItems.map((tenant) =>
+          tenantService.deleteTenant(tenant.id)
+        )
+      );
+      await loadTenants();
+      bulkSelection.clearSelection();
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete tenants');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 overflow-auto">
@@ -102,13 +124,21 @@ export function Tenants() {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Tenants</h1>
             <p className="text-sm sm:text-base text-gray-600 mt-1">{tenants.length} total tenants</p>
           </div>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition w-full sm:w-auto"
-          >
-            <Plus size={20} />
-            Add Tenant
-          </button>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <ExportButton
+              onExport={(format: ExportFormat) => exportTenants(tenants, format)}
+              disabled={tenants.length === 0}
+              variant="secondary"
+              size="md"
+            />
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex-1 sm:flex-initial"
+            >
+              <Plus size={20} />
+              Add Tenant
+            </button>
+          </div>
         </div>
       </div>
 
@@ -129,8 +159,14 @@ export function Tenants() {
             {/* Mobile Card View */}
             <div className="md:hidden space-y-4">
               {tenants.map((tenant) => (
-                <div key={tenant.id} className="bg-white rounded-lg shadow p-4">
-                  <div className="flex items-start justify-between mb-3">
+                <div key={tenant.id} className="bg-white rounded-lg shadow p-4 relative">
+                  <div className="absolute top-4 left-4 z-10">
+                    <Checkbox
+                      checked={bulkSelection.isSelected(tenant.id)}
+                      onChange={() => bulkSelection.toggleSelection(tenant.id)}
+                    />
+                  </div>
+                  <div className="flex items-start justify-between mb-3 ml-8">
                     <button
                       onClick={() => setSelectedTenant(tenant)}
                       className="font-semibold text-gray-900 hover:text-blue-600 text-left"
@@ -180,6 +216,13 @@ export function Tenants() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-6 py-3 w-12">
+                      <Checkbox
+                        checked={bulkSelection.isAllSelected}
+                        indeterminate={bulkSelection.isSomeSelected}
+                        onChange={(checked) => checked ? bulkSelection.selectAll() : bulkSelection.clearSelection()}
+                      />
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Email</th>
                     <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Phone</th>
@@ -190,6 +233,12 @@ export function Tenants() {
                 <tbody>
                   {tenants.map((tenant) => (
                     <tr key={tenant.id} className="border-b border-gray-200 hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <Checkbox
+                          checked={bulkSelection.isSelected(tenant.id)}
+                          onChange={() => bulkSelection.toggleSelection(tenant.id)}
+                        />
+                      </td>
                       <td className="px-6 py-4 text-sm">
                         <button
                           onClick={() => setSelectedTenant(tenant)}
@@ -274,6 +323,17 @@ export function Tenants() {
           }}
         />
       )}
+
+      <BulkActionBar
+        selectedCount={bulkSelection.selectedCount}
+        totalCount={tenants.length}
+        onClearSelection={bulkSelection.clearSelection}
+        onSelectAll={bulkSelection.selectAll}
+        selectAllLabel="Select all tenants"
+        actions={[
+          CommonBulkActions.delete(handleBulkDelete),
+        ]}
+      />
     </div>
   );
 }
@@ -305,147 +365,138 @@ function TenantDetailsModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              {tenant.first_name} {tenant.last_name}
-            </h2>
-            <div className="flex items-center gap-2 mt-1">
-              <UserCheck size={16} className="text-green-600" />
-              <span className="text-sm text-gray-600">Active Tenant</span>
-            </div>
-          </div>
+    <SlidePanel
+      isOpen={true}
+      onClose={onClose}
+      title={`${tenant.first_name} ${tenant.last_name}`}
+      size="large"
+      footer={
+        <div className="flex items-center justify-end gap-3">
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 transition"
+            className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
           >
-            <X size={24} />
+            Close
+          </button>
+          <button
+            onClick={() => onEdit(tenant)}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            Edit Tenant
           </button>
         </div>
+      }
+    >
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <UserCheck size={16} className="text-green-600" />
+          <span className="text-sm text-gray-600">Active Tenant</span>
+        </div>
 
-        <div className="p-6 space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Contact Information</h3>
-            <dl className="grid grid-cols-1 gap-3 text-sm">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Contact Information</h3>
+          <dl className="grid grid-cols-1 gap-3 text-sm">
+            <div className="flex items-center gap-3">
+              <Mail size={16} className="text-gray-400" />
+              <div>
+                <dt className="text-gray-600 text-xs">Email</dt>
+                <dd className="text-gray-900 font-medium">{tenant.email}</dd>
+              </div>
+            </div>
+            {tenant.phone && (
               <div className="flex items-center gap-3">
-                <Mail size={16} className="text-gray-400" />
+                <Phone size={16} className="text-gray-400" />
                 <div>
-                  <dt className="text-gray-600 text-xs">Email</dt>
-                  <dd className="text-gray-900 font-medium">{tenant.email}</dd>
+                  <dt className="text-gray-600 text-xs">Phone</dt>
+                  <dd className="text-gray-900 font-medium">{tenant.phone}</dd>
                 </div>
               </div>
-              {tenant.phone && (
-                <div className="flex items-center gap-3">
-                  <Phone size={16} className="text-gray-400" />
-                  <div>
-                    <dt className="text-gray-600 text-xs">Phone</dt>
-                    <dd className="text-gray-900 font-medium">{tenant.phone}</dd>
-                  </div>
+            )}
+            {tenant.employer_phone && (
+              <div className="flex items-center gap-3">
+                <Phone size={16} className="text-gray-400" />
+                <div>
+                  <dt className="text-gray-600 text-xs">Employer Phone</dt>
+                  <dd className="text-gray-900 font-medium">{tenant.employer_phone}</dd>
+                </div>
+              </div>
+            )}
+          </dl>
+        </div>
+
+        {(tenant.employer || tenant.monthly_income_cents) && (
+          <div className="pt-6 border-t border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Employment</h3>
+            <dl className="grid grid-cols-1 gap-3 text-sm">
+              {tenant.employer && (
+                <div>
+                  <dt className="text-gray-600 text-xs">Employer</dt>
+                  <dd className="text-gray-900 font-medium">{tenant.employer}</dd>
                 </div>
               )}
-              {tenant.employer_phone && (
-                <div className="flex items-center gap-3">
-                  <Phone size={16} className="text-gray-400" />
-                  <div>
-                    <dt className="text-gray-600 text-xs">Employer Phone</dt>
-                    <dd className="text-gray-900 font-medium">{tenant.employer_phone}</dd>
-                  </div>
+              {tenant.monthly_income_cents && (
+                <div>
+                  <dt className="text-gray-600 text-xs">Monthly Income</dt>
+                  <dd className="text-gray-900 font-medium">{formatCurrency(tenant.monthly_income_cents / 100)}</dd>
                 </div>
               )}
             </dl>
           </div>
+        )}
 
-          {(tenant.employer || tenant.monthly_income_cents) && (
-            <div className="pt-6 border-t border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Employment</h3>
-              <dl className="grid grid-cols-1 gap-3 text-sm">
-                {tenant.employer && (
-                  <div>
-                    <dt className="text-gray-600 text-xs">Employer</dt>
-                    <dd className="text-gray-900 font-medium">{tenant.employer}</dd>
-                  </div>
-                )}
-                {tenant.monthly_income_cents && (
-                  <div>
-                    <dt className="text-gray-600 text-xs">Monthly Income</dt>
-                    <dd className="text-gray-900 font-medium">{formatCurrency(tenant.monthly_income_cents / 100)}</dd>
-                  </div>
-                )}
-              </dl>
-            </div>
-          )}
-
-          {(tenant.emergency_contact_name || tenant.emergency_contact_phone) && (
-            <div className="pt-6 border-t border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Emergency Contact</h3>
-              <dl className="grid grid-cols-1 gap-3 text-sm">
-                {tenant.emergency_contact_name && (
-                  <div>
-                    <dt className="text-gray-600 text-xs">Name</dt>
-                    <dd className="text-gray-900 font-medium">{tenant.emergency_contact_name}</dd>
-                  </div>
-                )}
-                {tenant.emergency_contact_phone && (
-                  <div>
-                    <dt className="text-gray-600 text-xs">Phone</dt>
-                    <dd className="text-gray-900 font-medium">{tenant.emergency_contact_phone}</dd>
-                  </div>
-                )}
-                {tenant.emergency_contact_relationship && (
-                  <div>
-                    <dt className="text-gray-600 text-xs">Relationship</dt>
-                    <dd className="text-gray-900 font-medium">{tenant.emergency_contact_relationship}</dd>
-                  </div>
-                )}
-              </dl>
-            </div>
-          )}
-
-          {(tenant.move_in_date || tenant.security_deposit_paid_cents) && (
-            <div className="pt-6 border-t border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Lease Information</h3>
-              <dl className="grid grid-cols-1 gap-3 text-sm">
-                {tenant.move_in_date && (
-                  <div>
-                    <dt className="text-gray-600 text-xs">Move-In Date</dt>
-                    <dd className="text-gray-900 font-medium">{formatDate(tenant.move_in_date)}</dd>
-                  </div>
-                )}
-                {tenant.security_deposit_paid_cents && (
-                  <div>
-                    <dt className="text-gray-600 text-xs">Security Deposit Paid</dt>
-                    <dd className="text-gray-900 font-medium">{formatCurrency(tenant.security_deposit_paid_cents / 100)}</dd>
-                  </div>
-                )}
-              </dl>
-            </div>
-          )}
-
-          {tenant.notes && (
-            <div className="pt-6 border-t border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Notes</h3>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{tenant.notes}</p>
-            </div>
-          )}
-
-          <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
-            >
-              Close
-            </button>
-            <button
-              onClick={() => onEdit(tenant)}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              Edit Tenant
-            </button>
+        {(tenant.emergency_contact_name || tenant.emergency_contact_phone) && (
+          <div className="pt-6 border-t border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Emergency Contact</h3>
+            <dl className="grid grid-cols-1 gap-3 text-sm">
+              {tenant.emergency_contact_name && (
+                <div>
+                  <dt className="text-gray-600 text-xs">Name</dt>
+                  <dd className="text-gray-900 font-medium">{tenant.emergency_contact_name}</dd>
+                </div>
+              )}
+              {tenant.emergency_contact_phone && (
+                <div>
+                  <dt className="text-gray-600 text-xs">Phone</dt>
+                  <dd className="text-gray-900 font-medium">{tenant.emergency_contact_phone}</dd>
+                </div>
+              )}
+              {tenant.emergency_contact_relationship && (
+                <div>
+                  <dt className="text-gray-600 text-xs">Relationship</dt>
+                  <dd className="text-gray-900 font-medium">{tenant.emergency_contact_relationship}</dd>
+                </div>
+              )}
+            </dl>
           </div>
-        </div>
+        )}
+
+        {(tenant.move_in_date || tenant.security_deposit_paid_cents) && (
+          <div className="pt-6 border-t border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Lease Information</h3>
+            <dl className="grid grid-cols-1 gap-3 text-sm">
+              {tenant.move_in_date && (
+                <div>
+                  <dt className="text-gray-600 text-xs">Move-In Date</dt>
+                  <dd className="text-gray-900 font-medium">{formatDate(tenant.move_in_date)}</dd>
+                </div>
+              )}
+              {tenant.security_deposit_paid_cents && (
+                <div>
+                  <dt className="text-gray-600 text-xs">Security Deposit Paid</dt>
+                  <dd className="text-gray-900 font-medium">{formatCurrency(tenant.security_deposit_paid_cents / 100)}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+        )}
+
+        {tenant.notes && (
+          <div className="pt-6 border-t border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Notes</h3>
+            <p className="text-sm text-gray-700 whitespace-pre-wrap">{tenant.notes}</p>
+          </div>
+        )}
       </div>
-    </div>
+    </SlidePanel>
   );
 }

@@ -4,6 +4,11 @@ import { expenseService } from '../services/expenseService';
 import { Expense } from '../types';
 import { EmptyStatePresets } from '../components/EmptyState';
 import { Plus, Receipt, Calendar, Search, Filter, X, Edit2, Trash2, TrendingDown } from 'lucide-react';
+import { ExportButton } from '../components/ExportButton';
+import { exportExpenses } from '../utils/exportHelpers';
+import { ExportFormat } from '../services/dataExportService';
+import { useBulkSelection, BulkActionBar, CommonBulkActions } from '../components/BulkActionBar';
+import { Checkbox } from '../components/Checkbox';
 
 export function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -39,6 +44,8 @@ export function Expenses() {
     return matchesSearch && matchesCategory;
   });
 
+  const bulkSelection = useBulkSelection(filteredExpenses);
+
   const getTotalExpenses = () => {
     return expenses.reduce((sum, e) => sum + (e.amount_cents / 100), 0);
   };
@@ -58,6 +65,21 @@ export function Expenses() {
   };
 
   const categories = Array.from(new Set(expenses.map((e) => e.category))).filter(Boolean);
+
+  const handleBulkDelete = async () => {
+    try {
+      await Promise.all(
+        bulkSelection.selectedItems.map((expense) =>
+          expenseService.deleteExpense(expense.id)
+        )
+      );
+      await loadExpenses();
+      bulkSelection.clearSelection();
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete expenses');
+    }
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-CA', {
@@ -109,10 +131,18 @@ export function Expenses() {
               <h1 className="text-3xl font-bold text-gray-900">Expenses</h1>
               <p className="text-gray-600 mt-1">{filteredExpenses.length} total expenses</p>
             </div>
-            <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-              <Plus size={20} />
-              Add Expense
-            </button>
+            <div className="flex items-center gap-3">
+              <ExportButton
+                onExport={(format: ExportFormat) => exportExpenses(filteredExpenses, format)}
+                disabled={filteredExpenses.length === 0}
+                variant="secondary"
+                size="md"
+              />
+              <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                <Plus size={20} />
+                Add Expense
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
@@ -219,6 +249,13 @@ export function Expenses() {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-6 py-3 w-12">
+                    <Checkbox
+                      checked={bulkSelection.isAllSelected}
+                      indeterminate={bulkSelection.isSomeSelected}
+                      onChange={(checked) => checked ? bulkSelection.selectAll() : bulkSelection.clearSelection()}
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Description</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Category</th>
@@ -230,6 +267,12 @@ export function Expenses() {
               <tbody>
                 {filteredExpenses.map((expense) => (
                   <tr key={expense.id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <Checkbox
+                        checked={bulkSelection.isSelected(expense.id)}
+                        onChange={() => bulkSelection.toggleSelection(expense.id)}
+                      />
+                    </td>
                     <td className="px-6 py-4 text-sm text-gray-900">
                       <div className="flex items-center gap-2">
                         <Calendar size={14} className="text-gray-400" />
@@ -273,6 +316,17 @@ export function Expenses() {
           </div>
         )}
       </div>
+
+      <BulkActionBar
+        selectedCount={bulkSelection.selectedCount}
+        totalCount={filteredExpenses.length}
+        onClearSelection={bulkSelection.clearSelection}
+        onSelectAll={bulkSelection.selectAll}
+        selectAllLabel="Select all expenses"
+        actions={[
+          CommonBulkActions.delete(handleBulkDelete),
+        ]}
+      />
     </div>
   );
 }

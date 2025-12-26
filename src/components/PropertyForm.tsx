@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { Property, PropertyType, Business } from '../types';
 import { businessService } from '../services/businessService';
 import { useAuth } from '../context/AuthContext';
-import { X } from 'lucide-react';
 import { validators, validate, getFieldError, getInputClassName, ValidationError } from '../utils/formValidation';
 import { FieldError } from './FieldError';
+import { SlidePanel } from './SlidePanel';
+import { AddressInput } from './AddressInput';
 
 interface PropertyFormProps {
   property?: Property;
@@ -22,6 +23,7 @@ const propertyTypes: { value: PropertyType; label: string }[] = [
   { value: 'commercial', label: 'Commercial' },
   { value: 'mixed_use', label: 'Mixed Use' },
   { value: 'land', label: 'Land' },
+  { value: 'vacant_land', label: 'Vacant Land' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -55,16 +57,16 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
 
   useEffect(() => {
     loadBusinesses();
-  }, [currentBusiness?.id]);
+  }, []);
 
   const loadBusinesses = async () => {
-    if (!currentBusiness) {
-      setIsLoadingBusinesses(false);
-      return;
-    }
     try {
-      const data = await businessService.getAllBusinesses(currentBusiness.id);
+      const data = await businessService.getOwnedBusinesses();
       setBusinesses(data);
+      // If editing a property and no currentBusiness, set form's business_id from property
+      if (property?.business_id && !formData.business_id) {
+        setFormData(prev => ({ ...prev, business_id: property.business_id }));
+      }
     } catch (error) {
       console.error('Failed to load businesses:', error);
     } finally {
@@ -145,51 +147,73 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
 
   if (isLoadingBusinesses) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
-          <p>Loading businesses...</p>
+      <SlidePanel
+        isOpen={true}
+        onClose={onCancel}
+        title={property ? 'Edit Property' : 'Add Property'}
+      >
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-gray-600 mt-4">Loading businesses...</p>
         </div>
-      </div>
+      </SlidePanel>
     );
   }
 
-  if (currentBusiness && businesses.length === 0) {
+  // Only show "No Business Found" when CREATING a new property and there are no businesses
+  // When editing an existing property, we already have the property's business_id
+  if (!property && businesses.length === 0) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">No Business Found</h2>
-            <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
-              <X size={24} />
-            </button>
-          </div>
-          <p className="text-gray-600 mb-4">
-            You need to create a business before adding properties. Businesses help you organize properties for accounting and tax purposes.
-          </p>
+      <SlidePanel
+        isOpen={true}
+        onClose={onCancel}
+        title="No Business Found"
+        footer={
           <button
             onClick={onCancel}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
             Go Back
           </button>
+        }
+      >
+        <div className="text-center py-8">
+          <p className="text-gray-600">
+            You need to create a business before adding properties. Businesses help you organize properties for accounting and tax purposes.
+          </p>
         </div>
-      </div>
+      </SlidePanel>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-4 my-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">
-            {property ? 'Edit Property' : 'Add Property'}
-          </h2>
-          <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
-            <X size={24} />
+    <SlidePanel
+      isOpen={true}
+      onClose={onCancel}
+      title={property ? 'Edit Property' : 'Add Property'}
+      size="large"
+      footer={
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="property-form"
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Saving...' : property ? 'Update Property' : 'Add Property'}
           </button>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+      }
+    >
+      <form id="property-form" onSubmit={handleSubmit} className="space-y-6">
           {errors.length > 0 && Object.keys(touched).length > 5 && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm font-medium text-red-800 mb-2">Please fix the following errors:</p>
@@ -208,6 +232,8 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
                   Business <span className="text-red-500">*</span>
                 </label>
                 <select
+                  id="business_id"
+                  name="business_id"
                   value={formData.business_id}
                   onChange={(e) => setFormData({ ...formData, business_id: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -230,11 +256,14 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
               </label>
               <input
                 type="text"
+                id="name"
+                name="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 onBlur={() => handleBlur('name')}
                 className={getInputClassName(touched.name && !!getFieldError(errors, 'Property Name'))}
                 placeholder="e.g., Sunset Apartments"
+                autoComplete="organization"
               />
               {touched.name && <FieldError error={getFieldError(errors, 'Property Name')} />}
             </div>
@@ -244,6 +273,8 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
                 Property Type <span className="text-red-500">*</span>
               </label>
               <select
+                id="property_type"
+                name="property_type"
                 value={formData.property_type}
                 onChange={(e) => setFormData({ ...formData, property_type: e.target.value as PropertyType })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -263,6 +294,8 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
               </label>
               <input
                 type="number"
+                id="year_built"
+                name="year_built"
                 value={formData.year_built}
                 onChange={(e) => setFormData({ ...formData, year_built: e.target.value })}
                 onBlur={() => handleBlur('year_built')}
@@ -275,89 +308,29 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Address Line 1 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.address_line1}
-                onChange={(e) => setFormData({ ...formData, address_line1: e.target.value })}
-                onBlur={() => handleBlur('address_line1')}
-                className={getInputClassName(touched.address_line1 && !!getFieldError(errors, 'Address'))}
-                placeholder="Street address"
+              <AddressInput
+                value={{
+                  address_line1: formData.address_line1,
+                  address_line2: formData.address_line2,
+                  city: formData.city,
+                  state: formData.state,
+                  postal_code: formData.postal_code,
+                  country: formData.country,
+                }}
+                onChange={(addressData) => {
+                  setFormData({ ...formData, ...addressData });
+                  // Mark fields as touched when changed via autocomplete
+                  if (addressData.address_line1 !== formData.address_line1) handleBlur('address_line1');
+                  if (addressData.city !== formData.city) handleBlur('city');
+                  if (addressData.state !== formData.state) handleBlur('state');
+                  if (addressData.postal_code !== formData.postal_code) handleBlur('postal_code');
+                }}
+                required={true}
               />
               {touched.address_line1 && <FieldError error={getFieldError(errors, 'Address')} />}
-            </div>
-
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Address Line 2
-              </label>
-              <input
-                type="text"
-                value={formData.address_line2}
-                onChange={(e) => setFormData({ ...formData, address_line2: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Apartment, suite, unit, building, floor, etc."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                City <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                onBlur={() => handleBlur('city')}
-                className={getInputClassName(touched.city && !!getFieldError(errors, 'City'))}
-              />
               {touched.city && <FieldError error={getFieldError(errors, 'City')} />}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                State/Province <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                onBlur={() => handleBlur('state')}
-                className={getInputClassName(touched.state && !!getFieldError(errors, 'State/Province'))}
-                placeholder="e.g., ON"
-              />
               {touched.state && <FieldError error={getFieldError(errors, 'State/Province')} />}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Postal Code <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.postal_code}
-                onChange={(e) => setFormData({ ...formData, postal_code: e.target.value.toUpperCase() })}
-                onBlur={() => handleBlur('postal_code')}
-                className={getInputClassName(touched.postal_code && !!getFieldError(errors, 'Postal Code'))}
-                placeholder={formData.country === 'CA' ? 'A1A 1A1' : '12345'}
-              />
               {touched.postal_code && <FieldError error={getFieldError(errors, 'Postal Code')} />}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Country
-              </label>
-              <select
-                value={formData.country}
-                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="CA">Canada</option>
-                <option value="US">United States</option>
-              </select>
             </div>
 
             <div>
@@ -366,6 +339,8 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
               </label>
               <input
                 type="number"
+                id="bedrooms"
+                name="bedrooms"
                 value={formData.bedrooms}
                 onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -379,6 +354,8 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
               </label>
               <input
                 type="number"
+                id="bathrooms"
+                name="bathrooms"
                 step="0.5"
                 value={formData.bathrooms}
                 onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
@@ -393,6 +370,8 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
               </label>
               <input
                 type="number"
+                id="square_feet"
+                name="square_feet"
                 value={formData.square_feet}
                 onChange={(e) => setFormData({ ...formData, square_feet: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -406,6 +385,8 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
               </label>
               <input
                 type="number"
+                id="lot_size"
+                name="lot_size"
                 step="0.01"
                 value={formData.lot_size}
                 onChange={(e) => setFormData({ ...formData, lot_size: e.target.value })}
@@ -420,6 +401,8 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
               </label>
               <input
                 type="number"
+                id="purchase_price_cents"
+                name="purchase_price_cents"
                 step="0.01"
                 value={formData.purchase_price_cents}
                 onChange={(e) => setFormData({ ...formData, purchase_price_cents: e.target.value })}
@@ -435,6 +418,8 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
               </label>
               <input
                 type="date"
+                id="purchase_date"
+                name="purchase_date"
                 value={formData.purchase_date}
                 onChange={(e) => setFormData({ ...formData, purchase_date: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -447,6 +432,8 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
               </label>
               <input
                 type="number"
+                id="current_value_cents"
+                name="current_value_cents"
                 step="0.01"
                 value={formData.current_value_cents}
                 onChange={(e) => setFormData({ ...formData, current_value_cents: e.target.value })}
@@ -461,6 +448,8 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
                 Notes
               </label>
               <textarea
+                id="notes"
+                name="notes"
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={3}
@@ -470,25 +459,7 @@ export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: Pro
             </div>
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Saving...' : property ? 'Update Property' : 'Add Property'}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+    </SlidePanel>
   );
 }

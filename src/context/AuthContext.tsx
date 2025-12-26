@@ -4,6 +4,7 @@ import { authService, ExtendedRegistrationData } from '../services/authService';
 import { businessService, BusinessWithStats } from '../services/businessService';
 import { propertyOwnerService } from '../services/propertyOwnerService';
 import { packageTierService, PackageTier } from '../services/packageTierService';
+import { analyticsService } from '../services/analyticsService';
 import { User, UserRole, Business } from '../types';
 
 export type ClientType = 'landlord' | 'property_manager';
@@ -46,6 +47,8 @@ interface AuthContextType {
   canViewReports: () => boolean;
   canManageClients: () => boolean;
   canManageBusinesses: () => boolean;
+  refetch: () => Promise<void>;
+  isImpersonating: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [packageTier, setPackageTier] = useState<PackageTier | null>(null);
   const [lastActivity, setLastActivity] = useState<number>(Date.now());
+  const [isImpersonating, setIsImpersonating] = useState(false);
 
   // SECURITY: Session timeout - track user activity
   const updateActivity = useCallback(() => {
@@ -82,7 +86,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (inactiveTime >= SESSION_TIMEOUT_MS) {
         // SECURITY: Auto-logout after inactivity
         console.warn('Session timeout due to inactivity');
-        authService.logout();
+        // TEMPORARILY DISABLED FOR DEBUGGING
+        // authService.logout();
       } else if (inactiveTime >= SESSION_TIMEOUT_MS - SESSION_WARNING_MS) {
         // TODO: Show warning toast to user about impending timeout
         // Consider adding a modal with "Stay logged in" option
@@ -155,20 +160,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSupabaseUser(user || null);
 
         if (user) {
-          const profile = await authService.getUserProfile(user.id);
+          // Check if impersonating (god mode)
+          const impersonatingUserId = sessionStorage.getItem('impersonating_user_id');
+          const adminUserId = sessionStorage.getItem('admin_user_id');
+
+          let targetUserId = user.id;
+          let isGodMode = false;
+
+          // Validate god mode: admin must be logged in and match the stored admin ID
+          if (impersonatingUserId && adminUserId === user.id) {
+            // Super admin is impersonating another user
+            const superAdmin = await authService.checkSuperAdmin(user.id);
+            if (superAdmin) {
+              targetUserId = impersonatingUserId;
+              isGodMode = true;
+              setIsImpersonating(true);
+            } else {
+              // Not a super admin, clear invalid impersonation
+              sessionStorage.removeItem('impersonating_user_id');
+              sessionStorage.removeItem('admin_user_id');
+            }
+          } else {
+            setIsImpersonating(false);
+          }
+
+          // Load profile for the target user (impersonated or actual)
+          const profile = await authService.getUserProfile(targetUserId);
           setUserProfile(profile);
 
+          // Check admin status of actual logged-in user (not impersonated)
           const superAdmin = await authService.checkSuperAdmin(user.id);
           setIsSuperAdmin(superAdmin);
 
+          // Check property owner status for target user
           const propertyOwner = await propertyOwnerService.isPropertyOwner();
           setIsPropertyOwner(propertyOwner);
 
-          // Load businesses (replaces organization loading)
-          await loadBusinesses();
+          // Load businesses for target user
+          if (isGodMode) {
+            // In god mode, fetch businesses for the impersonated user
+            const userBusinesses = await businessService.getUserBusinesses();
+            setBusinesses(userBusinesses);
 
-          // Load package tier
-          await loadPackageTier(user.id);
+            if (userBusinesses.length > 0) {
+              const business = userBusinesses.find(b => b.is_default) || userBusinesses[0];
+              setCurrentBusiness(business);
+            }
+          } else {
+            // Normal mode, load current user's businesses
+            await loadBusinesses();
+          }
+
+          // Load package tier for target user
+          await loadPackageTier(targetUserId);
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -195,6 +239,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           // Load package tier
           await loadPackageTier(session.user.id);
+
+          // Identify user for analytics
+          analyticsService.identify(session.user.id, {
+            email: session.user.email,
+            is_super_admin: superAdmin,
+            is_property_owner: propertyOwner,
+            tier: profile?.selected_tier,
+          });
         } else if (event === 'SIGNED_OUT') {
           setSupabaseUser(null);
           setUserProfile(null);
@@ -241,6 +293,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshBusinesses = async () => {
     await loadBusinesses();
+  };
+
+  const refetch = async () => {
+    setIsLoading(true);
+    try {
+      const user = await authService.getCurrentUser();
+      if (user) {
+        // Check for god mode
+        const impersonatingUserId = sessionStorage.getItem('impersonating_user_id');
+        const adminUserId = sessionStorage.getItem('admin_user_id');
+
+        let targetUserId = user.id;
+        let isGodMode = false;
+
+        if (impersonatingUserId && adminUserId === user.id) {
+          const superAdmin = await authService.checkSuperAdmin(user.id);
+          if (superAdmin) {
+            targetUserId = impersonatingUserId;
+            isGodMode = true;
+            setIsImpersonating(true);
+          } else {
+            sessionStorage.removeItem('impersonating_user_id');
+            sessionStorage.removeItem('admin_user_id');
+            setIsImpersonating(false);
+          }
+        } else {
+          setIsImpersonating(false);
+        }
+
+        const profile = await authService.getUserProfile(targetUserId);
+        setUserProfile(profile);
+
+        const superAdmin = await authService.checkSuperAdmin(user.id);
+        setIsSuperAdmin(superAdmin);
+
+        const propertyOwner = await propertyOwnerService.isPropertyOwner();
+        setIsPropertyOwner(propertyOwner);
+
+        if (isGodMode) {
+          const userBusinesses = await businessService.getUserBusinesses();
+          setBusinesses(userBusinesses);
+          if (userBusinesses.length > 0) {
+            const business = userBusinesses.find(b => b.is_default) || userBusinesses[0];
+            setCurrentBusiness(business);
+          }
+        } else {
+          await loadBusinesses();
+        }
+
+        await loadPackageTier(targetUserId);
+      }
+    } catch (error) {
+      console.error('Refetch error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const hasPermission = (permission: string | string[]): boolean => {
@@ -335,6 +443,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         canViewReports,
         canManageClients,
         canManageBusinesses,
+        refetch,
+        isImpersonating,
       }}
     >
       {children}

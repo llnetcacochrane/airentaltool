@@ -84,17 +84,45 @@ export const paymentService = {
   },
 
   async getPayments(organizationId: string, filters?: any): Promise<Payment[]> {
+    // organizationId parameter is actually businessId in business-centric model
+    const businessId = organizationId;
+
+    // Get units for this business's properties
+    const { data: properties } = await supabase
+      .from('properties')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('is_active', true);
+
+    if (!properties || properties.length === 0) {
+      return [];
+    }
+
+    const propertyIds = properties.map(p => p.id);
+
+    const { data: units } = await supabase
+      .from('units')
+      .select('id')
+      .in('property_id', propertyIds)
+      .eq('is_active', true);
+
+    if (!units || units.length === 0) {
+      return [];
+    }
+
+    const unitIds = units.map(u => u.id);
+
     let query = supabase
       .from('rent_payments')
       .select('*')
-      .eq('organization_id', organizationId);
+      .in('unit_id', unitIds);
 
     if (filters?.leaseId) {
       query = query.eq('lease_id', filters.leaseId);
     }
 
     if (filters?.status) {
-      query = query.eq('payment_status', filters.status);
+      query = query.eq('status', filters.status);
     }
 
     const { data, error } = await query.order('payment_date', { ascending: false });
@@ -198,21 +226,49 @@ export const paymentService = {
   },
 
   async getMonthlyIncome(organizationId: string, month: string): Promise<number> {
+    // organizationId parameter is actually businessId in business-centric model
+    const businessId = organizationId;
+
     const startDate = `${month}-01`;
     const [year, monthNum] = month.split('-');
     const lastDay = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
     const endDate = `${month}-${lastDay}`;
 
+    // Get units for this business's properties
+    const { data: properties } = await supabase
+      .from('properties')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('is_active', true);
+
+    if (!properties || properties.length === 0) {
+      return 0;
+    }
+
+    const propertyIds = properties.map(p => p.id);
+
+    const { data: units } = await supabase
+      .from('units')
+      .select('id')
+      .in('property_id', propertyIds)
+      .eq('is_active', true);
+
+    if (!units || units.length === 0) {
+      return 0;
+    }
+
+    const unitIds = units.map(u => u.id);
+
     const { data, error} = await supabase
       .from('rent_payments')
-      .select('amount')
-      .eq('organization_id', organizationId)
-      .eq('payment_status', 'completed')
+      .select('amount_cents')
+      .in('unit_id', unitIds)
+      .eq('status', 'paid')
       .gte('payment_date', startDate)
       .lte('payment_date', endDate);
 
     if (error) throw error;
 
-    return (data || []).reduce((total, payment) => total + payment.amount, 0);
+    return (data || []).reduce((total, payment) => total + (payment.amount_cents || 0) / 100, 0);
   },
 };

@@ -23,9 +23,13 @@ import {
   Package,
   HelpCircle,
   UserCheck,
+  Sparkles,
+  Globe,
 } from 'lucide-react';
 import { Footer } from './Footer';
 import BusinessSelector from './BusinessSelector';
+import { GodModeBanner } from './GodModeBanner';
+import { EmailVerificationReminder } from './EmailVerificationReminder';
 
 interface NavItem {
   name: string;
@@ -37,11 +41,12 @@ interface NavItem {
 
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'Property Wizard', href: '/welcome', icon: Sparkles },
+  { name: 'Businesses', href: '/businesses', icon: Briefcase },
   { name: 'Clients', href: '/property-owners', icon: UserCheck, packageType: 'management_company' }, // Property Managers manage clients
-  { name: 'Businesses', href: '/businesses', icon: Briefcase, tier: ['basic', 'landlord', 'professional', 'management-company'] },
-  { name: 'Properties', href: '/properties', icon: Building2 },
-  { name: 'Tenants', href: '/tenants', icon: Users },
+  { name: 'Users', href: '/users', icon: Users },
   { name: 'Applications', href: '/applications', icon: ClipboardList },
+  { name: 'Public Page', href: '/public-page', icon: Globe },
   { name: 'Agreements', href: '/agreements', icon: FileText },
   { name: 'Payments', href: '/payments', icon: CreditCard },
   { name: 'Expenses', href: '/expenses', icon: DollarSign },
@@ -51,8 +56,13 @@ const navigation: NavItem[] = [
 
 const secondaryNavigation: NavItem[] = [
   { name: 'Rent Optimization', href: '/rent-optimization', icon: TrendingUp },
-  { name: 'Add-ons', href: '/addons', icon: Package },
   { name: 'Help Center', href: '/help', icon: HelpCircle },
+];
+
+const accountNavigation: NavItem[] = [
+  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Packages', href: '/packages', icon: Package },
+  { name: 'Add-ons', href: '/addons', icon: Package },
 ];
 
 export function Layout() {
@@ -252,18 +262,28 @@ export function Layout() {
               </div>
 
               <div className="pt-4 mt-4 border-t border-gray-200">
-                <Link
-                  to="/settings"
-                  onClick={() => setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                    location.pathname === '/settings'
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
-                >
-                  <Settings className="w-5 h-5 text-gray-400" />
-                  Settings
-                </Link>
+                <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Your Account
+                </p>
+                {accountNavigation.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      onClick={() => setSidebarOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                        active
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Icon className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
+                      {item.name}
+                    </Link>
+                  );
+                })}
               </div>
             </nav>
           </div>
@@ -272,6 +292,9 @@ export function Layout() {
 
       {/* Main Content Area */}
       <div className="lg:pl-64 flex flex-col flex-1">
+        {/* God Mode Banner (if impersonating) */}
+        <GodModeBanner />
+
         {/* Top Header */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
           <div className="px-4 sm:px-6 lg:px-8">
@@ -397,6 +420,13 @@ export function Layout() {
         </header>
 
         <main className="flex-1">
+          {/* Email Verification Reminder - show if user email is not verified */}
+          {supabaseUser && !supabaseUser.email_confirmed_at && (
+            <div className="px-4 sm:px-6 lg:px-8 pt-6">
+              <EmailVerificationReminder email={supabaseUser.email || ''} />
+            </div>
+          )}
+
           <Outlet />
         </main>
 

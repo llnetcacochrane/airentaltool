@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { superAdminService, AdminType } from '../services/superAdminService';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Building2, Users, DollarSign, Activity, AlertCircle, Settings, Briefcase, ArrowLeft, Package } from 'lucide-react';
+import { Building2, Users, DollarSign, Activity, AlertCircle, Settings, Briefcase, Package, Mail } from 'lucide-react';
+import { SuperAdminLayout } from '../components/SuperAdminLayout';
 
 export function SuperAdminDashboard() {
   const navigate = useNavigate();
@@ -104,49 +105,39 @@ export function SuperAdminDashboard() {
     return null;
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-gradient-to-r from-red-600 to-red-800 text-white">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition"
-                title="Back to Dashboard"
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <Shield className="w-8 h-8" />
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
-                  {adminType !== 'none' && (
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      adminType === 'both' ? 'bg-purple-500' :
-                      adminType === 'system' ? 'bg-blue-500' : 'bg-green-500'
-                    }`}>
-                      {adminType === 'both' ? 'System + SaaS Admin' :
-                       adminType === 'system' ? 'System Admin' : 'SaaS Admin'}
-                    </span>
-                  )}
-                </div>
-                <p className="text-red-100 mt-1">Platform Management & Monitoring</p>
-              </div>
-            </div>
-            <button
-              onClick={handleSwitchToAdminOrg}
-              disabled={isSwitchingToOrg}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 rounded-lg hover:bg-green-700 transition disabled:bg-gray-500"
-            >
-              <Briefcase size={18} />
-              {isSwitchingToOrg ? 'Switching...' : 'Switch to Admin Org'}
-            </button>
-          </div>
-        </div>
-      </div>
+  const adminBadge = adminType !== 'none' ? (
+    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+      adminType === 'both' ? 'bg-purple-500' :
+      adminType === 'system' ? 'bg-blue-500' : 'bg-green-500'
+    }`}>
+      {adminType === 'both' ? 'System + SaaS Admin' :
+       adminType === 'system' ? 'System Admin' : 'SaaS Admin'}
+    </span>
+  ) : null;
 
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+  const actionButton = (
+    <button
+      onClick={handleSwitchToAdminOrg}
+      disabled={isSwitchingToOrg}
+      className="flex items-center gap-2 px-4 py-2 bg-green-600 rounded-lg hover:bg-green-700 transition disabled:bg-gray-500"
+    >
+      <Briefcase size={18} />
+      {isSwitchingToOrg ? 'Switching...' : 'Switch to Admin Org'}
+    </button>
+  );
+
+  return (
+    <SuperAdminLayout
+      title={
+        <div className="flex items-center gap-3">
+          <span>Super Admin Dashboard</span>
+          {adminBadge}
+        </div>
+      }
+      subtitle="Platform Management & Monitoring"
+      actionButton={actionButton}
+    >
+      <div className="space-y-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
           <div>
@@ -298,6 +289,13 @@ export function SuperAdminDashboard() {
               >
                 Create System Notification
               </button>
+              <button
+                onClick={() => navigate('/super-admin/email-accounts')}
+                className="w-full px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 transition text-sm font-semibold flex items-center justify-center gap-2"
+              >
+                <Mail size={16} />
+                Email Accounts
+              </button>
             </div>
           </div>
 
@@ -326,7 +324,7 @@ export function SuperAdminDashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </SuperAdminLayout>
   );
 }
 

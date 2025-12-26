@@ -24,30 +24,82 @@ export interface PortfolioHealth {
 
 export const portfolioHealthService = {
   async calculateHealthScore(organizationId: string): Promise<PortfolioHealth> {
+    // organizationId parameter is actually businessId in business-centric model
+    const businessId = organizationId;
+
+    // Get properties for this business
+    const propertiesData = await supabase
+      .from('properties')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('is_active', true);
+
+    const properties = propertiesData.data || [];
+    if (properties.length === 0) {
+      // Return default health data for business with no properties
+      return {
+        health_score: 0,
+        health_level: 'critical',
+        occupancy_rate: 0,
+        collection_rate: 100,
+        maintenance_response_rate: 100,
+        tenant_satisfaction_score: 100,
+        roi_percentage: 0,
+        recommendations: ['No properties found. Add your first property to start tracking portfolio health.'],
+        metrics: {
+          total_properties: 0,
+          occupied_units: 0,
+          total_units: 0,
+          monthly_income: 0,
+          monthly_expenses: 0,
+          late_payments: 0,
+          total_due_payments: 0,
+          open_maintenance: 0,
+          avg_maintenance_response_days: 0,
+        },
+      };
+    }
+
+    const propertyIds = properties.map(p => p.id);
+
     const [
-      propertiesData,
-      leasesData,
-      paymentsData,
-      schedulesData,
+      unitsData,
       expensesData,
       maintenanceData,
     ] = await Promise.all([
-      supabase.from('properties').select('id').eq('organization_id', organizationId),
-      supabase.from('leases').select('id, status, monthly_rent_cents').eq('organization_id', organizationId),
-      supabase.from('rent_payments').select('amount_cents, status, payment_date').eq('organization_id', organizationId).gte('payment_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
-      supabase.from('payment_schedules').select('is_paid, due_amount, payment_date, paid_date').gte('payment_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
-      supabase.from('expenses').select('amount_cents, expense_date').eq('organization_id', organizationId).gte('expense_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
-      supabase.from('maintenance_requests').select('status, requested_date, assigned_at').eq('organization_id', organizationId),
+      supabase.from('units').select('id, property_id').in('property_id', propertyIds).eq('is_active', true),
+      supabase.from('expenses').select('amount_cents, expense_date').eq('business_id', businessId).gte('expense_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+      supabase.from('maintenance_requests').select('status, requested_date, assigned_at').in('property_id', propertyIds),
     ]);
 
-    const properties = propertiesData.data || [];
+    const units = unitsData.data || [];
+    const unitIds = units.map(u => u.id);
+
+    // Get leases for units (not properties)
+    const leasesData = unitIds.length > 0
+      ? await supabase.from('leases').select('id, status, monthly_rent_cents').in('unit_id', unitIds)
+      : { data: [], error: null };
+
+    // Get payments for units in this business
+    let paymentsData;
+    let schedulesData;
+    if (unitIds.length > 0) {
+      [paymentsData, schedulesData] = await Promise.all([
+        supabase.from('rent_payments').select('amount_cents, status, payment_date').in('unit_id', unitIds).gte('payment_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+        supabase.from('payment_schedules').select('is_paid, due_amount, payment_date, paid_date, lease_id').gte('payment_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+      ]);
+    } else {
+      paymentsData = { data: [] };
+      schedulesData = { data: [] };
+    }
+
     const leases = leasesData.data || [];
     const payments = paymentsData.data || [];
     const schedules = schedulesData.data || [];
     const expenses = expensesData.data || [];
     const maintenance = maintenanceData.data || [];
 
-    const totalUnits = properties.length * 10;
+    const totalUnits = units.length;
     const activeLeases = leases.filter(l => l.status === 'active');
     const occupiedUnits = activeLeases.length;
     const occupancyRate = totalUnits > 0 ? (occupiedUnits / totalUnits) * 100 : 0;

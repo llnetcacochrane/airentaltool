@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Tenant, TenantType, Unit } from '../types';
 import { unitService } from '../services/unitService';
 import { useAuth } from '../context/AuthContext';
-import { X } from 'lucide-react';
+import { SlidePanel } from './SlidePanel';
 
 interface TenantFormProps {
   tenant?: Tenant;
@@ -95,51 +95,72 @@ export function TenantForm({ tenant, onSubmit, onCancel, isSubmitting }: TenantF
 
   if (isLoadingUnits) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
-          <p>Loading units...</p>
+      <SlidePanel
+        isOpen={true}
+        onClose={onCancel}
+        title={tenant ? 'Edit Tenant' : 'Add Tenant'}
+      >
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="text-gray-600 mt-4">Loading units...</p>
         </div>
-      </div>
+      </SlidePanel>
     );
   }
 
-  if (units.length === 0) {
+  // Only show "no units" error when creating a new tenant (not editing)
+  if (units.length === 0 && !tenant) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">No Available Units</h2>
-            <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
-              <X size={24} />
-            </button>
-          </div>
-          <p className="text-gray-600 mb-4">
-            You need to have vacant units before adding tenants. Units are created within properties.
-          </p>
+      <SlidePanel
+        isOpen={true}
+        onClose={onCancel}
+        title="No Available Units"
+        footer={
           <button
             onClick={onCancel}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
           >
             Go Back
           </button>
+        }
+      >
+        <div className="text-center py-8">
+          <p className="text-gray-600">
+            You need to have vacant units before adding tenants. Units are created within properties.
+          </p>
         </div>
-      </div>
+      </SlidePanel>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-xl p-6 max-w-4xl w-full mx-4 my-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">
-            {tenant ? 'Edit Tenant' : 'Add Tenant'}
-          </h2>
-          <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
-            <X size={24} />
+    <SlidePanel
+      isOpen={true}
+      onClose={onCancel}
+      title={tenant ? 'Edit Tenant' : 'Add Tenant'}
+      size="large"
+      footer={
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            disabled={isSubmitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="tenant-form"
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Saving...' : tenant ? 'Update Tenant' : 'Add Tenant'}
           </button>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
+      }
+    >
+      <form id="tenant-form" onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -383,25 +404,7 @@ export function TenantForm({ tenant, onSubmit, onCancel, isSubmitting }: TenantF
             </div>
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Saving...' : tenant ? 'Update Tenant' : 'Add Tenant'}
-            </button>
-          </div>
         </form>
-      </div>
-    </div>
+    </SlidePanel>
   );
 }

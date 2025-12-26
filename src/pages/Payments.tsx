@@ -4,14 +4,78 @@ import { paymentService } from '../services/paymentService';
 import { Payment } from '../types';
 import { EmptyStatePresets } from '../components/EmptyState';
 import { Plus, DollarSign, Calendar, CheckCircle, Clock, AlertCircle, Search, Filter, X } from 'lucide-react';
+import { ExportButton } from '../components/ExportButton';
+import { exportPayments } from '../utils/exportHelpers';
+import { ExportFormat } from '../services/dataExportService';
+import { AdvancedSearchFilter, useSearchAndFilter, FilterOption } from '../components/AdvancedSearchFilter';
 
 export function Payments() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const { currentBusiness } = useAuth();
+
+  const filterConfig: FilterOption[] = [
+    {
+      id: 'status',
+      label: 'Status',
+      type: 'select',
+      options: [
+        { value: 'completed', label: 'Completed' },
+        { value: 'pending', label: 'Pending' },
+        { value: 'overdue', label: 'Overdue' },
+        { value: 'cancelled', label: 'Cancelled' },
+      ],
+    },
+    {
+      id: 'date',
+      label: 'Payment Date',
+      type: 'date-range',
+    },
+    {
+      id: 'amount',
+      label: 'Amount ($)',
+      type: 'number-range',
+      placeholder: 'Amount',
+    },
+  ];
+
+  const {
+    searchValue,
+    setSearchValue,
+    filterValues,
+    setFilterValues,
+    filteredItems: filteredPayments,
+    clearFilters,
+  } = useSearchAndFilter<Payment>(
+    payments,
+    ['payment_reference'] as (keyof Payment)[],
+    (payment, filters) => {
+      // Status filter
+      if (filters.status && payment.status !== filters.status) {
+        return false;
+      }
+
+      // Date range filter
+      if (filters.date_from && payment.payment_date && payment.payment_date < filters.date_from) {
+        return false;
+      }
+      if (filters.date_to && payment.payment_date && payment.payment_date > filters.date_to) {
+        return false;
+      }
+
+      // Amount range filter
+      const amount = (payment.amount_cents || 0) / 100;
+      if (filters.amount_min && amount < parseFloat(filters.amount_min)) {
+        return false;
+      }
+      if (filters.amount_max && amount > parseFloat(filters.amount_max)) {
+        return false;
+      }
+
+      return true;
+    }
+  );
 
   useEffect(() => {
     loadPayments();
@@ -31,16 +95,9 @@ export function Payments() {
     }
   };
 
-  const filteredPayments = payments.filter((payment) => {
-    const matchesSearch = searchTerm === '' ||
-      payment.payment_reference?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || payment.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
   const getTotalPaid = () => {
     return payments
-      .filter((p) => p.status === 'completed')
+      .filter((p) => p.status === 'paid')
       .reduce((sum, p) => sum + ((p.amount_cents || 0) / 100), 0);
   };
 
@@ -52,7 +109,7 @@ export function Payments() {
 
   const getOverdueTotal = () => {
     return payments
-      .filter((p) => p.status === 'overdue')
+      .filter((p) => p.status === 'late')
       .reduce((sum, p) => sum + ((p.amount_cents || 0) / 100), 0);
   };
 
@@ -121,38 +178,29 @@ export function Payments() {
               <h1 className="text-3xl font-bold text-gray-900">Payments</h1>
               <p className="text-gray-600 mt-1">{filteredPayments.length} total payments</p>
             </div>
-            <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
-              <Plus size={20} />
-              Record Payment
-            </button>
+            <div className="flex items-center gap-3">
+              <ExportButton
+                onExport={(format: ExportFormat) => exportPayments(filteredPayments, format)}
+                disabled={filteredPayments.length === 0}
+                variant="secondary"
+                size="md"
+              />
+              <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                <Plus size={20} />
+                Record Payment
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
-              <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by reference number..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter size={18} className="text-gray-500" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Status</option>
-                <option value="completed">Completed</option>
-                <option value="pending">Pending</option>
-                <option value="overdue">Overdue</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
+          <AdvancedSearchFilter
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            searchPlaceholder="Search by reference number..."
+            filters={filterConfig}
+            filterValues={filterValues}
+            onFilterChange={setFilterValues}
+            onClearFilters={clearFilters}
+          />
         </div>
       </div>
 
@@ -230,7 +278,7 @@ export function Payments() {
                     <td className="px-6 py-4 text-sm text-gray-900">
                       <div className="flex items-center gap-2">
                         <Calendar size={14} className="text-gray-400" />
-                        {formatDate(payment.payment_date)}
+                        {payment.payment_date ? formatDate(payment.payment_date) : '-'}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">

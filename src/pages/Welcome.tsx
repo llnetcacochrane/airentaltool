@@ -156,6 +156,9 @@ export function Welcome() {
     if (!onboardingStatus) return;
 
     switch (onboardingStatus.next_step) {
+      case 'create_business':
+        navigate('/quick-start');
+        break;
       case 'create_property':
         navigate('/properties?new=true');
         break;
@@ -169,7 +172,7 @@ export function Welcome() {
         navigate('/dashboard');
         break;
       default:
-        navigate('/properties?new=true');
+        navigate('/quick-start');
     }
   };
 
@@ -260,7 +263,7 @@ export function Welcome() {
                 <p className="text-sm text-gray-600">
                   {onboardingStatus?.has_business
                     ? `Your business profile is set up (${onboardingStatus.business_count} business${onboardingStatus.business_count !== 1 ? 'es' : ''})`
-                    : 'We created a default business for you'}
+                    : 'Create your business to organize your properties'}
                 </p>
               </div>
             </div>
@@ -404,20 +407,20 @@ export function Welcome() {
             <div className="max-w-2xl mx-auto">
               <h2 className="text-2xl font-bold mb-3">Ready to Get Started?</h2>
               <p className="text-blue-100 mb-6">
+                {onboardingStatus?.next_step === 'create_business' &&
+                  "Let's set up your business and start managing your rentals"}
                 {onboardingStatus?.next_step === 'create_property' &&
                   "Let's add your first property to begin managing your rentals"}
                 {onboardingStatus?.next_step === 'create_unit' &&
                   "Let's create units for your properties"}
-                {onboardingStatus?.next_step === 'create_tenant' &&
-                  "Let's add your tenants and start tracking rent"}
               </p>
               <button
                 onClick={handleNextStep}
                 className="px-8 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 font-semibold text-lg inline-flex items-center gap-2"
               >
+                {onboardingStatus?.next_step === 'create_business' && 'Start Property Wizard'}
                 {onboardingStatus?.next_step === 'create_property' && 'Add First Property'}
                 {onboardingStatus?.next_step === 'create_unit' && 'Create Units'}
-                {onboardingStatus?.next_step === 'create_tenant' && 'Add Tenants'}
                 {onboardingStatus?.next_step === 'complete' && 'Go to Dashboard'}
                 <ArrowRight className="w-5 h-5" />
               </button>

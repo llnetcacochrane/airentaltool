@@ -1,12 +1,86 @@
-# RentTrack Version History
+# AI Rental Tools Version History
 
-**Current Version: v4.2.10-beta**
+**Current Version: v5.2.0**
 
 This project follows [Semantic Versioning](https://semver.org/):
 - **MAJOR.MINOR.PATCH** format
 - **MAJOR** - Breaking changes, major rewrites (x.0.0)
 - **MINOR** - New features, backwards compatible (1.x.0)
 - **PATCH** - Bug fixes, small improvements (1.0.x)
+
+---
+
+## v5.2.0 (2025-12-23)
+
+### Major Feature: Business Users System
+
+Complete user/tenant permission system allowing public signup and user-to-tenant promotion.
+
+#### New Business Users Management
+- **business_users table** - Users managed per business with role (user/tenant/applicant) and status
+- **business_user_messages table** - Messaging between users and property managers
+- **BusinessUsers page** (`/users`) - Full user management interface with:
+  - Stats dashboard (total/pending/active users, tenants, unread messages)
+  - Search and filter by status/role
+  - Add new users manually
+  - Approve pending users
+  - Suspend/deactivate users
+- **Promote to Tenant workflow** - Select property → unit → set lease date & rent
+- **Messaging system** - Send messages to users directly from management page
+
+#### Public Page User Signup
+- **Sign Up / Login button** on public business pages
+- **Modal** with signup/login tabs
+- **Cross-business user detection** - If user exists in another business, links them automatically
+- Password validation and error handling
+- Redirects to user portal after login
+
+#### Database Functions
+- `find_user_by_email()` - Cross-business user detection
+- `link_user_to_business()` - Links existing users to new businesses
+- `promote_user_to_tenant()` - Promotes user to tenant with unit assignment
+- `get_business_users_with_stats()` - Gets users with message/application counts
+
+#### RLS Policies
+- Business owners can manage their users
+- Users can see/update their own records
+- Public signup allowed for businesses with public pages enabled
+
+### Bug Fixes
+
+1. **Fixed Settings button blank pages** - PropertyDetail and UnitDetail Settings buttons now open edit SlidePanels instead of navigating to non-existent routes
+
+2. **Fixed Public Page toggle always showing OFF** - Updated `get_user_businesses()` function to include all public_page fields (public_page_enabled, public_page_slug, etc.)
+
+3. **Fixed Super Admin pages inconsistency** - Added sidebar navigation to SuperAdminLayout with consistent styling across all admin pages
+
+4. **Fixed PackageManagement crashes** - Added missing ArrowLeft import
+
+5. **Fixed AIApiKeys and EmailDiagnostics styling** - Updated to use SuperAdminLayout for consistent look and feel
+
+6. **Fixed "No Business Found" error** - Changed PropertyForm and Businesses pages to use `getOwnedBusinesses()` instead of non-existent `getAllBusinesses()`
+
+7. **Moved Public Page Settings** - Now a standalone page in main navigation instead of a tab in Settings
+
+8. **Cleaned up navigation** - Removed Properties and Tenants from main menu (accessed via Business detail)
+
+### Technical Details
+- New service: `businessUserService.ts`
+- New page: `BusinessUsers.tsx`
+- Updated types: Added BusinessUser, BusinessUserMessage types
+- Database migration: `business-users-migration.sql`
+- Updated `get_user_businesses` RPC function with public page fields
+
+---
+
+## v5.1.0 (2025-12-22)
+
+### Public Business Pages
+- Public-facing business pages at `/browse/{slug}`
+- Property listings with availability
+- Contact information display
+- Custom branding (logo, header image)
+- Public page settings management
 
 ---
 

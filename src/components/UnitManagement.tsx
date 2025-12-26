@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Unit, OccupancyStatus } from '../types';
 import { unitService } from '../services/unitService';
-import { Plus, Edit2, Trash2, X, DoorClosed } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, DoorClosed, Save } from 'lucide-react';
+import { SlidePanel } from './SlidePanel';
 
 interface UnitManagementProps {
   propertyId: string;
@@ -78,8 +79,8 @@ export function UnitManagement({ propertyId, organizationId }: UnitManagementPro
     setShowForm(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    if (!formData.unit_number) return;
     setIsSubmitting(true);
 
     try {
@@ -225,167 +226,162 @@ export function UnitManagement({ propertyId, organizationId }: UnitManagementPro
         </div>
       )}
 
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold">
-                {editingUnit ? 'Edit Unit' : 'Add Unit'}
-              </h3>
-              <button onClick={resetForm} className="text-gray-500 hover:text-gray-700">
-                <X size={20} />
-              </button>
+      <SlidePanel
+        isOpen={showForm}
+        onClose={resetForm}
+        title={editingUnit ? 'Edit Unit' : 'Add Unit'}
+        subtitle={editingUnit ? `Editing: ${editingUnit.unit_number}` : 'Add a new unit to this property'}
+        size="medium"
+        footer={
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={resetForm}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 text-sm flex items-center justify-center gap-2"
+              disabled={isSubmitting || !formData.unit_number}
+            >
+              <Save size={16} />
+              {isSubmitting ? 'Saving...' : editingUnit ? 'Update Unit' : 'Add Unit'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Unit Number <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.unit_number}
+                onChange={(e) => setFormData({ ...formData, unit_number: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="e.g., 101, A-12"
+              />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Unit Number <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.unit_number}
-                    onChange={(e) => setFormData({ ...formData, unit_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    placeholder="e.g., 101, A-12"
-                    required
-                  />
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Floor Number
+              </label>
+              <input
+                type="number"
+                value={formData.floor_number}
+                onChange={(e) => setFormData({ ...formData, floor_number: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                min="0"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Floor Number
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.floor_number}
-                    onChange={(e) => setFormData({ ...formData, floor_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    min="0"
-                  />
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Bedrooms
+              </label>
+              <input
+                type="number"
+                value={formData.bedrooms}
+                onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                min="0"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Bedrooms
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.bedrooms}
-                    onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    min="0"
-                  />
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Bathrooms
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                value={formData.bathrooms}
+                onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                min="0"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Bathrooms
-                  </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={formData.bathrooms}
-                    onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    min="0"
-                  />
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Square Feet
+              </label>
+              <input
+                type="number"
+                value={formData.square_feet}
+                onChange={(e) => setFormData({ ...formData, square_feet: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                min="0"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Square Feet
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.square_feet}
-                    onChange={(e) => setFormData({ ...formData, square_feet: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    min="0"
-                  />
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Occupancy Status
+              </label>
+              <select
+                value={formData.occupancy_status}
+                onChange={(e) => setFormData({ ...formData, occupancy_status: e.target.value as OccupancyStatus })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              >
+                <option value="vacant">Vacant</option>
+                <option value="occupied">Occupied</option>
+                <option value="maintenance">Maintenance</option>
+              </select>
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Occupancy Status
-                  </label>
-                  <select
-                    value={formData.occupancy_status}
-                    onChange={(e) => setFormData({ ...formData, occupancy_status: e.target.value as OccupancyStatus })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                  >
-                    <option value="vacant">Vacant</option>
-                    <option value="occupied">Occupied</option>
-                    <option value="maintenance">Maintenance</option>
-                  </select>
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Monthly Rent ($)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.monthly_rent_cents}
+                onChange={(e) => setFormData({ ...formData, monthly_rent_cents: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                min="0"
+                placeholder="0.00"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Monthly Rent ($)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.monthly_rent_cents}
-                    onChange={(e) => setFormData({ ...formData, monthly_rent_cents: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    min="0"
-                    placeholder="0.00"
-                  />
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Security Deposit ($)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={formData.security_deposit_cents}
+                onChange={(e) => setFormData({ ...formData, security_deposit_cents: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                min="0"
+                placeholder="0.00"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Security Deposit ($)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.security_deposit_cents}
-                    onChange={(e) => setFormData({ ...formData, security_deposit_cents: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    min="0"
-                    placeholder="0.00"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notes
-                  </label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    placeholder="Any additional information about this unit"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm"
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 text-sm"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'Saving...' : editingUnit ? 'Update Unit' : 'Add Unit'}
-                </button>
-              </div>
-            </form>
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Notes
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="Any additional information about this unit"
+              />
+            </div>
           </div>
         </div>
-      )}
+      </SlidePanel>
     </div>
   );
 }

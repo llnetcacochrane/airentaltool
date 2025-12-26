@@ -3,20 +3,55 @@ import { User } from '../types';
 
 export interface ExtendedRegistrationData {
   phone: string;
-  businessName: string;
+  businessName?: string;
   addressLine1: string;
   addressLine2?: string;
   city: string;
   stateProvince: string;
   postalCode: string;
   country: string;
+  // Type 2 registration fields
+  organizationName?: string;
+  hasPartners?: boolean;
+  partners?: Array<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    ownershipPercent: number;
+  }>;
+  // Type 3 (Property Manager) registration fields
+  managementCompany?: boolean;
+  setupFirstClient?: boolean;
+  clientBusiness?: {
+    name: string;
+    addressLine1: string;
+    addressLine2?: string;
+    city: string;
+    stateProvince: string;
+    postalCode: string;
+    country: string;
+  };
+  businessOwners?: Array<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    ownershipPercent: number;
+    grantFullAccess: boolean;
+  }>;
 }
 
 export const authService = {
   /**
    * Register a new user
-   * Creates: User (auth) -> User Profile -> Business
-   * NO organization is created - Business is the top-level entity
+   *
+   * Flow:
+   * 1. Create auth user via Supabase Auth
+   * 2. Create Organization FIRST (user profile trigger creates user_profiles entry)
+   * 3. Add user as organization member (owner role)
+   * 4. Update user profile with registration data
+   * 5. For landlords, auto-create business using organization info
    */
   async register(
     email: string,
@@ -26,9 +61,17 @@ export const authService = {
     tierSlug: string = 'free',
     extendedData?: ExtendedRegistrationData
   ) {
+    // Step 1: Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/verify-email`,
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+      },
     });
 
     if (authError) throw authError;
@@ -36,14 +79,73 @@ export const authService = {
 
     const userId = authData.user.id;
 
-    // Build profile update with all collected data
+    // Determine organization name (Type 2 may have separate org name)
+    const organizationName = extendedData?.organizationName ||
+                            extendedData?.businessName ||
+                            `${firstName} ${lastName}`;
+    const slug = organizationName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+    // Step 2: Create organization FIRST
+    let organizationId: string | null = null;
+    try {
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .insert({
+          owner_id: userId,
+          name: organizationName,
+          slug: `${slug}-${userId.substring(0, 8)}`,
+          company_name: organizationName,
+          email: email,
+          phone: extendedData?.phone || null,
+          address: extendedData?.addressLine1 || null,
+          city: extendedData?.city || null,
+          state_province: extendedData?.stateProvince || null,
+          postal_code: extendedData?.postalCode || null,
+          country: extendedData?.country || 'CA',
+          currency: 'CAD',
+          timezone: 'America/Toronto',
+          account_tier: tierSlug,
+        })
+        .select('id')
+        .single();
+
+      if (orgError) {
+        console.error('Failed to create organization:', orgError);
+      } else {
+        organizationId = orgData.id;
+      }
+    } catch (err) {
+      console.error('Error during organization creation:', err);
+    }
+
+    // Step 3: Add user as organization member (owner role)
+    if (organizationId) {
+      try {
+        const { error: memberError } = await supabase
+          .from('organization_members')
+          .insert({
+            organization_id: organizationId,
+            user_id: userId,
+            role: 'owner',
+            is_active: true,
+            joined_at: new Date().toISOString(),
+          });
+
+        if (memberError) {
+          console.error('Failed to add user as organization member:', memberError);
+        }
+      } catch (err) {
+        console.error('Error adding organization member:', err);
+      }
+    }
+
+    // Step 4: Update user profile with all collected data
     const profileUpdate: Record<string, any> = {
       first_name: firstName,
       last_name: lastName,
       selected_tier: tierSlug,
     };
 
-    // Add extended data if provided
     if (extendedData) {
       profileUpdate.phone = extendedData.phone;
       profileUpdate.address_line1 = extendedData.addressLine1;
@@ -52,11 +154,9 @@ export const authService = {
       profileUpdate.state_province = extendedData.stateProvince;
       profileUpdate.postal_code = extendedData.postalCode;
       profileUpdate.country = extendedData.country;
-      // Store business name for business naming (note: field still called organization_name in DB)
-      profileUpdate.organization_name = extendedData.businessName;
+      profileUpdate.organization_name = organizationName;
     }
 
-    // Update user profile - wait for it to complete
     const { error: profileError } = await supabase
       .from('user_profiles')
       .update(profileUpdate)
@@ -64,40 +164,110 @@ export const authService = {
 
     if (profileError) {
       console.error('Failed to update user profile:', profileError);
-      // Don't throw - continue to try creating business
     }
 
-    // Create the default business directly - NO ORGANIZATION
-    const businessName = extendedData?.businessName || `${firstName} ${lastName}`;
+    // Step 5: Auto-create business(es) based on registration type
+    if (organizationId) {
+      // For Property Managers (Type 3): Create management company as their business
+      // They will add client businesses separately via the dashboard
+      if (extendedData?.managementCompany) {
+        // Create the management company business
+        try {
+          const { error: businessError } = await supabase
+            .from('businesses')
+            .insert({
+              organization_id: organizationId,
+              owner_user_id: userId,
+              business_name: organizationName,
+              business_type: 'management_company',
+              email: email,
+              phone: extendedData?.phone || null,
+              address_line1: extendedData?.addressLine1 || null,
+              address_line2: extendedData?.addressLine2 || null,
+              city: extendedData?.city || null,
+              state: extendedData?.stateProvince || null,
+              postal_code: extendedData?.postalCode || null,
+              country: extendedData?.country || 'CA',
+              currency: 'CAD',
+              timezone: 'America/Toronto',
+              is_active: true,
+              is_default: true,
+              created_by: userId,
+            });
 
-    try {
-      const { error: bizError } = await supabase
-        .from('businesses')
-        .insert({
-          organization_id: null,  // No organization - business is top-level
-          owner_user_id: userId,
-          business_name: businessName,
-          email: email,
-          phone: extendedData?.phone || null,
-          address_line1: extendedData?.addressLine1 || null,
-          address_line2: extendedData?.addressLine2 || null,
-          city: extendedData?.city || null,
-          state: extendedData?.stateProvince || null,
-          postal_code: extendedData?.postalCode || null,
-          country: extendedData?.country || 'CA',
-          currency: 'CAD',
-          timezone: 'America/Toronto',
-          is_default: true,
-          is_active: true,
-          created_by: userId,
-        });
+          if (businessError) {
+            console.error('Failed to create management company business:', businessError);
+          }
+        } catch (err) {
+          console.error('Error creating management company business:', err);
+        }
 
-      if (bizError) {
-        console.error('Failed to create default business:', bizError);
+        // If first client business was configured, create it too
+        if (extendedData?.setupFirstClient && extendedData?.clientBusiness) {
+          try {
+            const { error: clientError } = await supabase
+              .from('businesses')
+              .insert({
+                organization_id: organizationId,
+                owner_user_id: userId,
+                business_name: extendedData.clientBusiness.name,
+                business_type: 'client_property',
+                email: email,
+                phone: extendedData?.phone || null,
+                address_line1: extendedData.clientBusiness.addressLine1 || null,
+                address_line2: extendedData.clientBusiness.addressLine2 || null,
+                city: extendedData.clientBusiness.city || null,
+                state: extendedData.clientBusiness.stateProvince || null,
+                postal_code: extendedData.clientBusiness.postalCode || null,
+                country: extendedData.clientBusiness.country || 'CA',
+                currency: 'CAD',
+                timezone: 'America/Toronto',
+                is_active: true,
+                is_default: false,
+                created_by: userId,
+              });
+
+            if (clientError) {
+              console.error('Failed to create client business:', clientError);
+            }
+          } catch (err) {
+            console.error('Error creating client business:', err);
+          }
+        }
+      } else {
+        // For Landlords (Type 1 & 2): Create their business using org/business info
+        // This is the typical single landlord or multi-property landlord flow
+        const businessName = extendedData?.businessName || organizationName;
+
+        try {
+          const { error: businessError } = await supabase
+            .from('businesses')
+            .insert({
+              organization_id: organizationId,
+              owner_user_id: userId,
+              business_name: businessName,
+              email: email,
+              phone: extendedData?.phone || null,
+              address_line1: extendedData?.addressLine1 || null,
+              address_line2: extendedData?.addressLine2 || null,
+              city: extendedData?.city || null,
+              state: extendedData?.stateProvince || null,
+              postal_code: extendedData?.postalCode || null,
+              country: extendedData?.country || 'CA',
+              currency: 'CAD',
+              timezone: 'America/Toronto',
+              is_active: true,
+              is_default: true,
+              created_by: userId,
+            });
+
+          if (businessError) {
+            console.error('Failed to create default business:', businessError);
+          }
+        } catch (err) {
+          console.error('Error creating default business:', err);
+        }
       }
-    } catch (err) {
-      console.error('Error during business creation:', err);
-      // Don't throw - user is still created, they can set up business later
     }
 
     return authData.user;

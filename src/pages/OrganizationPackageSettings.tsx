@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Building2, DollarSign, Home, Users, Save, X, ArrowLeft } from 'lucide-react';
+import { Building2, DollarSign, Home, Users, Save, X } from 'lucide-react';
 import {
   packageTierService,
   PackageTier,
@@ -8,6 +8,7 @@ import {
 } from '../services/packageTierService';
 import { superAdminService } from '../services/superAdminService';
 import { useAuth } from '../context/AuthContext';
+import { SuperAdminLayout } from '../components/SuperAdminLayout';
 
 export function OrganizationPackageSettings() {
   const navigate = useNavigate();
@@ -91,45 +92,32 @@ export function OrganizationPackageSettings() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/super-admin')}
-                className="p-2 hover:bg-gray-100 rounded-lg transition"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-              <Building2 className="w-6 h-6 text-blue-600" />
-              <div>
-                <h1 className="text-2xl font-bold">Organization Package Settings</h1>
-                <p className="text-sm text-gray-600">{organization?.org_name}</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => navigate('/super-admin')}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2"
-              >
-                <X size={18} />
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
-              >
-                <Save size={18} />
-                Save Settings
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+  const actionButtons = (
+    <div className="flex gap-3">
+      <button
+        onClick={() => navigate('/super-admin')}
+        className="px-4 py-2 border border-gray-300 bg-white rounded-lg hover:bg-gray-50 transition flex items-center gap-2"
+      >
+        <X size={18} />
+        Cancel
+      </button>
+      <button
+        onClick={handleSave}
+        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+      >
+        <Save size={18} />
+        Save Settings
+      </button>
+    </div>
+  );
 
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+  return (
+    <SuperAdminLayout
+      title="Organization Package Settings"
+      subtitle={organization?.org_name || 'Loading...'}
+      actionButton={actionButtons}
+    >
+      <div className="max-w-4xl mx-auto space-y-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-bold mb-4">Base Package</h2>
 
@@ -368,6 +356,6 @@ export function OrganizationPackageSettings() {
           />
         </div>
       </div>
-    </div>
+    </SuperAdminLayout>
   );
 }

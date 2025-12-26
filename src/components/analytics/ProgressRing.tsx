@@ -91,7 +91,7 @@ export function ProgressRing({
 
 // Health score variant with color coding
 export function HealthScoreRing({ score }: { score: number }) {
-  const getColor = (score: number) => {
+  const getColor = (score: number): string => {
     if (score >= 80) return '#10B981'; // green
     if (score >= 60) return '#3B82F6'; // blue
     if (score >= 40) return '#F59E0B'; // amber
@@ -99,7 +99,7 @@ export function HealthScoreRing({ score }: { score: number }) {
     return '#EF4444'; // red
   };
 
-  const getLabel = (score: number) => {
+  const getLabel = (score: number): string => {
     if (score >= 80) return 'Excellent';
     if (score >= 60) return 'Good';
     if (score >= 40) return 'Fair';

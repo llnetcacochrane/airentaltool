@@ -3,11 +3,15 @@ import { Expense } from '../types';
 
 export const expenseService = {
   async createExpense(organizationId: string, expense: Partial<Expense>) {
+    // organizationId parameter is actually businessId in business-centric model
+    const businessId = organizationId;
+
     const { data, error } = await supabase
       .from('expenses')
       .insert({
         ...expense,
-        organization_id: organizationId,
+        business_id: businessId,
+        organization_id: null,
       })
       .select()
       .maybeSingle();
@@ -17,10 +21,13 @@ export const expenseService = {
   },
 
   async getExpenses(organizationId: string, filters?: any): Promise<Expense[]> {
+    // organizationId parameter is actually businessId in business-centric model
+    const businessId = organizationId;
+
     let query = supabase
       .from('expenses')
       .select('*')
-      .eq('organization_id', organizationId);
+      .eq('business_id', businessId);
 
     if (filters?.propertyId) {
       query = query.eq('property_id', filters.propertyId);
@@ -77,10 +84,13 @@ export const expenseService = {
   },
 
   async getTotalExpenses(organizationId: string, filters?: any): Promise<number> {
+    // organizationId parameter is actually businessId in business-centric model
+    const businessId = organizationId;
+
     let query = supabase
       .from('expenses')
-      .select('amount')
-      .eq('organization_id', organizationId);
+      .select('amount_cents')
+      .eq('business_id', businessId);
 
     if (filters?.propertyId) {
       query = query.eq('property_id', filters.propertyId);
@@ -98,14 +108,17 @@ export const expenseService = {
 
     if (error) throw error;
 
-    return (data || []).reduce((total, expense) => total + expense.amount, 0);
+    return (data || []).reduce((total, expense) => total + (expense.amount_cents || 0) / 100, 0);
   },
 
   async getExpensesByCategory(organizationId: string, startDate: string, endDate: string) {
+    // organizationId parameter is actually businessId in business-centric model
+    const businessId = organizationId;
+
     const { data, error } = await supabase
       .from('expenses')
-      .select('category, amount')
-      .eq('organization_id', organizationId)
+      .select('category, amount_cents')
+      .eq('business_id', businessId)
       .gte('expense_date', startDate)
       .lte('expense_date', endDate);
 
@@ -113,7 +126,7 @@ export const expenseService = {
 
     const categorized: Record<string, number> = {};
     (data || []).forEach((expense) => {
-      categorized[expense.category] = (categorized[expense.category] || 0) + expense.amount;
+      categorized[expense.category] = (categorized[expense.category] || 0) + ((expense.amount_cents || 0) / 100);
     });
 
     return categorized;

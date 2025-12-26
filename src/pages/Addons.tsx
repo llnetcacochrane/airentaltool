@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { addonService, AddonProduct, AddonPurchase } from '../services/addonService';
 
 export function Addons() {
-  const { user } = useAuth();
+  const { currentBusiness } = useAuth();
   const [availableAddons, setAvailableAddons] = useState<AddonProduct[]>([]);
   const [purchases, setPurchases] = useState<AddonPurchase[]>([]);
   const [limitStatus, setLimitStatus] = useState<any>(null);
@@ -13,17 +13,17 @@ export function Addons() {
 
   useEffect(() => {
     loadData();
-  }, [user]);
+  }, [currentBusiness?.id]);
 
   const loadData = async () => {
-    if (!user?.organizationId) return;
+    if (!currentBusiness?.id) return;
 
     try {
       setIsLoading(true);
       const [addons, userPurchases, status] = await Promise.all([
         addonService.getAvailableAddons(),
-        addonService.getOrganizationPurchases(user.organizationId),
-        addonService.getLimitStatus(user.organizationId),
+        addonService.getOrganizationPurchases(currentBusiness.id),
+        addonService.getLimitStatus(currentBusiness.id),
       ]);
 
       setAvailableAddons(addons);
@@ -37,11 +37,11 @@ export function Addons() {
   };
 
   const handlePurchase = async (addonId: string) => {
-    if (!user?.organizationId) return;
+    if (!currentBusiness?.id) return;
 
     try {
       setPurchasing(addonId);
-      await addonService.purchaseAddon(user.organizationId, addonId, 1);
+      await addonService.purchaseAddon(currentBusiness.id, addonId, 1);
       await loadData();
     } catch (error: any) {
       alert(`Failed to purchase add-on: ${error.message}`);

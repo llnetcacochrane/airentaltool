@@ -133,13 +133,50 @@ export const emailService = {
     if (error) throw error;
   },
 
-  async testConfiguration(testEmail: string): Promise<any> {
-    const { data, error } = await supabase.rpc('test_email_configuration', {
-      p_test_email: testEmail,
-    });
+  async testConfiguration(testEmail: string): Promise<{
+    success: boolean;
+    message: string;
+    responseTime?: number;
+    provider?: string;
+    error?: string;
+  }> {
+    try {
+      // Get the current session for auth
+      const { data: { session } } = await supabase.auth.getSession();
 
-    if (error) throw error;
-    return data;
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      // Call the edge function directly
+      const { data, error } = await supabase.functions.invoke('send-test-email', {
+        body: { email: testEmail },
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        return {
+          success: false,
+          message: error.message || 'Failed to send test email',
+          error: error.message,
+        };
+      }
+
+      return {
+        success: data?.success || false,
+        message: data?.message || (data?.success ? 'Email sent successfully' : 'Failed to send email'),
+        responseTime: data?.responseTime,
+        provider: data?.provider,
+        error: data?.error,
+      };
+    } catch (error) {
+      console.error('Test email error:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
   },
 
   async getDiagnosticLogs(limit: number = 50): Promise<EmailDiagnosticLog[]> {
@@ -191,5 +228,145 @@ export const emailService = {
       ses: 'Amazon SES',
     };
     return names[provider] || provider;
+  },
+
+  /**
+   * Send an email using the configured email provider
+   */
+  async sendEmail(
+    to: string,
+    type: 'verification' | 'password_reset' | 'welcome' | 'invitation' | 'notification' | 'payment_reminder' | 'lease_expiring' | 'maintenance_update',
+    data: Record<string, string>
+  ): Promise<{ success: boolean; message: string; error?: string }> {
+    try {
+      const { data: result, error } = await supabase.functions.invoke('send-email', {
+        body: { to, type, data },
+      });
+
+      if (error) {
+        console.error('Email send error:', error);
+        return {
+          success: false,
+          message: error.message || 'Failed to send email',
+          error: error.message,
+        };
+      }
+
+      return {
+        success: result?.success || false,
+        message: result?.message || 'Email operation completed',
+        error: result?.error,
+      };
+    } catch (error) {
+      console.error('Email send error:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  },
+
+  /**
+   * Send a welcome email to a new user
+   */
+  async sendWelcomeEmail(
+    to: string,
+    name: string,
+    dashboardUrl?: string
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'welcome', {
+      name,
+      dashboard_url: dashboardUrl || `${window.location.origin}/dashboard`,
+      help_url: `${window.location.origin}/help`,
+    });
+  },
+
+  /**
+   * Send an invitation email
+   */
+  async sendInvitationEmail(
+    to: string,
+    data: {
+      name?: string;
+      inviterName: string;
+      businessName: string;
+      invitationCode: string;
+      signupUrl: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'invitation', {
+      name: data.name || '',
+      inviter_name: data.inviterName,
+      business_name: data.businessName,
+      invitation_code: data.invitationCode,
+      signup_url: data.signupUrl,
+    });
+  },
+
+  /**
+   * Send a payment reminder email
+   */
+  async sendPaymentReminder(
+    to: string,
+    data: {
+      tenantName: string;
+      amount: string;
+      dueDate: string;
+      propertyName: string;
+      paymentUrl: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'payment_reminder', {
+      tenant_name: data.tenantName,
+      amount: data.amount,
+      due_date: data.dueDate,
+      property_name: data.propertyName,
+      payment_url: data.paymentUrl,
+    });
+  },
+
+  /**
+   * Send a lease expiring notification
+   */
+  async sendLeaseExpiringEmail(
+    to: string,
+    data: {
+      tenantName: string;
+      propertyName: string;
+      expirationDate: string;
+      daysRemaining: string;
+      contactUrl?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'lease_expiring', {
+      tenant_name: data.tenantName,
+      property_name: data.propertyName,
+      expiration_date: data.expirationDate,
+      days_remaining: data.daysRemaining,
+      contact_url: data.contactUrl || '',
+    });
+  },
+
+  /**
+   * Send a maintenance update email
+   */
+  async sendMaintenanceUpdate(
+    to: string,
+    data: {
+      tenantName: string;
+      requestTitle: string;
+      status: string;
+      message: string;
+      detailsUrl?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'maintenance_update', {
+      tenant_name: data.tenantName,
+      request_title: data.requestTitle,
+      status: data.status,
+      message: data.message,
+      details_url: data.detailsUrl || '',
+    });
   },
 };

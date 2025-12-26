@@ -174,8 +174,8 @@ export function Register() {
         }
       );
 
-      // Navigate to quick-start for new users to set up their first property
-      navigate('/quick-start');
+      // Navigate to registration success page to check email for verification
+      navigate(`/registration-success?email=${encodeURIComponent(formData.email)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {

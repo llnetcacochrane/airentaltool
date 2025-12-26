@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, CreditCard, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { CreditCard, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { squarePaymentService, SquareConfig } from '../services/squarePaymentService';
 import { paypalPaymentService, PayPalConfig } from '../services/paypalPaymentService';
+import { SlidePanel } from './SlidePanel';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -223,26 +224,23 @@ export function PaymentModal({
     }).format(cents / 100);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-          onClick={onClose}
-        />
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Make a Payment</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+    <SlidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Make a Payment"
+      size="medium"
+      footer={
+        !success ? (
+          <button
+            onClick={onClose}
+            className="w-full py-2 text-gray-600 hover:text-gray-900 transition"
+          >
+            Cancel
+          </button>
+        ) : undefined
+      }
+    >
 
           {/* Success State */}
           {success && (
@@ -394,19 +392,6 @@ export function PaymentModal({
             </>
           )}
 
-          {/* Footer */}
-          {!success && (
-            <div className="mt-6 pt-4 border-t border-gray-200">
-              <button
-                onClick={onClose}
-                className="w-full py-2 text-gray-600 hover:text-gray-900 transition"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    </SlidePanel>
   );
 }

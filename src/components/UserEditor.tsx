@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import {
-  X, Save, User, Building2, Package, Shield, Settings, Briefcase,
-  Mail, Phone, MapPin, Calendar, Key, CheckCircle, XCircle, Edit2,
-  Trash2, Plus, AlertCircle
+  Save, User, Building2, Package, Shield, Settings, Briefcase,
+  Mail, Phone, MapPin, Calendar, CheckCircle, XCircle, Edit2,
+  Trash2, Plus, AlertCircle, X
 } from 'lucide-react';
+import { SlidePanel } from './SlidePanel';
 
 interface UserEditorProps {
   userId: string;
@@ -59,7 +60,7 @@ interface PackageTier {
   id: string;
   tier_slug: string;
   tier_name: string;
-  tier_description: string | null;
+  description: string | null;
 }
 
 export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
@@ -156,8 +157,10 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
         organizations!inner(
           id,
           name,
-          package_tier_id,
-          package_tiers(tier_name)
+          organization_package_settings(
+            package_tier_id,
+            package_tiers(tier_name)
+          )
         )
       `)
       .eq('user_id', userId);
@@ -169,8 +172,8 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
       name: item.organizations.name,
       role: item.role,
       is_active: item.is_active,
-      package_tier_id: item.organizations.package_tier_id,
-      package_tier_name: item.organizations.package_tiers?.tier_name || null,
+      package_tier_id: item.organizations.organization_package_settings?.package_tier_id || null,
+      package_tier_name: item.organizations.organization_package_settings?.package_tiers?.tier_name || null,
     }));
 
     setOrganizations(orgs);
@@ -235,7 +238,7 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
   const loadPackageTiers = async () => {
     const { data, error } = await supabase
       .from('package_tiers')
-      .select('id, tier_slug, tier_name, tier_description')
+      .select('id, tier_slug, tier_name, description')
       .eq('is_active', true)
       .order('display_order');
 
@@ -434,55 +437,64 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-8">
+  return (
+    <SlidePanel
+      isOpen={true}
+      onClose={onClose}
+      title="Edit User"
+      subtitle={userProfile?.email}
+      size="large"
+      footer={
+        <div className="flex justify-between items-center gap-3">
+          <p className="text-sm text-gray-600">
+            User ID: <code className="bg-gray-200 px-2 py-1 rounded text-xs">{userId}</code>
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+            >
+              Close
+            </button>
+            <button
+              onClick={() => {
+                onSave();
+                onClose();
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              Save & Close
+            </button>
+          </div>
+        </div>
+      }
+    >
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="text-gray-600 mt-4">Loading user data...</p>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <User className="w-6 h-6 text-blue-600" />
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Edit User</h2>
-              <p className="text-sm text-gray-600">{userProfile?.email}</p>
+      ) : (
+        <>
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <p className="text-red-800 text-sm">{error}</p>
+              <button onClick={() => setError('')} className="ml-auto text-red-600 hover:text-red-800">
+                <X className="w-4 h-4" />
+              </button>
             </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
+          )}
 
-        {error && (
-          <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-            <p className="text-red-800 text-sm">{error}</p>
-            <button onClick={() => setError('')} className="ml-auto text-red-600 hover:text-red-800">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
+          {successMessage && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+              <p className="text-green-800 text-sm">{successMessage}</p>
+            </div>
+          )}
 
-        {successMessage && (
-          <div className="mx-6 mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-            <p className="text-green-800 text-sm">{successMessage}</p>
-          </div>
-        )}
-
-        <div className="border-b border-gray-200">
-          <div className="px-6 flex gap-1">
+        <div className="border-b border-gray-200 -mx-4 md:-mx-6">
+          <div className="px-4 md:px-6 flex gap-1">
             <button
               onClick={() => setActiveTab('profile')}
               className={`px-4 py-3 font-medium text-sm border-b-2 transition ${
@@ -551,7 +563,7 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="mt-6">
           {activeTab === 'profile' && (
             <div className="space-y-6">
               <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
@@ -909,7 +921,7 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
                           <option value="">No package assigned</option>
                           {packageTiers.map((tier) => (
                             <option key={tier.id} value={tier.id}>
-                              {tier.tier_name} - {tier.tier_description}
+                              {tier.tier_name} - {tier.description}
                             </option>
                           ))}
                         </select>
@@ -1049,30 +1061,8 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
             </div>
           )}
         </div>
-
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center bg-gray-50">
-          <p className="text-sm text-gray-600">
-            User ID: <code className="bg-gray-200 px-2 py-1 rounded text-xs">{userId}</code>
-          </p>
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-            >
-              Close
-            </button>
-            <button
-              onClick={() => {
-                onSave();
-                onClose();
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Save & Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </SlidePanel>
   );
 }

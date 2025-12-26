@@ -251,7 +251,10 @@ export function WelcomeWizard({ onClose }: WelcomeWizardProps) {
                 {packageTier !== 'free' && currentStep === 0 && (
                   <div className="border-t border-gray-200 pt-6">
                     <button
-                      onClick={() => navigate('/getting-started')}
+                      onClick={() => {
+                        navigate('/getting-started');
+                        onClose();
+                      }}
                       className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition"
                     >
                       <FileText size={18} />

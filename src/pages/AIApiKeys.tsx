@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Key, Trash2, Eye, EyeOff, DollarSign, TrendingUp, Zap, Settings, Sparkles, ChevronDown, ChevronUp, BarChart3, X, Check } from 'lucide-react';
+import { Plus, Key, Trash2, Eye, EyeOff, DollarSign, TrendingUp, Zap, Settings, Sparkles, ChevronDown, ChevronUp, BarChart3, X, Check } from 'lucide-react';
 import { aiApiKeyService, AIApiKey, AILLMProvider, AIFeatureLLMMapping } from '../services/aiApiKeyService';
+import { SuperAdminLayout } from '../components/SuperAdminLayout';
 
 type TabType = 'keys' | 'features';
 
@@ -151,34 +152,17 @@ export function AIApiKeys() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading...</div>
-      </div>
+      <SuperAdminLayout title="AI API Keys" subtitle="Manage LLM providers and feature assignments">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Loading...</div>
+        </div>
+      </SuperAdminLayout>
     );
   }
 
   return (
-    <div className="flex-1 overflow-auto bg-gray-50">
-      <div className="bg-blue-600 text-white">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <button
-            onClick={() => navigate('/super-admin')}
-            className="flex items-center gap-2 text-blue-100 hover:text-white mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Super Admin
-          </button>
-          <div className="flex items-center gap-3">
-            <Zap className="w-8 h-8" />
-            <div>
-              <h1 className="text-3xl font-bold">AI API Keys</h1>
-              <p className="text-blue-100 mt-1">Manage LLM providers and feature assignments</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-6 py-6">
+    <SuperAdminLayout title="AI API Keys" subtitle="Manage LLM providers and feature assignments">
+      <div>
         {usageSummary && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow p-4">
@@ -685,9 +669,8 @@ export function AIApiKeys() {
             )}
           </div>
         </div>
-      </div>
 
-      {expandedFeature && (
+        {expandedFeature && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -884,6 +867,7 @@ export function AIApiKeys() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </SuperAdminLayout>
   );
 }

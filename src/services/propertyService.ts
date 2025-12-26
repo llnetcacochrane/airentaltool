@@ -1,9 +1,25 @@
 import { supabase } from '../lib/supabase';
 import { Property, Unit } from '../types';
 import { businessService } from './businessService';
-import { addonService } from './addonService';
+import { unitService } from './unitService';
 
 export const propertyService = {
+  /**
+   * Get all properties for a business
+   * Alias method for compatibility with Maintenance.tsx
+   */
+  async getAllProperties(businessId: string): Promise<Property[]> {
+    return this.getBusinessProperties(businessId);
+  },
+
+  /**
+   * Get properties by business ID
+   * Alias method for compatibility
+   */
+  async getPropertiesByBusiness(businessId: string): Promise<Property[]> {
+    return this.getBusinessProperties(businessId);
+  },
+
   /**
    * Get all properties for a business
    */
@@ -45,38 +61,29 @@ export const propertyService = {
 
   /**
    * Create a new property under a business
-   * Checks organization limits before creation
+   * Checks user tier limits before creation
    */
   async createProperty(businessId: string, property: Partial<Property>): Promise<Property> {
     const user = (await supabase.auth.getUser()).data.user;
 
-    // First, get the business to find the organization_id
-    const { data: businessData, error: businessError } = await supabase
-      .from('businesses')
-      .select('organization_id')
-      .eq('id', businessId)
-      .single();
+    // Check property limit using business-based function
+    const { data: canAdd, error: limitError } = await supabase.rpc('check_property_limit_for_business', {
+      p_business_id: businessId,
+    });
 
-    if (businessError) {
-      console.error('Failed to fetch business:', businessError);
-      throw new Error('Business not found');
-    }
-
-    // Check property limit
-    if (businessData.organization_id) {
-      const canAdd = await addonService.checkLimit(businessData.organization_id, 'property');
-      if (!canAdd) {
-        throw new Error('LIMIT_REACHED:property');
-      }
+    if (limitError) {
+      console.error('Failed to check property limit:', limitError);
+    } else if (!canAdd) {
+      throw new Error('LIMIT_REACHED:property');
     }
 
     const { data, error } = await supabase
       .from('properties')
       .insert({
         business_id: businessId,
-        organization_id: businessData.organization_id,
+        organization_id: null, // No longer used
         name: property.name,
-        property_type: property.property_type,
+        property_type: property.property_type || 'residential',
         address_line1: property.address_line1,
         address_line2: property.address_line2,
         city: property.city,
@@ -212,24 +219,31 @@ export const propertyService = {
   },
 
   /**
-   * Get all properties for an organization
+   * Check if user can create more properties for a business
    */
-  async getOrganizationProperties(organizationId: string): Promise<Property[]> {
-    const { data, error } = await supabase
-      .from('properties')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .eq('is_active', true)
-      .order('name');
+  async canCreateProperty(businessId: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('check_property_limit_for_business', {
+      p_business_id: businessId,
+    });
 
-    if (error) throw error;
-    return data || [];
+    if (error) {
+      console.error('Error checking property limit:', error);
+      return true; // Allow by default if check fails
+    }
+
+    return data === true;
   },
 
   /**
-   * Check if user can create more properties
+   * Create a unit for a property
+   * Wrapper method for compatibility with BusinessSetupWizard.tsx and PropertySetupWizard.tsx
    */
-  async canCreateProperty(organizationId: string): Promise<boolean> {
-    return addonService.checkLimit(organizationId, 'property');
+  async createUnit(propertyId: string, unit: Partial<Unit>): Promise<Unit> {
+    // Get the business ID from the property
+    const property = await this.getProperty(propertyId);
+    if (!property || !property.business_id) {
+      throw new Error('Property not found or missing business_id');
+    }
+    return unitService.createUnit(property.business_id, propertyId, unit);
   },
 };

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { FileText, Plus, Send, CheckCircle, Clock, Eye, Edit, Trash2, Download } from 'lucide-react';
 import { agreementService, AgreementTemplate, LeaseAgreement } from '../services/agreementService';
 import { AgreementBuilder } from '../components/AgreementBuilder';
@@ -9,6 +10,7 @@ import { EmptyStatePresets } from '../components/EmptyState';
 type ViewMode = 'templates' | 'issued' | 'pending' | 'builder' | 'issue';
 
 export default function Agreements() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<ViewMode>('templates');
   const [templates, setTemplates] = useState<AgreementTemplate[]>([]);
   const [issuedAgreements, setIssuedAgreements] = useState<LeaseAgreement[]>([]);
@@ -20,6 +22,17 @@ export default function Agreements() {
   useEffect(() => {
     loadData();
   }, [viewMode]);
+
+  // Handle action query params (e.g., ?action=create)
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'create') {
+      setViewMode('builder');
+      // Remove the query param
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams]);
 
   const loadData = async () => {
     try {

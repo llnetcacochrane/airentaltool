@@ -2,14 +2,17 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { Users, UserPlus, Shield, Building2, Mail, Calendar, ArrowLeft, Save, X, Plus, Trash2, Edit3 } from 'lucide-react';
+import { Users, UserPlus, Building2, Mail, Calendar, Save, X, Plus, Trash2, Edit3, UserCircle, Shield, CheckCircle, AlertCircle, MailCheck } from 'lucide-react';
 import { UserEditor } from '../components/UserEditor';
+import { SlidePanel } from '../components/SlidePanel';
+import { SuperAdminLayout } from '../components/SuperAdminLayout';
 
 interface User {
   user_id: string;
   user_email: string;
   created_at: string;
   is_super_admin: boolean;
+  email_confirmed_at: string | null;
   organizations: Array<{
     org_id: string;
     org_name: string;
@@ -319,6 +322,52 @@ export function SuperAdminUsers() {
     }
   };
 
+  const handleVerifyEmail = async (userId: string, userEmail: string) => {
+    if (!confirm(`Are you sure you want to manually verify the email for ${userEmail}?`)) {
+      return;
+    }
+
+    try {
+      // Call edge function to verify email
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-verify-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to verify email');
+      }
+
+      alert(`Email verified successfully for ${userEmail}`);
+      await loadData();
+    } catch (error: any) {
+      console.error('Failed to verify email:', error);
+      alert(`Failed to verify email: ${error.message}`);
+    }
+  };
+
+  const handleResendVerification = async (userEmail: string) => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: userEmail,
+      });
+
+      if (error) throw error;
+
+      alert(`Verification email sent to ${userEmail}`);
+    } catch (error: any) {
+      console.error('Failed to resend verification:', error);
+      alert(`Failed to resend verification: ${error.message}`);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -327,48 +376,29 @@ export function SuperAdminUsers() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-gradient-to-r from-red-600 to-red-800 text-white">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/super-admin')}
-                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition"
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <Users className="w-8 h-8" />
-              <div>
-                <h1 className="text-3xl font-bold">User Management</h1>
-                <p className="text-red-100 mt-1">Manage users and their organization memberships</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowCreateUser(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-red-600 rounded-lg hover:bg-red-50 transition font-semibold"
-            >
-              <Plus className="w-5 h-5" />
-              Create New User
-            </button>
-          </div>
-        </div>
-      </div>
+  const actionButton = (
+    <button
+      onClick={() => setShowCreateUser(true)}
+      className="flex items-center gap-2 px-4 py-2 bg-green-600 rounded-lg hover:bg-green-700 transition font-semibold"
+    >
+      <Plus className="w-5 h-5" />
+      Create New User
+    </button>
+  );
 
-      {showCreateUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Create New User</h2>
-              <button
-                onClick={() => setShowCreateUser(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
+  return (
+    <SuperAdminLayout
+      title="User Management"
+      subtitle="Manage users and their organization memberships"
+      actionButton={actionButton}
+    >
+
+      <SlidePanel
+        isOpen={showCreateUser}
+        onClose={() => setShowCreateUser(false)}
+        title="Create New User"
+      >
+        <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email Address *
@@ -577,18 +607,15 @@ export function SuperAdminUsers() {
                 Create User
               </button>
             </div>
-          </div>
-        </div>
-      )}
+      </SlidePanel>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">All Users</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {users.length} total users
-            </p>
-          </div>
+      <div className="bg-white rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-xl font-bold text-gray-900">All Users</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            {users.length} total users
+          </p>
+        </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -596,6 +623,9 @@ export function SuperAdminUsers() {
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                     User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
+                    Email Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
                     Organizations
@@ -624,6 +654,39 @@ export function SuperAdminUsers() {
                           <p className="text-xs text-gray-500">{user.user_id.slice(0, 8)}...</p>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {user.email_confirmed_at ? (
+                        <div className="flex items-center gap-1 text-green-600">
+                          <CheckCircle className="w-4 h-4" />
+                          <span className="text-xs font-medium">Verified</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1 text-amber-600">
+                            <AlertCircle className="w-4 h-4" />
+                            <span className="text-xs font-medium">Unverified</span>
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => handleVerifyEmail(user.user_id, user.user_email)}
+                              className="flex items-center gap-1 px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                              title="Manually verify email"
+                            >
+                              <MailCheck className="w-3 h-3" />
+                              Verify
+                            </button>
+                            <button
+                              onClick={() => handleResendVerification(user.user_email)}
+                              className="flex items-center gap-1 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                              title="Resend verification email"
+                            >
+                              <Mail className="w-3 h-3" />
+                              Resend
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1">
@@ -728,6 +791,15 @@ export function SuperAdminUsers() {
                           Edit
                         </button>
                         <button
+                          onClick={() => navigate(`/super-admin/impersonate/${user.user_id}`)}
+                          className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
+                          title="Impersonate this user (God Mode)"
+                          disabled={user.user_id === supabaseUser?.id}
+                        >
+                          <UserCircle className="w-4 h-4" />
+                          Impersonate
+                        </button>
+                        <button
                           onClick={() => setEditingUser(editingUser === user.user_id ? null : user.user_id)}
                           className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
                           title="Add to organization"
@@ -751,7 +823,6 @@ export function SuperAdminUsers() {
             </table>
           </div>
         </div>
-      </div>
 
       {editingUserId && (
         <UserEditor
@@ -760,6 +831,6 @@ export function SuperAdminUsers() {
           onSave={loadData}
         />
       )}
-    </div>
+    </SuperAdminLayout>
   );
 }

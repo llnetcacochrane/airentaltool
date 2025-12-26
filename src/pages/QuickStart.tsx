@@ -43,7 +43,6 @@ export function QuickStart() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-  const [isCreatingBusiness, setIsCreatingBusiness] = useState(false);
 
   // Property form state
   const [propertyData, setPropertyData] = useState({
@@ -77,130 +76,75 @@ export function QuickStart() {
   const [createdPropertyId, setCreatedPropertyId] = useState<string | null>(null);
   const [createdUnitId, setCreatedUnitId] = useState<string | null>(null);
   const [userBusinessId, setUserBusinessId] = useState<string | null>(null);
+  const [needsBusinessCreation, setNeedsBusinessCreation] = useState(false);
+  const [businessData, setBusinessData] = useState({
+    business_name: '',
+    phone: '',
+    email: '',
+  });
 
-  // Auto-create business for new users who don't have one
-  // This is a fallback - business should be created during registration
+  // Wait for business to load from AuthContext
   useEffect(() => {
-    const ensureBusiness = async () => {
-      if (!supabaseUser || currentBusiness || isCreatingBusiness) return;
-
-      // User is logged in but has no business - create one automatically
-      // This is a fallback case; registration should create business
-      setIsCreatingBusiness(true);
-      try {
-        const firstName = userProfile?.first_name || 'User';
-        const lastName = userProfile?.last_name || '';
-        const businessName = userProfile?.organization_name ||
-          (firstName && lastName ? `${firstName} ${lastName}` : `${firstName}'s Business`);
-
-        await businessService.createDefaultBusiness(businessName, {
-          email: supabaseUser?.email,
-          phone: userProfile?.phone || undefined,
-          addressLine1: userProfile?.address_line1 || undefined,
-          city: userProfile?.city || undefined,
-          state: userProfile?.state_province || undefined,
-          postalCode: userProfile?.postal_code || undefined,
-          country: userProfile?.country || 'CA',
-        });
-        await refreshBusinesses();
-      } catch (err) {
-        console.error('Failed to create business:', err);
-        setError('Failed to set up your account. Please try again or contact support.');
-      } finally {
-        setIsCreatingBusiness(false);
-      }
-    };
-
-    ensureBusiness();
-  }, [supabaseUser, currentBusiness, isCreatingBusiness, userProfile, refreshBusinesses]);
-
-  useEffect(() => {
-    loadProgress();
-  }, [currentBusiness?.id, currentBusiness?.id]);
-
-  const loadProgress = async () => {
-    if (!currentBusiness?.id) {
-      // Still waiting for organization to be created
-      return;
-    }
-
-    try {
-      // Get user's default business, or create one if it doesn't exist
-      let business = await businessService.getUserDefaultBusiness();
-
-      if (!business && currentBusiness) {
-        // Create a default business for this user (fallback if registration didn't create one)
-        const businessName = userProfile?.organization_name ||
-          (userProfile?.first_name && userProfile?.last_name
-            ? `${userProfile.first_name} ${userProfile.last_name}`
-            : userProfile?.first_name || 'My Business');
-
-        try {
-          business = await businessService.createDefaultBusiness(
-            currentBusiness.id,
-            businessName,
-            {
-              email: supabaseUser?.email,
-              phone: userProfile?.phone || undefined,
-              addressLine1: userProfile?.address_line1 || undefined,
-              city: userProfile?.city || undefined,
-              state: userProfile?.state_province || undefined,
-              postalCode: userProfile?.postal_code || undefined,
-              country: userProfile?.country || 'CA',
-            }
-          );
-
-          // Refresh businesses in context
-          await refreshBusinesses();
-        } catch (bizError) {
-          console.error('Failed to create business:', bizError);
-          // Try to use currentBusiness from context as fallback
-          if (currentBusiness) {
-            business = currentBusiness;
+    if (currentBusiness) {
+      setUserBusinessId(currentBusiness.id);
+      setNeedsBusinessCreation(false);
+      setIsLoading(false);
+    } else if (supabaseUser) {
+      // Give AuthContext time to load the business
+      const timeout = setTimeout(async () => {
+        if (!currentBusiness) {
+          // Check if user has any businesses
+          const businesses = await businessService.getUserBusinesses();
+          if (businesses.length === 0) {
+            // No business exists - user needs to create one
+            setNeedsBusinessCreation(true);
+            setCurrentStep(0); // Step 0 = create business
+            setIsLoading(false);
+          } else {
+            setError('No business found. Please contact support or try refreshing the page.');
+            setIsLoading(false);
           }
         }
-      }
+      }, 3000); // Wait 3 seconds for business to load
 
-      // Also check currentBusiness from context
-      if (!business && currentBusiness) {
-        business = currentBusiness;
-      }
+      return () => clearTimeout(timeout);
+    }
+  }, [currentBusiness, supabaseUser]);
 
-      if (business) {
-        setUserBusinessId(business.id);
-      } else {
-        setError('Unable to find your business. Please refresh the page. If the problem persists, please contact support.');
-        setIsLoading(false);
-        return;
-      }
+  // Load progress when we have a business
+  useEffect(() => {
+    if (currentBusiness?.id) {
+      setUserBusinessId(currentBusiness.id);
+      loadProgress();
+    }
+  }, [currentBusiness?.id]);
 
-      const [propertiesRes, unitsRes, tenantsRes] = await Promise.all([
+  const loadProgress = async () => {
+    if (!currentBusiness?.id) return;
+
+    try {
+      const [propertiesRes, unitsRes] = await Promise.all([
         supabase.from('properties').select('id', { count: 'exact', head: true })
-          .eq('organization_id', currentBusiness.id).eq('is_active', true),
+          .eq('business_id', currentBusiness.id).eq('is_active', true),
         supabase.from('units').select('id', { count: 'exact', head: true })
-          .eq('organization_id', currentBusiness.id).eq('is_active', true),
-        supabase.from('tenants').select('id', { count: 'exact', head: true })
-          .eq('organization_id', currentBusiness.id).eq('is_active', true),
+          .eq('is_active', true),
       ]);
 
       const propertyCount = propertiesRes.count || 0;
       const unitCount = unitsRes.count || 0;
-      const tenantCount = tenantsRes.count || 0;
 
       setProgress({
         hasProperty: propertyCount > 0,
         hasUnit: unitCount > 0,
-        hasTenant: tenantCount > 0,
+        hasTenant: false,
         propertyCount,
         unitCount,
-        tenantCount,
+        tenantCount: 0,
       });
 
       // Auto-advance to appropriate step
-      if (tenantCount > 0) {
-        setCurrentStep(4); // Complete
-      } else if (unitCount > 0) {
-        setCurrentStep(3); // Add tenant
+      if (unitCount > 0) {
+        setCurrentStep(3); // Complete
       } else if (propertyCount > 0) {
         setCurrentStep(2); // Add unit
       }
@@ -211,6 +155,64 @@ export function QuickStart() {
     }
   };
 
+  const getFirstPropertyId = async () => {
+    if (!currentBusiness?.id) return null;
+    const { data } = await supabase
+      .from('properties')
+      .select('id')
+      .eq('business_id', currentBusiness.id)
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+    return data?.id || null;
+  };
+
+  const getFirstUnitId = async () => {
+    const propertyId = createdPropertyId || await getFirstPropertyId();
+    if (!propertyId) return null;
+    const { data } = await supabase
+      .from('units')
+      .select('id')
+      .eq('property_id', propertyId)
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+    return data?.id || null;
+  };
+
+  const handleCreateBusiness = async () => {
+    if (!businessData.business_name.trim()) {
+      setError('Business name is required');
+      return;
+    }
+
+    setIsSaving(true);
+    setError('');
+
+    try {
+      const business = await businessService.createDefaultBusiness(
+        businessData.business_name,
+        {
+          email: businessData.email || supabaseUser?.email,
+          phone: businessData.phone,
+        }
+      );
+
+      setUserBusinessId(business.id);
+      setNeedsBusinessCreation(false);
+
+      // Refresh businesses in AuthContext
+      await refreshBusinesses();
+
+      // Move to step 1 (create property)
+      setCurrentStep(1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create business');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleCreateProperty = async () => {
     if (!propertyData.name.trim()) {
       setError('Property name is required');
@@ -218,7 +220,7 @@ export function QuickStart() {
     }
 
     if (!userBusinessId) {
-      setError('Unable to find your business. Please try again.');
+      setError('Unable to find your business. Please refresh the page.');
       return;
     }
 
@@ -240,12 +242,7 @@ export function QuickStart() {
       setProgress(prev => ({ ...prev, hasProperty: true, propertyCount: prev.propertyCount + 1 }));
       setCurrentStep(2);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to create property';
-      if (errorMsg.includes('LIMIT_REACHED')) {
-        setError('You have reached the property limit for your package. Please upgrade to add more properties.');
-      } else {
-        setError(errorMsg);
-      }
+      setError(err instanceof Error ? err.message : 'Failed to create property');
     } finally {
       setIsSaving(false);
     }
@@ -258,8 +255,8 @@ export function QuickStart() {
       return;
     }
 
-    if (!currentBusiness?.id) {
-      setError('Unable to find your organization. Please try again.');
+    if (!userBusinessId) {
+      setError('Unable to find your business. Please refresh the page.');
       return;
     }
 
@@ -267,7 +264,7 @@ export function QuickStart() {
     setError('');
 
     try {
-      const unit = await unitService.createUnit(currentBusiness.id, propertyId, {
+      const unit = await unitService.createUnit(userBusinessId, propertyId, {
         unit_number: unitData.unit_number || '1',
         bedrooms: unitData.bedrooms,
         bathrooms: unitData.bathrooms,
@@ -278,12 +275,7 @@ export function QuickStart() {
       setProgress(prev => ({ ...prev, hasUnit: true, unitCount: prev.unitCount + 1 }));
       setCurrentStep(3);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to create unit';
-      if (errorMsg.includes('LIMIT_REACHED')) {
-        setError('You have reached the unit limit for your package. Please upgrade to add more units.');
-      } else {
-        setError(errorMsg);
-      }
+      setError(err instanceof Error ? err.message : 'Failed to create unit');
     } finally {
       setIsSaving(false);
     }
@@ -302,7 +294,7 @@ export function QuickStart() {
     }
 
     if (!currentBusiness?.id) {
-      setError('Unable to find your organization. Please try again.');
+      setError('Unable to find your business. Please try again.');
       return;
     }
 
@@ -333,124 +325,159 @@ export function QuickStart() {
     }
   };
 
-  const getFirstPropertyId = async (): Promise<string | null> => {
-    if (!currentBusiness?.id) return null;
-    const { data } = await supabase
-      .from('properties')
-      .select('id')
-      .eq('organization_id', currentBusiness.id)
-      .eq('is_active', true)
-      .limit(1)
-      .single();
-    return data?.id || null;
-  };
-
-  const getFirstUnitId = async (): Promise<string | null> => {
-    if (!currentBusiness?.id) return null;
-    const { data } = await supabase
-      .from('units')
-      .select('id')
-      .eq('organization_id', currentBusiness.id)
-      .eq('is_active', true)
-      .limit(1)
-      .single();
-    return data?.id || null;
-  };
-
-  const skipStep = () => {
+  const handleSkipToNext = () => {
     if (currentStep < 4) {
       setCurrentStep(currentStep + 1);
     }
   };
 
-  const goToDashboard = () => {
+  const handleSkipOnboarding = () => {
     navigate('/dashboard');
   };
 
-  if (isLoading || isCreatingBusiness || (!currentBusiness && supabaseUser)) {
+  const handleGoBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">
-            {isCreatingBusiness ? 'Setting up your account...' : 'Loading...'}
-          </p>
+          <p className="text-gray-600">Loading your business...</p>
         </div>
       </div>
     );
   }
 
-  const steps = [
-    { number: 1, title: 'Property', icon: Home },
-    { number: 2, title: 'Unit', icon: DoorClosed },
-    { number: 3, title: 'Tenant', icon: Users },
-    { number: 4, title: 'Complete', icon: Check },
+  const steps = needsBusinessCreation ? [
+    { id: 0, name: 'Business', icon: Building2 },
+    { id: 1, name: 'Property', icon: Home },
+    { id: 2, name: 'Unit', icon: DoorClosed },
+    { id: 3, name: 'Complete', icon: Check },
+  ] : [
+    { id: 1, name: 'Property', icon: Home },
+    { id: 2, name: 'Unit', icon: DoorClosed },
+    { id: 3, name: 'Complete', icon: Check },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
-      <div className="max-w-3xl mx-auto px-6 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
+      <div className="max-w-3xl mx-auto px-4 py-8 sm:py-12">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Building2 className="w-10 h-10 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">AI Rental Tools</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Property Wizard</h1>
           </div>
-          <p className="text-gray-600">
-            Welcome{userProfile?.first_name ? `, ${userProfile.first_name}` : ''}! Let's set up your first rental.
-          </p>
+          <p className="text-gray-600">Welcome! Let's set up your first property.</p>
         </div>
 
         {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-center">
-            {steps.map((step, idx) => (
-              <div key={step.number} className="flex items-center">
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold transition ${
-                      step.number < currentStep
-                        ? 'bg-green-500 text-white'
-                        : step.number === currentStep
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-500'
-                    }`}
-                  >
-                    {step.number < currentStep ? (
-                      <Check size={20} />
-                    ) : (
-                      <step.icon size={20} />
-                    )}
-                  </div>
-                  <span className={`text-xs mt-1 ${
-                    step.number === currentStep ? 'text-blue-600 font-medium' : 'text-gray-500'
-                  }`}>
-                    {step.title}
-                  </span>
+        <div className="flex items-center justify-center mb-8">
+          {steps.map((step, index) => (
+            <div key={step.id} className="flex items-center">
+              <div
+                className={`flex flex-col items-center ${
+                  currentStep >= step.id ? 'text-blue-600' : 'text-gray-400'
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    currentStep >= step.id
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-400'
+                  }`}
+                >
+                  <step.icon className="w-5 h-5" />
                 </div>
-                {idx < steps.length - 1 && (
-                  <div
-                    className={`w-16 h-1 mx-2 rounded ${
-                      step.number < currentStep ? 'bg-green-500' : 'bg-gray-200'
-                    }`}
-                  />
-                )}
+                <span className="text-xs mt-1 font-medium">{step.name}</span>
               </div>
-            ))}
-          </div>
+              {index < steps.length - 1 && (
+                <div
+                  className={`w-12 sm:w-20 h-0.5 mx-2 ${
+                    currentStep > step.id ? 'bg-blue-600' : 'bg-gray-200'
+                  }`}
+                />
+              )}
+            </div>
+          ))}
         </div>
 
-        {/* Main Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        {/* Form Card */}
+        <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8">
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 text-sm">{error}</p>
+              <p className="text-red-800">{error}</p>
+            </div>
+          )}
+
+          {/* Step 0: Business (only if needed) */}
+          {currentStep === 0 && needsBusinessCreation && (
+            <div>
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Building2 className="w-8 h-8 text-blue-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Create Your Business</h2>
+                <p className="text-gray-600">First, let's set up your business information</p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Business Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={businessData.business_name}
+                    onChange={(e) => setBusinessData(prev => ({ ...prev, business_name: e.target.value }))}
+                    placeholder="e.g., ABC Property Management"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Email</label>
+                  <input
+                    type="email"
+                    value={businessData.email}
+                    onChange={(e) => setBusinessData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder={supabaseUser?.email || 'business@example.com'}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Phone</label>
+                  <input
+                    type="tel"
+                    value={businessData.phone}
+                    onChange={(e) => setBusinessData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="(123) 456-7890"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4 mt-8">
+                <button
+                  onClick={handleCreateBusiness}
+                  disabled={isSaving}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? 'Creating...' : 'Create Business'}
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           )}
 
           {/* Step 1: Property */}
           {currentStep === 1 && (
-            <div className="space-y-6">
+            <div>
               <div className="text-center mb-6">
                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Home className="w-8 h-8 text-blue-600" />
@@ -459,79 +486,79 @@ export function QuickStart() {
                 <p className="text-gray-600">Enter the basic details about your rental property</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Property Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={propertyData.name}
-                  onChange={(e) => setPropertyData({ ...propertyData, name: e.target.value })}
-                  placeholder="e.g., Main Street Apartment"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Street Address
-                </label>
-                <input
-                  type="text"
-                  value={propertyData.address}
-                  onChange={(e) => setPropertyData({ ...propertyData, address: e.target.value })}
-                  placeholder="e.g., 123 Main Street"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">City</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Property Name <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
-                    value={propertyData.city}
-                    onChange={(e) => setPropertyData({ ...propertyData, city: e.target.value })}
-                    placeholder="Toronto"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={propertyData.name}
+                    onChange={(e) => setPropertyData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g., Main Street Apartment"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Province</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
                   <input
                     type="text"
-                    value={propertyData.state_province}
-                    onChange={(e) => setPropertyData({ ...propertyData, state_province: e.target.value })}
-                    placeholder="ON"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={propertyData.address}
+                    onChange={(e) => setPropertyData(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="e.g., 123 Main Street"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Postal Code</label>
-                  <input
-                    type="text"
-                    value={propertyData.postal_code}
-                    onChange={(e) => setPropertyData({ ...propertyData, postal_code: e.target.value })}
-                    placeholder="M1M 1M1"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <input
+                      type="text"
+                      value={propertyData.city}
+                      onChange={(e) => setPropertyData(prev => ({ ...prev, city: e.target.value }))}
+                      placeholder="Toronto"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Province</label>
+                    <input
+                      type="text"
+                      value={propertyData.state_province}
+                      onChange={(e) => setPropertyData(prev => ({ ...prev, state_province: e.target.value }))}
+                      placeholder="ON"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+                    <input
+                      type="text"
+                      value={propertyData.postal_code}
+                      onChange={(e) => setPropertyData(prev => ({ ...prev, postal_code: e.target.value }))}
+                      placeholder="M5V 1A1"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex justify-between mt-8">
                 <button
-                  onClick={skipStep}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                  onClick={handleSkipOnboarding}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 transition"
                 >
                   <SkipForward size={18} />
-                  Skip for Now
+                  Skip to Dashboard
                 </button>
                 <button
                   onClick={handleCreateProperty}
                   disabled={isSaving}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition font-semibold"
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition font-semibold"
                 >
-                  {isSaving ? 'Creating...' : 'Continue'}
+                  {isSaving ? 'Creating...' : 'Create Property'}
                   {!isSaving && <ArrowRight size={18} />}
                 </button>
               </div>
@@ -540,211 +567,96 @@ export function QuickStart() {
 
           {/* Step 2: Unit */}
           {currentStep === 2 && (
-            <div className="space-y-6">
+            <div>
               <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <DoorClosed className="w-8 h-8 text-green-600" />
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <DoorClosed className="w-8 h-8 text-blue-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Create a Rental Unit</h2>
-                <p className="text-gray-600">Add the details of the unit you'll be renting out</p>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Add a Unit</h2>
+                <p className="text-gray-600">Set up your first rental unit</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Unit Number/Name
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unit Number/Name</label>
                   <input
                     type="text"
                     value={unitData.unit_number}
-                    onChange={(e) => setUnitData({ ...unitData, unit_number: e.target.value })}
-                    placeholder="e.g., 1, 2A, Basement"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(e) => setUnitData(prev => ({ ...prev, unit_number: e.target.value }))}
+                    placeholder="e.g., Unit 1, Apt A, Suite 101"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   />
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bedrooms</label>
+                    <select
+                      value={unitData.bedrooms}
+                      onChange={(e) => setUnitData(prev => ({ ...prev, bedrooms: parseInt(e.target.value) }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    >
+                      {[0, 1, 2, 3, 4, 5].map(num => (
+                        <option key={num} value={num}>{num === 0 ? 'Studio' : num}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bathrooms</label>
+                    <select
+                      value={unitData.bathrooms}
+                      onChange={(e) => setUnitData(prev => ({ ...prev, bathrooms: parseFloat(e.target.value) }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    >
+                      {[1, 1.5, 2, 2.5, 3, 3.5, 4].map(num => (
+                        <option key={num} value={num}>{num}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Monthly Rent ($)
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Rent ($)</label>
                   <input
                     type="number"
                     value={unitData.monthly_rent}
-                    onChange={(e) => setUnitData({ ...unitData, monthly_rent: e.target.value })}
+                    onChange={(e) => setUnitData(prev => ({ ...prev, monthly_rent: e.target.value }))}
                     placeholder="e.g., 1500"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Bedrooms</label>
-                  <select
-                    value={unitData.bedrooms}
-                    onChange={(e) => setUnitData({ ...unitData, bedrooms: parseInt(e.target.value) })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value={0}>Studio</option>
-                    <option value={1}>1 Bedroom</option>
-                    <option value={2}>2 Bedrooms</option>
-                    <option value={3}>3 Bedrooms</option>
-                    <option value={4}>4+ Bedrooms</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Bathrooms</label>
-                  <select
-                    value={unitData.bathrooms}
-                    onChange={(e) => setUnitData({ ...unitData, bathrooms: parseInt(e.target.value) })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value={1}>1 Bathroom</option>
-                    <option value={1.5}>1.5 Bathrooms</option>
-                    <option value={2}>2 Bathrooms</option>
-                    <option value={2.5}>2.5 Bathrooms</option>
-                    <option value={3}>3+ Bathrooms</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
+              <div className="flex justify-between mt-8">
                 <button
-                  onClick={() => setCurrentStep(1)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                  onClick={handleGoBack}
+                  className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 transition"
                 >
                   <ArrowLeft size={18} />
                   Back
                 </button>
-                <button
-                  onClick={skipStep}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
-                >
-                  <SkipForward size={18} />
-                  Skip
-                </button>
-                <button
-                  onClick={handleCreateUnit}
-                  disabled={isSaving}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition font-semibold"
-                >
-                  {isSaving ? 'Creating...' : 'Continue'}
-                  {!isSaving && <ArrowRight size={18} />}
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleSkipToNext}
+                    className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 transition"
+                  >
+                    Skip for now
+                  </button>
+                  <button
+                    onClick={handleCreateUnit}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition font-semibold"
+                  >
+                    {isSaving ? 'Creating...' : 'Create Unit'}
+                    {!isSaving && <ArrowRight size={18} />}
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Step 3: Tenant */}
+          {/* Step 3: Complete */}
           {currentStep === 3 && (
-            <div className="space-y-6">
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-8 h-8 text-purple-600" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Add Your First Tenant</h2>
-                <p className="text-gray-600">Enter your tenant's contact information</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    First Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={tenantData.first_name}
-                    onChange={(e) => setTenantData({ ...tenantData, first_name: e.target.value })}
-                    placeholder="John"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Last Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={tenantData.last_name}
-                    onChange={(e) => setTenantData({ ...tenantData, last_name: e.target.value })}
-                    placeholder="Doe"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={tenantData.email}
-                    onChange={(e) => setTenantData({ ...tenantData, email: e.target.value })}
-                    placeholder="john@example.com"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
-                  <input
-                    type="tel"
-                    value={tenantData.phone}
-                    onChange={(e) => setTenantData({ ...tenantData, phone: e.target.value })}
-                    placeholder="(555) 123-4567"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Lease Start</label>
-                  <input
-                    type="date"
-                    value={tenantData.lease_start_date}
-                    onChange={(e) => setTenantData({ ...tenantData, lease_start_date: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Lease End</label>
-                  <input
-                    type="date"
-                    value={tenantData.lease_end_date}
-                    onChange={(e) => setTenantData({ ...tenantData, lease_end_date: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={() => setCurrentStep(2)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
-                >
-                  <ArrowLeft size={18} />
-                  Back
-                </button>
-                <button
-                  onClick={skipStep}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
-                >
-                  <SkipForward size={18} />
-                  Skip
-                </button>
-                <button
-                  onClick={handleCreateTenant}
-                  disabled={isSaving}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition font-semibold"
-                >
-                  {isSaving ? 'Creating...' : 'Complete Setup'}
-                  {!isSaving && <Check size={18} />}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 4: Complete */}
-          {currentStep === 4 && (
             <div className="text-center py-8">
               <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Sparkles className="w-10 h-10 text-green-600" />
@@ -763,34 +675,23 @@ export function QuickStart() {
                 <div className="bg-green-50 rounded-lg p-4 text-left">
                   <Home className="w-8 h-8 text-green-600 mb-2" />
                   <h3 className="font-semibold text-gray-900 mb-1">Add More Properties</h3>
-                  <p className="text-sm text-gray-600">Expand your business with additional rentals</p>
+                  <p className="text-sm text-gray-600">Expand your portfolio with additional rentals</p>
                 </div>
                 <div className="bg-purple-50 rounded-lg p-4 text-left">
                   <Users className="w-8 h-8 text-purple-600 mb-2" />
-                  <h3 className="font-semibold text-gray-900 mb-1">Invite Tenants</h3>
-                  <p className="text-sm text-gray-600">Give tenants access to their portal</p>
+                  <h3 className="font-semibold text-gray-900 mb-1">Manage Tenants</h3>
+                  <p className="text-sm text-gray-600">View and manage all your tenants in one place</p>
                 </div>
               </div>
 
               <button
-                onClick={goToDashboard}
-                className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold text-lg"
+                onClick={() => navigate('/dashboard')}
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
               >
                 Go to Dashboard
-                <ArrowRight size={20} />
               </button>
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="text-center mt-6">
-          <button
-            onClick={goToDashboard}
-            className="text-gray-500 hover:text-gray-700 text-sm"
-          >
-            Skip setup and go to dashboard
-          </button>
         </div>
       </div>
     </div>

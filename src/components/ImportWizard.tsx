@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Upload, Download, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, Download, AlertCircle, CheckCircle } from 'lucide-react';
+import { SlidePanel } from './SlidePanel';
 
 interface ImportWizardProps {
+  isOpen: boolean;
   onClose: () => void;
 }
 
-export function ImportWizard({ onClose }: ImportWizardProps) {
+export function ImportWizard({ isOpen, onClose }: ImportWizardProps) {
   const [step, setStep] = useState<'select' | 'upload' | 'processing' | 'complete'>('select');
   const [importType, setImportType] = useState<'properties' | 'tenants' | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -74,19 +76,13 @@ export function ImportWizard({ onClose }: ImportWizardProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
-          <h2 className="text-2xl font-bold text-gray-900">Import Data</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition"
-          >
-            <X size={24} />
-          </button>
-        </div>
-
-        <div className="p-6">
+    <SlidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Import Data"
+      size="large"
+    >
+      <div className="space-y-6">
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -309,8 +305,7 @@ export function ImportWizard({ onClose }: ImportWizardProps) {
               </button>
             </div>
           )}
-        </div>
       </div>
-    </div>
+    </SlidePanel>
   );
 }

@@ -302,7 +302,7 @@ export function Pricing() {
               All plans include a 14-day free trial. No credit card required.
             </p>
             <p className="text-sm text-gray-500">
-              Need help choosing? <Link to="/contact" className="text-blue-600 hover:underline">Contact our sales team</Link>
+              Need help choosing? <a href="mailto:support@airentaltools.com" className="text-blue-600 hover:underline">Contact our sales team</a>
             </p>
           </div>
         </div>

@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Upload, Download, X, AlertCircle, CheckCircle, FileText, Info, ExternalLink } from 'lucide-react';
+import { Upload, Download, AlertCircle, CheckCircle, FileText, Info, ExternalLink } from 'lucide-react';
+import { SlidePanel } from './SlidePanel';
 
 interface ImportWizardProps {
+  isOpen: boolean;
   onClose: () => void;
 }
 
 type ImportSource = 'standard' | 'buildium' | 'appfolio' | 'yardi';
 type ImportType = 'properties' | 'tenants' | 'leases' | 'payments';
 
-export function EnhancedImportWizard({ onClose }: ImportWizardProps) {
+export function EnhancedImportWizard({ isOpen, onClose }: ImportWizardProps) {
   const [step, setStep] = useState<'source' | 'type' | 'upload' | 'processing' | 'complete'>('source');
   const [importSource, setImportSource] = useState<ImportSource>('standard');
   const [importType, setImportType] = useState<ImportType | null>(null);
@@ -269,22 +271,14 @@ Last Updated: December 2024`;
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full my-8">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white rounded-t-2xl">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Import Data</h2>
-            <p className="text-sm text-gray-600 mt-1">Import from various property management systems</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition"
-          >
-            <X size={24} />
-          </button>
-        </div>
-
-        <div className="p-6">
+    <SlidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Import Data"
+      subtitle="Import from various property management systems"
+      size="large"
+    >
+      <div className="space-y-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <div className="flex items-start gap-3">
               <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -687,8 +681,7 @@ Last Updated: December 2024`;
               </button>
             </div>
           )}
-        </div>
       </div>
-    </div>
+    </SlidePanel>
   );
 }

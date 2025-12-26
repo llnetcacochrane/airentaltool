@@ -1,9 +1,16 @@
 import { supabase } from '../lib/supabase';
 import { Tenant, Lease } from '../types';
 import { businessService } from './businessService';
-import { addonService } from './addonService';
 
 export const tenantService = {
+  /**
+   * Get all tenants for a business
+   * Alias method for compatibility with Maintenance.tsx
+   */
+  async getAllTenants(businessId: string): Promise<Tenant[]> {
+    return this.getBusinessTenants(businessId);
+  },
+
   /**
    * Get all tenants for a business
    */
@@ -82,11 +89,17 @@ export const tenantService = {
 
   /**
    * Create a tenant
-   * Now uses organizationId instead of portfolio
+   * businessId is used for limit checking
    */
-  async createTenant(organizationId: string, unitId: string, tenant: Partial<Tenant>): Promise<Tenant> {
-    const canAdd = await addonService.checkLimit(organizationId, 'tenant');
-    if (!canAdd) {
+  async createTenant(businessId: string, unitId: string, tenant: Partial<Tenant>): Promise<Tenant> {
+    // Check tenant limit using business-based function
+    const { data: canAdd, error: limitError } = await supabase.rpc('check_tenant_limit_for_business', {
+      p_business_id: businessId,
+    });
+
+    if (limitError) {
+      console.error('Failed to check tenant limit:', limitError);
+    } else if (!canAdd) {
       throw new Error('LIMIT_REACHED:tenant');
     }
 
@@ -95,11 +108,11 @@ export const tenantService = {
     const { data, error } = await supabase
       .from('tenants')
       .insert({
-        organization_id: organizationId,
+        organization_id: null, // No longer used
         unit_id: unitId,
         first_name: tenant.first_name,
         last_name: tenant.last_name,
-        email: tenant.email,
+        email: tenant.email || `${tenant.first_name?.toLowerCase()}.${tenant.last_name?.toLowerCase()}@placeholder.local`,
         phone: tenant.phone,
         emergency_contact_name: tenant.emergency_contact_name,
         emergency_contact_phone: tenant.emergency_contact_phone,
@@ -211,19 +224,10 @@ export const tenantService = {
   },
 
   /**
-   * Get active tenants for an organization
+   * Get active tenants for a business
    */
-  async getActiveTenants(organizationId: string): Promise<Tenant[]> {
-    const { data, error } = await supabase
-      .from('tenants')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .eq('is_active', true)
-      .eq('status', 'active')
-      .order('last_name');
-
-    if (error) throw error;
-    return data || [];
+  async getActiveTenants(businessId: string): Promise<Tenant[]> {
+    return this.getBusinessTenants(businessId);
   },
 
   /**
@@ -242,19 +246,17 @@ export const tenantService = {
   },
 
   /**
-   * Search tenants
+   * Search tenants within a business
    */
-  async searchTenants(organizationId: string, searchTerm: string): Promise<Tenant[]> {
-    const { data, error } = await supabase
-      .from('tenants')
-      .select('*')
-      .eq('organization_id', organizationId)
-      .eq('is_active', true)
-      .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
-      .order('last_name');
+  async searchTenants(businessId: string, searchTerm: string): Promise<Tenant[]> {
+    const allTenants = await this.getBusinessTenants(businessId);
+    const term = searchTerm.toLowerCase();
 
-    if (error) throw error;
-    return data || [];
+    return allTenants.filter(t =>
+      t.first_name?.toLowerCase().includes(term) ||
+      t.last_name?.toLowerCase().includes(term) ||
+      t.email?.toLowerCase().includes(term)
+    );
   },
 
   /**
@@ -313,9 +315,18 @@ export const tenantService = {
   },
 
   /**
-   * Check if user can create more tenants
+   * Check if user can create more tenants for a business
    */
-  async canCreateTenant(organizationId: string): Promise<boolean> {
-    return addonService.checkLimit(organizationId, 'tenant');
+  async canCreateTenant(businessId: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('check_tenant_limit_for_business', {
+      p_business_id: businessId,
+    });
+
+    if (error) {
+      console.error('Error checking tenant limit:', error);
+      return true; // Allow by default if check fails
+    }
+
+    return data === true;
   },
 };

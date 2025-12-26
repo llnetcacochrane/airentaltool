@@ -325,14 +325,75 @@ export const propertyOwnerService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    const { data, error } = await supabase
+    // Check legacy property_owners table
+    const { data: legacyOwner } = await supabase
       .from('property_owners')
       .select('id')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .maybeSingle();
 
-    if (error) return false;
+    if (legacyOwner) return true;
+
+    // Check new business_users with property_owner role
+    const { data: businessOwner } = await supabase
+      .from('business_users')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .eq('role', 'property_owner')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    return !!businessOwner;
+  },
+
+  /**
+   * Get the business(es) this property owner has access to
+   */
+  async getPropertyOwnerBusinesses() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('business_users')
+      .select(`
+        id,
+        business_id,
+        role,
+        businesses:business_id (
+          id,
+          business_name,
+          slug
+        )
+      `)
+      .eq('auth_user_id', user.id)
+      .eq('role', 'property_owner')
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Error fetching property owner businesses:', error);
+      return [];
+    }
+
+    return data?.map(d => d.businesses).filter(Boolean) || [];
+  },
+
+  /**
+   * Check if user is a property owner for a specific business
+   */
+  async isPropertyOwnerForBusiness(businessId: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    const { data } = await supabase
+      .from('business_users')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .eq('business_id', businessId)
+      .eq('role', 'property_owner')
+      .eq('is_active', true)
+      .maybeSingle();
+
     return !!data;
   },
 };

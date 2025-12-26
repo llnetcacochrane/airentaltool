@@ -5,11 +5,46 @@ import { aiService } from './aiService';
 
 export const financialService = {
   async getPortfolioSummary(organizationId: string) {
-    // Get all active leases
+    // organizationId parameter is actually businessId in business-centric model
+    const businessId = organizationId;
+
+    // Get properties for this business
+    const { data: properties } = await supabase
+      .from('properties')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('is_active', true);
+
+    if (!properties || properties.length === 0) {
+      return {
+        totalProperties: 0,
+        totalTenants: 0,
+        activeLeases: 0,
+        expectedMonthlyIncome: 0,
+        actualMonthlyIncome: 0,
+        monthlyExpenses: 0,
+        netMonthlyIncome: 0,
+        outstandingPayments: 0,
+        collectionRate: 0,
+      };
+    }
+
+    const propertyIds = properties.map(p => p.id);
+
+    // Get units for these properties
+    const { data: units } = await supabase
+      .from('units')
+      .select('id')
+      .in('property_id', propertyIds)
+      .eq('is_active', true);
+
+    const unitIds = units?.map(u => u.id) || [];
+
+    // Get all active leases for these units
     const { data: leases, error: leaseError } = await supabase
       .from('leases')
       .select('id, monthly_rent_cents, start_date, end_date, status')
-      .eq('organization_id', organizationId);
+      .in('unit_id', unitIds);
 
     if (leaseError) throw leaseError;
 
@@ -33,14 +68,14 @@ export const financialService = {
     }
 
     // Get actual income this month
-    const actualIncome = await paymentService.getMonthlyIncome(organizationId, currentMonth);
+    const actualIncome = await paymentService.getMonthlyIncome(businessId, currentMonth);
 
     // Get total expenses this month
     const [year, month] = currentMonth.split('-');
     const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
     const monthStart = `${currentMonth}-01`;
     const monthEnd = `${currentMonth}-${lastDay}`;
-    const totalExpenses = await expenseService.getTotalExpenses(organizationId, {
+    const totalExpenses = await expenseService.getTotalExpenses(businessId, {
       startDate: monthStart,
       endDate: monthEnd,
     });
@@ -62,22 +97,16 @@ export const financialService = {
       }, 0);
     }
 
-    // Get total properties
-    const { data: properties } = await supabase
-      .from('properties')
-      .select('id')
-      .eq('organization_id', organizationId);
-
-    // Get total tenants
-    const { data: tenants } = await supabase
-      .from('tenants')
-      .select('id')
-      .eq('organization_id', organizationId)
+    // Get total tenants via unit_tenant_access
+    const { count: tenantCount } = await supabase
+      .from('unit_tenant_access')
+      .select('tenant_id', { count: 'exact', head: true })
+      .in('unit_id', unitIds)
       .eq('is_active', true);
 
     return {
-      totalProperties: properties?.length || 0,
-      totalTenants: tenants?.length || 0,
+      totalProperties: properties.length,
+      totalTenants: tenantCount || 0,
       activeLeases,
       expectedMonthlyIncome: totalMonthlyRent,
       actualMonthlyIncome: actualIncome,
@@ -174,10 +203,50 @@ export const financialService = {
   },
 
   async getIncomeReport(organizationId: string, startDate: string, endDate: string) {
+    // organizationId parameter is actually businessId in business-centric model
+    const businessId = organizationId;
+
+    // Get units for this business's properties
+    const { data: properties } = await supabase
+      .from('properties')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('is_active', true);
+
+    if (!properties || properties.length === 0) {
+      return {
+        period: { start: startDate, end: endDate },
+        total: 0,
+        paymentCount: 0,
+        payments: [],
+        averagePayment: 0,
+      };
+    }
+
+    const propertyIds = properties.map(p => p.id);
+
+    const { data: units } = await supabase
+      .from('units')
+      .select('id')
+      .in('property_id', propertyIds)
+      .eq('is_active', true);
+
+    if (!units || units.length === 0) {
+      return {
+        period: { start: startDate, end: endDate },
+        total: 0,
+        paymentCount: 0,
+        payments: [],
+        averagePayment: 0,
+      };
+    }
+
+    const unitIds = units.map(u => u.id);
+
     const { data: payments } = await supabase
       .from('rent_payments')
       .select('*')
-      .eq('organization_id', organizationId)
+      .in('unit_id', unitIds)
       .eq('status', 'paid')
       .gte('payment_date', startDate)
       .lte('payment_date', endDate)
@@ -208,11 +277,19 @@ export const financialService = {
   },
 
   async generateTaxReport(organizationId: string, year: string) {
+    // organizationId parameter is actually businessId in business-centric model
+    const businessId = organizationId;
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
 
-    const incomeReport = await this.getIncomeReport(organizationId, startDate, endDate);
-    const expenseReport = await this.getExpenseReport(organizationId, startDate, endDate);
+    const incomeReport = await this.getIncomeReport(businessId, startDate, endDate);
+    const expenseReport = await this.getExpenseReport(businessId, startDate, endDate);
+
+    const { data: properties } = await supabase
+      .from('properties')
+      .select('id, name, address')
+      .eq('business_id', businessId)
+      .eq('is_active', true);
 
     return {
       year,
@@ -220,10 +297,7 @@ export const financialService = {
       totalExpenses: expenseReport.total,
       netIncome: incomeReport.total - expenseReport.total,
       expensesByCategory: expenseReport.byCategory,
-      properties: await supabase
-        .from('properties')
-        .select('id, name, address')
-        .eq('organization_id', organizationId),
+      properties: properties || [],
     };
   },
 
@@ -252,16 +326,14 @@ Provide a 2-3 paragraph executive summary that:
 
 Write in a professional but conversational tone.`;
 
-      const response = await aiService.generateCompletion({
-        featureName: 'financial_reporting',
-        organizationId,
+      const response = await aiService.generateForFeature('financial_insights', {
+        prompt: userPrompt,
         systemPrompt,
-        userPrompt,
-        maxTokens: 400,
+        max_tokens: 400,
         temperature: 0.7,
       });
 
-      return response.content;
+      return response.text;
     } catch (error) {
       console.error('Failed to generate AI summary:', error);
       return '';
@@ -289,16 +361,14 @@ Provide a brief analysis (2-3 paragraphs) that:
 2. Identifies any categories that seem high
 3. Suggests 1-2 ways to optimize costs`;
 
-      const response = await aiService.generateCompletion({
-        featureName: 'expense_analysis',
-        organizationId,
+      const response = await aiService.generateForFeature('financial_insights', {
+        prompt: userPrompt,
         systemPrompt,
-        userPrompt,
-        maxTokens: 350,
+        max_tokens: 350,
         temperature: 0.7,
       });
 
-      return response.content;
+      return response.text;
     } catch (error) {
       console.error('Failed to generate expense insights:', error);
       return '';

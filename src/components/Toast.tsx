@@ -99,7 +99,14 @@ interface ToastItemProps {
 }
 
 function ToastItem({ toast, onRemove }: ToastItemProps) {
+  const [isEntering, setIsEntering] = useState(true);
   const [isExiting, setIsExiting] = useState(false);
+
+  useEffect(() => {
+    // Trigger entrance animation
+    const timer = setTimeout(() => setIsEntering(false), 50);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleRemove = () => {
     setIsExiting(true);
@@ -120,11 +127,19 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
     info: 'bg-blue-50 border-blue-200',
   };
 
+  const getAnimationClasses = () => {
+    if (isExiting) return 'opacity-0 translate-x-full scale-95';
+    if (isEntering) return 'opacity-0 translate-x-full scale-95';
+    return 'opacity-100 translate-x-0 scale-100';
+  };
+
   return (
     <div
-      className={`pointer-events-auto max-w-sm w-full shadow-lg rounded-lg border p-4 transition-all duration-300 ${
-        backgrounds[toast.type]
-      } ${isExiting ? 'opacity-0 translate-x-4' : 'opacity-100 translate-x-0'}`}
+      className={`pointer-events-auto max-w-sm w-full shadow-lg rounded-lg border p-4
+        transition-all duration-300 ease-out transform
+        ${backgrounds[toast.type]}
+        ${getAnimationClasses()}
+      `}
     >
       <div className="flex items-start gap-3">
         {icons[toast.type]}

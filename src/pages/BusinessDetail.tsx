@@ -6,8 +6,9 @@ import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Business } from '../types';
 import {
   ArrowLeft, Home, FileText, Wrench, DollarSign, ChevronRight,
-  Users, Calendar, TrendingUp, Settings, AlertCircle, Plus
+  Users, Calendar, TrendingUp, Settings, AlertCircle, Plus, Globe, ExternalLink
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export function BusinessDetail() {
   const { businessId } = useParams();
@@ -33,10 +34,10 @@ export function BusinessDetail() {
     if (!businessId) return;
     setIsLoading(true);
     try {
-      const businessData = await businessService.getBusinessById(businessId);
+      const businessData = await businessService.getBusiness(businessId);
       setBusiness(businessData);
 
-      const propertiesData = await propertyService.getPropertiesByBusiness(businessId);
+      const propertiesData = await propertyService.getBusinessProperties(businessId);
       setProperties(propertiesData);
 
       setStats({
@@ -52,6 +53,23 @@ export function BusinessDetail() {
       console.error('Failed to load business data:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const togglePublicPage = async () => {
+    if (!business || !businessId) return;
+    try {
+      const newEnabled = !business.public_page_enabled;
+      const { error } = await supabase
+        .from('businesses')
+        .update({ public_page_enabled: newEnabled })
+        .eq('id', businessId);
+
+      if (error) throw error;
+
+      setBusiness({ ...business, public_page_enabled: newEnabled });
+    } catch (err) {
+      console.error('Failed to toggle public page:', err);
     }
   };
 
@@ -150,6 +168,67 @@ export function BusinessDetail() {
           </div>
         )}
 
+        <div className={`rounded-xl p-6 border ${business?.public_page_enabled ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+          <div className="flex items-start gap-4">
+            <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${business?.public_page_enabled ? 'bg-blue-100' : 'bg-gray-200'}`}>
+              <Globe className={`w-6 h-6 ${business?.public_page_enabled ? 'text-blue-600' : 'text-gray-500'}`} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900">Public Business Page</h3>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={business?.public_page_enabled || false}
+                    onChange={togglePublicPage}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+              <p className="text-sm text-gray-600 mb-3">
+                {business?.public_page_enabled
+                  ? 'Your business page is visible to the public. Prospects can browse your properties and apply for rentals.'
+                  : 'Enable your public page to allow prospects to discover your properties and submit rental applications.'}
+              </p>
+              {business?.public_page_enabled && business?.public_page_slug && (
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`/browse/${business.public_page_slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                  >
+                    <ExternalLink size={16} />
+                    View Public Page
+                  </a>
+                  <button
+                    onClick={() => navigate('/settings?tab=public-page')}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
+                  >
+                    <Settings size={16} />
+                    Configure Page
+                  </button>
+                </div>
+              )}
+              {business?.public_page_enabled && !business?.public_page_slug && (
+                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                  <p className="text-sm text-amber-800">
+                    Set up your public page URL in{' '}
+                    <button
+                      onClick={() => navigate('/settings?tab=public-page')}
+                      className="font-medium underline hover:no-underline"
+                    >
+                      Settings
+                    </button>
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900">Properties</h2>
@@ -168,7 +247,7 @@ export function BusinessDetail() {
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No Properties Yet</h3>
               <p className="text-gray-600 mb-6">Add your first property to this business</p>
               <button
-                onClick={() => navigate(`/business/${businessId}/properties/new`)}
+                onClick={() => navigate(`/properties`, { state: { showAddProperty: true, businessId: businessId } })}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
               >
                 <Plus size={20} />
@@ -214,7 +293,7 @@ export function BusinessDetail() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <button
-            onClick={() => navigate(`/business/${businessId}/documents`)}
+            onClick={() => navigate(`/agreements`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-blue-200"
           >
             <div className="flex items-center justify-between mb-4">
@@ -223,12 +302,12 @@ export function BusinessDetail() {
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Documents</h3>
-            <p className="text-sm text-gray-600">Contracts & files</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Agreements</h3>
+            <p className="text-sm text-gray-600">Contracts & leases</p>
           </button>
 
           <button
-            onClick={() => navigate(`/business/${businessId}/maintenance`)}
+            onClick={() => navigate(`/maintenance`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-amber-200"
           >
             <div className="flex items-center justify-between mb-4">
@@ -242,7 +321,7 @@ export function BusinessDetail() {
           </button>
 
           <button
-            onClick={() => navigate(`/business/${businessId}/financials`)}
+            onClick={() => navigate(`/payments`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-green-200"
           >
             <div className="flex items-center justify-between mb-4">
@@ -256,7 +335,7 @@ export function BusinessDetail() {
           </button>
 
           <button
-            onClick={() => navigate(`/business/${businessId}/tenants`)}
+            onClick={() => navigate(`/tenants`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-purple-200"
           >
             <div className="flex items-center justify-between mb-4">
@@ -270,7 +349,7 @@ export function BusinessDetail() {
           </button>
 
           <button
-            onClick={() => navigate(`/business/${businessId}/leases`)}
+            onClick={() => navigate(`/applications`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-amber-200"
           >
             <div className="flex items-center justify-between mb-4">
@@ -279,12 +358,12 @@ export function BusinessDetail() {
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-amber-600 transition" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Leases</h3>
-            <p className="text-sm text-gray-600">{stats.expiringLeases} expiring soon</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Applications</h3>
+            <p className="text-sm text-gray-600">Rental applications</p>
           </button>
 
           <button
-            onClick={() => navigate(`/business/${businessId}/reports`)}
+            onClick={() => navigate(`/reports`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-blue-200"
           >
             <div className="flex items-center justify-between mb-4">

@@ -1,40 +1,119 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { businessService } from '../services/businessService';
+import { businessService, BusinessWithStats } from '../services/businessService';
+import { supabase } from '../lib/supabase';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { Business } from '../types';
 import {
   Plus, Building2, ChevronRight, AlertCircle, Zap, Upload,
-  Home, Users, Wrench, DollarSign, ArrowLeft, Lock
+  Home, Users, Wrench, DollarSign, ArrowLeft, Lock, DoorClosed
 } from 'lucide-react';
-import { BusinessSetupWizard } from '../components/BusinessSetupWizard';
 import { EnhancedImportWizard } from '../components/EnhancedImportWizard';
 
+interface BusinessStats {
+  properties: number;
+  units: number;
+  tenants: number;
+  maintenance: number;
+}
+
 export function BusinessesList() {
-  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [businesses, setBusinesses] = useState<BusinessWithStats[]>([]);
+  const [businessStats, setBusinessStats] = useState<Record<string, BusinessStats>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showBusinessWizard, setShowBusinessWizard] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
   const { currentBusiness, userProfile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     loadBusinesses();
-  }, [currentBusiness?.id]);
+  }, []);
 
   const loadBusinesses = async () => {
-    if (!currentBusiness) return;
     setIsLoading(true);
     try {
-      const data = await businessService.getAllBusinesses(currentBusiness.id);
+      const data = await businessService.getUserBusinesses();
       setBusinesses(data);
+
+      // Load stats for each business
+      const stats: Record<string, BusinessStats> = {};
+      for (const business of data) {
+        stats[business.id] = await loadBusinessStats(business.id);
+      }
+      setBusinessStats(stats);
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load businesses');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadBusinessStats = async (businessId: string): Promise<BusinessStats> => {
+    try {
+      // Get properties count
+      const { count: propertiesCount } = await supabase
+        .from('properties')
+        .select('id', { count: 'exact', head: true })
+        .eq('business_id', businessId)
+        .eq('is_active', true);
+
+      // Get properties to count units
+      const { data: properties } = await supabase
+        .from('properties')
+        .select('id')
+        .eq('business_id', businessId)
+        .eq('is_active', true);
+
+      const propertyIds = properties?.map(p => p.id) || [];
+
+      let unitsCount = 0;
+      let tenantsCount = 0;
+      let maintenanceCount = 0;
+
+      if (propertyIds.length > 0) {
+        // Get units count
+        const { data: units } = await supabase
+          .from('units')
+          .select('id')
+          .in('property_id', propertyIds)
+          .eq('is_active', true);
+
+        unitsCount = units?.length || 0;
+        const unitIds = units?.map(u => u.id) || [];
+
+        // Get tenants count via unit_tenant_access
+        if (unitIds.length > 0) {
+          const { count: tenantCount } = await supabase
+            .from('unit_tenant_access')
+            .select('tenant_id', { count: 'exact', head: true })
+            .in('unit_id', unitIds)
+            .eq('is_active', true);
+
+          tenantsCount = tenantCount || 0;
+        }
+
+        // Get open maintenance requests
+        const { count: maintenanceOpenCount } = await supabase
+          .from('maintenance_requests')
+          .select('id', { count: 'exact', head: true })
+          .in('property_id', propertyIds)
+          .not('status', 'in', '(completed,cancelled)');
+
+        maintenanceCount = maintenanceOpenCount || 0;
+      }
+
+      return {
+        properties: propertiesCount || 0,
+        units: unitsCount,
+        tenants: tenantsCount,
+        maintenance: maintenanceCount,
+      };
+    } catch (err) {
+      console.error('Error loading business stats:', err);
+      return { properties: 0, units: 0, tenants: 0, maintenance: 0 };
     }
   };
 
@@ -97,11 +176,11 @@ export function BusinessesList() {
               </button>
               {(!isBasicOrLandlord || businesses.length === 0) && (
                 <button
-                  onClick={() => setShowBusinessWizard(true)}
+                  onClick={() => navigate('/quick-start')}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
                 >
                   <Zap size={18} />
-                  {businesses.length > 0 ? 'Add Another Business' : 'New Business Wizard'}
+                  {businesses.length > 0 ? 'Add Another Business' : 'Property Wizard'}
                 </button>
               )}
             </div>
@@ -141,11 +220,11 @@ export function BusinessesList() {
               Get started by adding your first business entity. Businesses help organize your properties.
             </p>
             <button
-              onClick={() => setShowBusinessWizard(true)}
+              onClick={() => navigate('/quick-start')}
               className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
             >
               <Zap size={20} />
-              Start Setup Wizard
+              Start Property Wizard
             </button>
           </div>
         ) : (
@@ -189,7 +268,21 @@ export function BusinessesList() {
                           </div>
                           <div>
                             <p className="text-xs text-gray-500">Properties</p>
-                            <p className="text-sm font-semibold text-gray-900">0</p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {businessStats[business.id]?.properties || 0}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
+                            <DoorClosed className="w-4 h-4 text-gray-600" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500">Units</p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {businessStats[business.id]?.units || 0}
+                            </p>
                           </div>
                         </div>
 
@@ -199,7 +292,9 @@ export function BusinessesList() {
                           </div>
                           <div>
                             <p className="text-xs text-gray-500">Tenants</p>
-                            <p className="text-sm font-semibold text-gray-900">0</p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {businessStats[business.id]?.tenants || 0}
+                            </p>
                           </div>
                         </div>
 
@@ -209,17 +304,9 @@ export function BusinessesList() {
                           </div>
                           <div>
                             <p className="text-xs text-gray-500">Open Issues</p>
-                            <p className="text-sm font-semibold text-gray-900">0</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
-                            <DollarSign className="w-4 h-4 text-gray-600" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Monthly Rev</p>
-                            <p className="text-sm font-semibold text-gray-900">$0</p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {businessStats[business.id]?.maintenance || 0}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -243,19 +330,10 @@ export function BusinessesList() {
         )}
       </div>
 
-      {showBusinessWizard && (
-        <BusinessSetupWizard
-          onClose={() => setShowBusinessWizard(false)}
-          onComplete={() => {
-            setShowBusinessWizard(false);
-            loadBusinesses();
-          }}
-        />
-      )}
-
-      {showImportWizard && (
-        <EnhancedImportWizard onClose={() => setShowImportWizard(false)} />
-      )}
+      <EnhancedImportWizard
+        isOpen={showImportWizard}
+        onClose={() => setShowImportWizard(false)}
+      />
     </div>
   );
 }

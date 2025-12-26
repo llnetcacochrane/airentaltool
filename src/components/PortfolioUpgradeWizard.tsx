@@ -1,20 +1,35 @@
 import React, { useState } from 'react';
-import { X, Building2, FolderTree, CheckCircle } from 'lucide-react';
+import { Building2, FolderTree, CheckCircle } from 'lucide-react';
 import { portfolioService } from '../services/portfolioService';
 import { usePortfolio } from '../context/PortfolioContext';
+import { SlidePanel } from './SlidePanel';
 
 interface PortfolioUpgradeWizardProps {
+  isOpen: boolean;
   onClose: () => void;
   onComplete: () => void;
 }
 
-export default function PortfolioUpgradeWizard({ onClose, onComplete }: PortfolioUpgradeWizardProps) {
+export default function PortfolioUpgradeWizard({ isOpen, onClose, onComplete }: PortfolioUpgradeWizardProps) {
   const { refreshPortfolios } = usePortfolio();
   const [step, setStep] = useState(1);
   const [portfolioName, setPortfolioName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const getTitle = () => {
+    switch (step) {
+      case 1:
+        return 'Adding a Second Portfolio';
+      case 2:
+        return 'Create Your New Portfolio';
+      case 3:
+        return 'All Set!';
+      default:
+        return 'Portfolio Setup';
+    }
+  };
 
   const handleCreatePortfolio = async () => {
     if (!portfolioName.trim()) {
@@ -43,23 +58,13 @@ export default function PortfolioUpgradeWizard({ onClose, onComplete }: Portfoli
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {step === 1 && 'Adding a Second Portfolio'}
-            {step === 2 && 'Create Your New Portfolio'}
-            {step === 3 && 'All Set!'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <div className="p-6">
+    <SlidePanel
+      isOpen={isOpen}
+      onClose={onClose}
+      title={getTitle()}
+      size="large"
+    >
+      <div className="space-y-6">
           {step === 1 && (
             <div className="space-y-6">
               <div className="flex items-center justify-center">
@@ -236,8 +241,7 @@ export default function PortfolioUpgradeWizard({ onClose, onComplete }: Portfoli
               </button>
             </div>
           )}
-        </div>
       </div>
-    </div>
+    </SlidePanel>
   );
 }

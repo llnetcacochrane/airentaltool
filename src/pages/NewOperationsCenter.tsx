@@ -16,6 +16,8 @@ import { HealthScoreRing, ProgressRing } from '../components/analytics/ProgressR
 import { ChartCard } from '../components/analytics/ChartCard';
 import { UpgradeCard, FeatureLocked } from '../components/upsell/UpgradeCard';
 import { Tooltip, FeatureHint } from '../components/ui/Tooltip';
+import { DashboardOnboarding } from '../components/DashboardOnboarding';
+import { UsageLimitsWidget } from '../components/UsageLimitsWidget';
 
 interface Alert {
   id: string;
@@ -38,7 +40,6 @@ export function NewOperationsCenter() {
   const [renewalOpportunities, setRenewalOpportunities] = useState<LeaseRenewalOpportunity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [hasProperties, setHasProperties] = useState(true);
   const [financialSummary, setFinancialSummary] = useState<any>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
 
@@ -47,21 +48,8 @@ export function NewOperationsCenter() {
   const isPro = ['professional', 'management-company'].includes(userTier);
 
   useEffect(() => {
-    checkOnboardingAndLoad();
-  }, [currentBusiness?.id]);
-
-  const checkOnboardingAndLoad = async () => {
-    try {
-      const { data: onboardingStatus } = await supabase.rpc('user_has_completed_onboarding');
-      if (onboardingStatus && !onboardingStatus.is_complete) {
-        navigate('/welcome');
-        return;
-      }
-    } catch {
-      // Non-critical
-    }
     loadOperationsData();
-  };
+  }, [currentBusiness?.id]);
 
   const loadOperationsData = async () => {
     const orgId = currentBusiness?.id;
@@ -83,7 +71,6 @@ export function NewOperationsCenter() {
       setRiskScores(riskData.filter(r => r.risk_level !== 'low'));
       setRenewalOpportunities(renewalData);
       setFinancialSummary(summaryData);
-      setHasProperties(summaryData?.total_properties > 0);
 
       // Generate comprehensive alerts
       const generatedAlerts: Alert[] = [];
@@ -180,120 +167,6 @@ export function NewOperationsCenter() {
     );
   }
 
-  if (!hasProperties) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
-        <div className="px-4 sm:px-6 lg:px-8 py-8">
-          <div className="max-w-6xl mx-auto">
-            {/* Welcome hero */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 rounded-3xl shadow-2xl mb-8">
-              <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-5 rounded-full -mr-48 -mt-48"></div>
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-white opacity-5 rounded-full -ml-32 -mb-32"></div>
-
-              <div className="relative p-8 md:p-12">
-                <div className="max-w-4xl">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-16 h-16 bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                      <Sparkles className="w-8 h-8 text-white" />
-                    </div>
-                    <div>
-                      <h1 className="text-4xl font-black text-white">Welcome to AI Rental Tools!</h1>
-                      <p className="text-blue-100 text-lg">Let's get your property management started</p>
-                    </div>
-                  </div>
-
-                  <p className="text-xl text-white opacity-95 mb-8">
-                    You're all set up and ready to manage properties like a pro. Let's add your first property and start leveraging AI-powered insights.
-                  </p>
-
-                  <div className="grid md:grid-cols-3 gap-4 mb-8">
-                    <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-4">
-                      <CheckCircle2 className="w-8 h-8 text-green-300 mb-2" />
-                      <div className="font-semibold text-white mb-1">Account Ready</div>
-                      <div className="text-sm text-blue-100">Your account is fully configured</div>
-                    </div>
-                    <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-4">
-                      <Zap className="w-8 h-8 text-yellow-300 mb-2" />
-                      <div className="font-semibold text-white mb-1">AI Powered</div>
-                      <div className="text-sm text-blue-100">Exclusive features activated</div>
-                    </div>
-                    <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-4">
-                      <Target className="w-8 h-8 text-purple-300 mb-2" />
-                      <div className="font-semibold text-white mb-1">Next Step</div>
-                      <div className="text-sm text-blue-100">Add your first property</div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <button
-                      onClick={() => navigate('/properties')}
-                      className="group inline-flex items-center justify-center gap-3 px-8 py-4 bg-yellow-400 text-gray-900 text-lg font-bold rounded-xl hover:bg-yellow-300 transition shadow-2xl"
-                    >
-                      <Building2 className="w-6 h-6" />
-                      <span>Add Your First Property</span>
-                      <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition" />
-                    </button>
-                    <button
-                      onClick={() => navigate('/getting-started')}
-                      className="inline-flex items-center justify-center gap-3 px-8 py-4 bg-white bg-opacity-10 backdrop-blur-sm text-white text-lg font-bold rounded-xl border-2 border-white border-opacity-30 hover:bg-opacity-20 transition"
-                    >
-                      <span>View Setup Guide</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick setup cards */}
-            <div className="grid md:grid-cols-3 gap-6">
-              <button
-                onClick={() => navigate('/properties')}
-                className="group bg-white rounded-xl shadow-sm hover:shadow-lg transition p-6 text-left border border-gray-100"
-              >
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition">
-                  <Building2 className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Add Properties</h3>
-                <p className="text-sm text-gray-600 mb-4">Add your rental properties and units to start tracking</p>
-                <div className="flex items-center text-blue-600 font-semibold text-sm">
-                  Start now <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition" />
-                </div>
-              </button>
-
-              <button
-                onClick={() => navigate('/tenants')}
-                className="group bg-white rounded-xl shadow-sm hover:shadow-lg transition p-6 text-left border border-gray-100"
-              >
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition">
-                  <Users className="w-6 h-6 text-green-600" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Invite Tenants</h3>
-                <p className="text-sm text-gray-600 mb-4">Add tenants and give them portal access</p>
-                <div className="flex items-center text-green-600 font-semibold text-sm">
-                  Add tenants <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition" />
-                </div>
-              </button>
-
-              <button
-                onClick={() => navigate('/help')}
-                className="group bg-white rounded-xl shadow-sm hover:shadow-lg transition p-6 text-left border border-gray-100"
-              >
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition">
-                  <Sparkles className="w-6 h-6 text-purple-600" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">Explore Features</h3>
-                <p className="text-sm text-gray-600 mb-4">Learn about AI-powered features and tools</p>
-                <div className="flex items-center text-purple-600 font-semibold text-sm">
-                  Learn more <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition" />
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
       {/* Header */}
@@ -333,6 +206,12 @@ export function NewOperationsCenter() {
       </div>
 
       <div className="px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Smart Onboarding */}
+        <DashboardOnboarding />
+
+        {/* Package Usage Limits */}
+        <UsageLimitsWidget />
+
         {/* Key Metrics Grid */}
         <div>
           <div className="flex items-center justify-between mb-6">

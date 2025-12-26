@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { systemSettingsService, PaymentGatewayConfig } from '../services/systemSettingsService';
 import { superAdminService } from '../services/superAdminService';
 import { brandingService } from '../services/brandingService';
-import { Settings, CreditCard, Key, ToggleLeft, ToggleRight, Save, Check, ArrowLeft, Zap, Mail, Palette } from 'lucide-react';
+import { systemConfigService } from '../services/systemConfigService';
+import { Settings, CreditCard, Key, ToggleLeft, ToggleRight, Save, Check, Zap, Mail, Palette, BarChart3 } from 'lucide-react';
+import { SuperAdminLayout } from '../components/SuperAdminLayout';
 
 export function SystemConfiguration() {
   const navigate = useNavigate();
@@ -11,7 +13,7 @@ export function SystemConfiguration() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'gateways' | 'features' | 'branding'>('gateways');
+  const [activeTab, setActiveTab] = useState<'gateways' | 'features' | 'branding' | 'analytics'>('gateways');
 
   const [gatewayConfig, setGatewayConfig] = useState<PaymentGatewayConfig>({
     stripe: { enabled: false },
@@ -27,6 +29,11 @@ export function SystemConfiguration() {
     application_name: 'AI Rental Tools',
     logo_url: '/AiRentalTools-logo1t.svg',
     primary_color: '#2563eb',
+  });
+  const [analyticsConfig, setAnalyticsConfig] = useState({
+    ga_tracking_id: '',
+    analytics_enabled: 'true',
+    site_name: 'AI Rental Tools',
   });
 
   useEffect(() => {
@@ -53,10 +60,11 @@ export function SystemConfiguration() {
 
   const loadData = async () => {
     try {
-      const [config, flags, branding] = await Promise.all([
+      const [config, flags, branding, analyticsConf] = await Promise.all([
         systemSettingsService.getPaymentGatewayConfig(),
         systemSettingsService.getFeatureFlags(),
         brandingService.getSystemBranding(),
+        systemConfigService.getConfigs(['ga_tracking_id', 'analytics_enabled', 'site_name']),
       ]);
       setGatewayConfig(config);
       setFeatureFlags(flags);
@@ -64,6 +72,11 @@ export function SystemConfiguration() {
         application_name: branding.application_name,
         logo_url: branding.logo_url || '/AiRentalTools-logo1t.svg',
         primary_color: branding.primary_color,
+      });
+      setAnalyticsConfig({
+        ga_tracking_id: analyticsConf.ga_tracking_id || '',
+        analytics_enabled: analyticsConf.analytics_enabled || 'true',
+        site_name: analyticsConf.site_name || 'AI Rental Tools',
       });
     } catch (error) {
       console.error('Failed to load configuration:', error);
@@ -128,6 +141,20 @@ export function SystemConfiguration() {
     }
   };
 
+  const handleSaveAnalytics = async () => {
+    setIsSaving(true);
+    try {
+      await systemConfigService.updateConfigs(analyticsConfig);
+      showSavedMessage();
+      // Reload the page to reinitialize analytics with new config
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+      console.error('Failed to save analytics config:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const showSavedMessage = () => {
     setSavedMessage('Changes saved successfully');
     setTimeout(() => setSavedMessage(''), 3000);
@@ -145,36 +172,19 @@ export function SystemConfiguration() {
     return null;
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/super-admin')}
-                className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition"
-                title="Back to Super Admin Dashboard"
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <Settings className="w-8 h-8" />
-              <div>
-                <h1 className="text-3xl font-bold">System Configuration</h1>
-                <p className="text-blue-100 mt-1">Payment gateways, API keys, and feature toggles</p>
-              </div>
-            </div>
-            {savedMessage && (
-              <div className="flex items-center gap-2 bg-green-500 px-4 py-2 rounded-lg">
-                <Check size={18} />
-                <span>{savedMessage}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+  const actionButton = savedMessage ? (
+    <div className="flex items-center gap-2 bg-green-500 px-4 py-2 rounded-lg">
+      <Check size={18} />
+      <span>{savedMessage}</span>
+    </div>
+  ) : null;
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+  return (
+    <SuperAdminLayout
+      title="System Configuration"
+      subtitle="Payment gateways, API keys, and feature toggles"
+      actionButton={actionButton || undefined}
+    >
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="border-b border-gray-200">
             <div className="flex">
@@ -233,6 +243,19 @@ export function SystemConfiguration() {
                 <div className="flex items-center gap-2">
                   <Palette size={18} />
                   System Branding
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className={`px-6 py-4 font-semibold transition ${
+                  activeTab === 'analytics'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <BarChart3 size={18} />
+                  Analytics
                 </div>
               </button>
             </div>
@@ -411,6 +434,94 @@ export function SystemConfiguration() {
                 </div>
               </div>
             )}
+
+            {activeTab === 'analytics' && (
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Analytics Configuration</h3>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Configure Google Analytics 4 tracking for this deployment. Perfect for white-label installations that need custom analytics tracking.
+                  </p>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <h4 className="font-semibold text-blue-900 mb-2">How to Set Up Google Analytics 4</h4>
+                    <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                      <li>Go to <a href="https://analytics.google.com" target="_blank" rel="noopener noreferrer" className="underline">analytics.google.com</a> and create a new property</li>
+                      <li>Select "Web" as the platform</li>
+                      <li>Copy your Measurement ID (format: G-XXXXXXXXXX)</li>
+                      <li>Paste it below and save</li>
+                      <li>Analytics will be automatically initialized across the entire platform</li>
+                    </ol>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Google Analytics Measurement ID
+                      </label>
+                      <input
+                        type="text"
+                        value={analyticsConfig.ga_tracking_id}
+                        onChange={(e) => setAnalyticsConfig({ ...analyticsConfig, ga_tracking_id: e.target.value })}
+                        placeholder="G-XXXXXXXXXX"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Leave blank to disable Google Analytics tracking
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Site Name (for Analytics)
+                      </label>
+                      <input
+                        type="text"
+                        value={analyticsConfig.site_name}
+                        onChange={(e) => setAnalyticsConfig({ ...analyticsConfig, site_name: e.target.value })}
+                        placeholder="AI Rental Tools"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Used for identifying this deployment in analytics reports
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+                      <input
+                        type="checkbox"
+                        id="analytics_enabled"
+                        checked={analyticsConfig.analytics_enabled === 'true'}
+                        onChange={(e) => setAnalyticsConfig({ ...analyticsConfig, analytics_enabled: e.target.checked ? 'true' : 'false' })}
+                        className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                      />
+                      <label htmlFor="analytics_enabled" className="text-sm font-medium text-gray-900 cursor-pointer">
+                        Enable analytics tracking globally
+                      </label>
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-amber-900 mb-2">Privacy & Compliance</h4>
+                      <p className="text-sm text-amber-800">
+                        This platform respects Do Not Track (DNT) browser settings and sanitizes personally identifiable information (PII) before sending to analytics.
+                        Users can also disable analytics in their browser preferences.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-end pt-4 border-t border-gray-200">
+                      <button
+                        onClick={handleSaveAnalytics}
+                        disabled={isSaving}
+                        className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                      >
+                        <Save size={18} />
+                        {isSaving ? 'Saving...' : 'Save Analytics Configuration'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -424,8 +535,7 @@ export function SystemConfiguration() {
             <li>• All changes are logged for security audit purposes</li>
           </ul>
         </div>
-      </div>
-    </div>
+    </SuperAdminLayout>
   );
 }
 

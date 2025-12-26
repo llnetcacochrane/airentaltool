@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Send, Check, X, Clock, AlertCircle, Settings as SettingsIcon, Activity } from 'lucide-react';
+import { Mail, Send, Check, X, Clock, AlertCircle, Settings as SettingsIcon, Activity } from 'lucide-react';
 import { emailService, EmailConfiguration, EmailDiagnosticLog } from '../services/emailService';
+import { SuperAdminLayout } from '../components/SuperAdminLayout';
 
 export function EmailDiagnostics() {
   const navigate = useNavigate();
@@ -95,15 +96,28 @@ export function EmailDiagnostics() {
     }
   };
 
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
   const handleTestEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsTesting(true);
+    setTestResult(null);
     try {
-      await emailService.testConfiguration(testEmail);
-      setTestEmail('');
+      const result = await emailService.testConfiguration(testEmail);
+      setTestResult({
+        success: result.success,
+        message: result.message || (result.success ? 'Test email sent successfully!' : 'Failed to send test email'),
+      });
+      if (result.success) {
+        setTestEmail('');
+      }
       await loadData();
     } catch (error) {
       console.error('Failed to test email:', error);
+      setTestResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to send test email',
+      });
     } finally {
       setIsTesting(false);
     }
@@ -122,34 +136,17 @@ export function EmailDiagnostics() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading...</div>
-      </div>
+      <SuperAdminLayout title="Email Settings" subtitle="Configure and test email delivery">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Loading...</div>
+        </div>
+      </SuperAdminLayout>
     );
   }
 
   return (
-    <div className="flex-1 overflow-auto bg-gray-50">
-      <div className="bg-blue-600 text-white">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <button
-            onClick={() => navigate('/super-admin/config')}
-            className="flex items-center gap-2 text-blue-100 hover:text-white mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to System Configuration
-          </button>
-          <div className="flex items-center gap-3">
-            <Mail className="w-8 h-8" />
-            <div>
-              <h1 className="text-3xl font-bold">Email System Diagnostics</h1>
-              <p className="text-blue-100 mt-1">Configure and test email delivery</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-6 py-6">
+    <SuperAdminLayout title="Email Settings" subtitle="Configure and test email delivery">
+      <div>
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow p-4">
@@ -442,6 +439,27 @@ export function EmailDiagnostics() {
                     <Send className="w-4 h-4" />
                     {isTesting ? 'Sending...' : 'Send Test Email'}
                   </button>
+
+                  {testResult && (
+                    <div className={`mt-4 p-4 rounded-lg border ${
+                      testResult.success
+                        ? 'bg-green-50 border-green-200'
+                        : 'bg-red-50 border-red-200'
+                    }`}>
+                      <div className="flex items-start gap-2">
+                        {testResult.success ? (
+                          <Check className="w-5 h-5 text-green-600 mt-0.5" />
+                        ) : (
+                          <X className="w-5 h-5 text-red-600 mt-0.5" />
+                        )}
+                        <div className={`text-sm ${testResult.success ? 'text-green-800' : 'text-red-800'}`}>
+                          <p className="font-semibold">{testResult.success ? 'Success!' : 'Failed'}</p>
+                          <p>{testResult.message}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
@@ -505,6 +523,6 @@ export function EmailDiagnostics() {
           </div>
         </div>
       </div>
-    </div>
+    </SuperAdminLayout>
   );
 }

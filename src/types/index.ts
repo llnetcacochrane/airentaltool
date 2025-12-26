@@ -10,6 +10,9 @@ export type PropertyType =
   | 'townhouse'
   | 'commercial'
   | 'mixed_use'
+  | 'residential'
+  | 'land'
+  | 'vacant_land'
   | 'other';
 
 export type OccupancyStatus = 'vacant' | 'occupied' | 'maintenance' | 'reserved';
@@ -175,6 +178,16 @@ export interface Business {
   created_at: string;
   updated_at: string;
   created_by?: string;
+  // Public page settings (v5.1.0+)
+  public_page_enabled?: boolean;
+  public_page_slug?: string;
+  public_page_title?: string;
+  public_page_description?: string;
+  public_page_logo_url?: string;
+  public_page_header_image_url?: string;
+  public_page_contact_email?: string;
+  public_page_contact_phone?: string;
+  public_page_custom_content?: any;
 }
 
 export interface Property {
@@ -474,7 +487,8 @@ export interface RentalApplicationForm {
 
 export interface RentalListing {
   id: string;
-  organization_id: string;
+  business_id: string;
+  organization_id?: string;
   property_id: string;
   unit_id: string;
   listing_code: string;
@@ -538,4 +552,96 @@ export interface ApplicationDocument {
   file_size?: number;
   mime_type?: string;
   uploaded_at: string;
+}
+
+// Business User Types (v5.2.0+)
+export type BusinessUserRole = 'user' | 'tenant' | 'applicant' | 'property_owner';
+export type BusinessUserStatus = 'pending' | 'active' | 'suspended' | 'inactive';
+
+// User Invitation Types (v5.5.0+)
+export type InvitationType = 'property_owner' | 'tenant' | 'team_member';
+// Note: InvitationStatus is already defined above on line 22
+
+export interface UserInvitation {
+  id: string;
+  business_id: string;
+  invitation_type: InvitationType;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  invitation_token: string;
+  unit_id?: string;
+  lease_start_date?: string;
+  lease_end_date?: string;
+  monthly_rent_cents?: number;
+  security_deposit_cents?: number;
+  status: InvitationStatus;
+  expires_at: string;
+  accepted_at?: string;
+  auth_user_id?: string;
+  business_user_id?: string;
+  tenant_id?: string;
+  client_id?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  business?: Business;
+  unit?: Unit;
+}
+
+export interface ValidatedInvitation {
+  id: string;
+  business_id: string;
+  business_name: string;
+  invitation_type: InvitationType;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  unit_id?: string;
+  unit_number?: string;
+  property_name?: string;
+  lease_start_date?: string;
+  lease_end_date?: string;
+  monthly_rent_cents?: number;
+  status: InvitationStatus;
+  expires_at: string;
+}
+
+export interface BusinessUser {
+  id: string;
+  business_id: string;
+  user_id: string;
+  auth_user_id?: string; // Links to Supabase auth user
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  role: BusinessUserRole;
+  status: BusinessUserStatus;
+  tenant_id?: string; // Links to tenant record when promoted
+  notes?: string;
+  last_login_at?: string;
+  created_at: string;
+  updated_at: string;
+  created_by?: string;
+  // Joined data
+  business?: Business;
+  tenant?: Tenant;
+}
+
+export interface BusinessUserMessage {
+  id: string;
+  business_id: string;
+  business_user_id: string;
+  sender_type: 'user' | 'manager';
+  sender_id: string;
+  subject?: string;
+  message: string;
+  is_read: boolean;
+  read_at?: string;
+  parent_message_id?: string;
+  created_at: string;
 }

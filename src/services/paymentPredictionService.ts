@@ -161,11 +161,11 @@ export const paymentPredictionService = {
 
     const { data: leases } = await supabase
       .from('leases')
-      .select('monthly_rent, status')
+      .select('monthly_rent_cents, status')
       .eq('organization_id', organizationId)
       .eq('status', 'active');
 
-    const totalMonthlyRent = leases?.reduce((sum, lease) => sum + (lease.monthly_rent || 0), 0) || 0;
+    const totalMonthlyRent = leases?.reduce((sum, lease) => sum + (lease.monthly_rent_cents || 0), 0) || 0;
 
     const { data: expenses } = await supabase
       .from('expenses')
@@ -267,16 +267,14 @@ Provide a brief analysis (2-3 paragraphs) that:
 2. Identifies root causes or trends
 3. Suggests specific actions the landlord should take`;
 
-      const response = await aiService.generateCompletion({
-        featureName: 'payment_risk_analysis',
-        organizationId,
+      const response = await aiService.generateForFeature('financial_insights', {
+        prompt: userPrompt,
         systemPrompt,
-        userPrompt,
-        maxTokens: 350,
+        max_tokens: 350,
         temperature: 0.6,
       });
 
-      return response.content;
+      return response.text;
     } catch (error) {
       console.error('Failed to generate risk insights:', error);
       return '';
@@ -305,16 +303,14 @@ Provide a 2-3 paragraph analysis that:
 
 Be specific and actionable.`;
 
-      const response = await aiService.generateCompletion({
-        featureName: 'cashflow_analysis',
-        organizationId,
+      const response = await aiService.generateForFeature('financial_insights', {
+        prompt: userPrompt,
         systemPrompt,
-        userPrompt,
-        maxTokens: 350,
+        max_tokens: 350,
         temperature: 0.7,
       });
 
-      return response.content;
+      return response.text;
     } catch (error) {
       console.error('Failed to generate cash flow narrative:', error);
       return '';

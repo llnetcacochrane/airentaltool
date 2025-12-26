@@ -1,49 +1,64 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FileText, Sparkles, Save, Eye, ArrowLeft, Loader } from 'lucide-react';
 import { aiService } from '../services/aiService';
-import { agreementService, AgreementTemplate } from '../services/agreementService';
+import { agreementService } from '../services/agreementService';
+import { agreementPlaceholderService } from '../services/agreementPlaceholderService';
+import { PlaceholderPicker, PlaceholderValidation } from './PlaceholderPicker';
+import { useAuth } from '../context/AuthContext';
 
 interface AgreementBuilderProps {
   templateId?: string;
-  onSave?: (template: AgreementTemplate) => void;
+  onSave?: (template: any) => void;
   onCancel?: () => void;
 }
 
 export function AgreementBuilder({ templateId, onSave, onCancel }: AgreementBuilderProps) {
+  const { currentBusiness } = useAuth();
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [preview, setPreview] = useState(false);
-  const [template, setTemplate] = useState<Partial<AgreementTemplate>>({
+  const [previewMode, setPreviewMode] = useState<'placeholders' | 'sample'>('placeholders');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const [template, setTemplate] = useState<{
+    template_name: string;
+    description: string;
+    agreement_title: string;
+    agreement_type: 'lease' | 'sublease' | 'month-to-month' | 'short-term';
+    template_content: string;
+    default_lease_term_months: number;
+    default_rent_amount: number;
+    default_security_deposit: number;
+    payment_frequency: 'daily' | 'weekly' | 'bi-weekly' | 'monthly';
+    pet_policy: string;
+    house_rules: string;
+    cancellation_policy: string;
+    damage_policy: string;
+    refund_policy: string;
+    parking_details: string;
+    max_occupants: number | undefined;
+    is_active: boolean;
+    is_default: boolean;
+  }>({
     template_name: '',
+    description: '',
     agreement_title: 'Residential Lease Agreement',
     agreement_type: 'lease',
+    template_content: '',
+    default_lease_term_months: 12,
+    default_rent_amount: 0,
+    default_security_deposit: 0,
     payment_frequency: 'monthly',
-    content: {},
+    pet_policy: '',
+    house_rules: '',
+    cancellation_policy: '',
+    damage_policy: '',
+    refund_policy: '',
+    parking_details: '',
+    max_occupants: undefined,
     is_active: true,
     is_default: false,
-    version: 1,
   });
-
-  const [formData, setFormData] = useState({
-    propertyOwnerName: '',
-    rentalAmount: '',
-    paymentFrequency: 'monthly',
-    leaseTermMonths: '12',
-    securityDeposit: '',
-    petPolicy: 'No pets allowed',
-    houseRules: '',
-    cancellationPolicy: '',
-    damagePolicy: '',
-    refundPolicy: '',
-    utilitiesIncluded: [] as string[],
-    amenities: [] as string[],
-    parkingDetails: '',
-    maxOccupants: '',
-    propertyDescription: '',
-    additionalTerms: '',
-  });
-
-  const [generatedText, setGeneratedText] = useState('');
 
   useEffect(() => {
     if (templateId) {
@@ -55,29 +70,26 @@ export function AgreementBuilder({ templateId, onSave, onCancel }: AgreementBuil
     try {
       setLoading(true);
       const data = await agreementService.getTemplate(templateId!);
-      setTemplate(data);
-      setGeneratedText(data.generated_text || '');
-
-      if (data.content) {
-        setFormData({
-          propertyOwnerName: data.content.propertyOwnerName || '',
-          rentalAmount: data.default_rent_amount?.toString() || '',
-          paymentFrequency: data.payment_frequency || 'monthly',
-          leaseTermMonths: data.default_lease_term_months?.toString() || '12',
-          securityDeposit: data.default_security_deposit?.toString() || '',
-          petPolicy: data.pet_policy || 'No pets allowed',
-          houseRules: data.house_rules || '',
-          cancellationPolicy: data.cancellation_policy || '',
-          damagePolicy: data.damage_policy || '',
-          refundPolicy: data.refund_policy || '',
-          utilitiesIncluded: data.utilities_included || [],
-          amenities: data.amenities || [],
-          parkingDetails: data.parking_details || '',
-          maxOccupants: data.max_occupants?.toString() || '',
-          propertyDescription: data.property_description || '',
-          additionalTerms: data.content.additionalTerms || '',
-        });
-      }
+      setTemplate({
+        template_name: data.template_name || '',
+        description: data.description || '',
+        agreement_title: data.agreement_title || 'Residential Lease Agreement',
+        agreement_type: data.agreement_type || 'lease',
+        template_content: data.template_content || data.generated_text || '',
+        default_lease_term_months: data.default_lease_term_months || 12,
+        default_rent_amount: data.default_rent_amount || 0,
+        default_security_deposit: data.default_security_deposit || 0,
+        payment_frequency: data.payment_frequency || 'monthly',
+        pet_policy: data.pet_policy || '',
+        house_rules: data.house_rules || '',
+        cancellation_policy: data.cancellation_policy || '',
+        damage_policy: data.damage_policy || '',
+        refund_policy: data.refund_policy || '',
+        parking_details: data.parking_details || '',
+        max_occupants: data.max_occupants,
+        is_active: data.is_active ?? true,
+        is_default: data.is_default ?? false,
+      });
     } catch (error) {
       console.error('Error loading template:', error);
       alert('Failed to load template');
@@ -87,61 +99,95 @@ export function AgreementBuilder({ templateId, onSave, onCancel }: AgreementBuil
   };
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setTemplate((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const insertPlaceholder = (placeholder: string) => {
+    if (textareaRef.current) {
+      const textarea = textareaRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = template.template_content;
+      const before = text.substring(0, start);
+      const after = text.substring(end);
+      const newText = before + placeholder + after;
+
+      setTemplate((prev) => ({ ...prev, template_content: newText }));
+
+      // Set cursor position after inserted placeholder
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + placeholder.length, start + placeholder.length);
+      }, 0);
+    }
   };
 
   const handleGenerateWithAI = async () => {
-    if (!formData.propertyOwnerName || !formData.rentalAmount) {
-      alert('Please fill in at least property owner name and rental amount');
-      return;
-    }
-
     try {
       setGenerating(true);
 
-      const prompt = `Generate a comprehensive residential lease agreement with the following details:
+      const prompt = `Generate a professional residential lease agreement template with placeholder variables.
 
-Property Owner: ${formData.propertyOwnerName}
-Rental Amount: $${formData.rentalAmount} ${formData.paymentFrequency}
-Lease Term: ${formData.leaseTermMonths} months
-Security Deposit: $${formData.securityDeposit || '0'}
-Pet Policy: ${formData.petPolicy}
-House Rules: ${formData.houseRules || 'Standard residential rules'}
-Cancellation Policy: ${formData.cancellationPolicy || 'Standard 30-day notice'}
-Damage Policy: ${formData.damagePolicy || 'Tenant responsible for damages beyond normal wear and tear'}
-Refund Policy: ${formData.refundPolicy || 'Security deposit refunded within 30 days after move-out inspection'}
-Utilities Included: ${formData.utilitiesIncluded.join(', ') || 'None'}
-Amenities: ${formData.amenities.join(', ') || 'None'}
-Parking: ${formData.parkingDetails || 'Street parking available'}
-Max Occupants: ${formData.maxOccupants || 'As per local regulations'}
-Property Description: ${formData.propertyDescription || 'Residential property'}
-Additional Terms: ${formData.additionalTerms || 'None'}
+IMPORTANT: Use these exact placeholder formats for dynamic content:
+- {{LANDLORD_NAME}} - Landlord's full name
+- {{LANDLORD_EMAIL}} - Landlord's email
+- {{LANDLORD_PHONE}} - Landlord's phone
+- {{BUSINESS_NAME}} - Business/company name
+- {{TENANT_NAME}} - Tenant's full name
+- {{TENANT_EMAIL}} - Tenant's email
+- {{TENANT_PHONE}} - Tenant's phone
+- {{PROPERTY_NAME}} - Property name
+- {{PROPERTY_ADDRESS}} - Full property address
+- {{UNIT_NUMBER}} - Unit number
+- {{BEDROOMS}} - Number of bedrooms
+- {{BATHROOMS}} - Number of bathrooms
+- {{SQUARE_FEET}} - Square footage
+- {{START_DATE}} - Lease start date
+- {{END_DATE}} - Lease end date
+- {{RENT_AMOUNT}} - Monthly rent amount
+- {{SECURITY_DEPOSIT}} - Security deposit amount
+- {{PAYMENT_FREQUENCY}} - Payment frequency
+- {{PAYMENT_DUE_DAY}} - Day of month rent is due
+- {{LATE_FEE_AMOUNT}} - Late fee amount
+- {{LATE_FEE_GRACE_DAYS}} - Grace period for late fee
+- {{PET_POLICY}} - Pet policy
+- {{HOUSE_RULES}} - House rules
+- {{PARKING_DETAILS}} - Parking information
+- {{MAX_OCCUPANTS}} - Maximum occupants allowed
+- {{CURRENT_DATE}} - Current date
+- {{SIGNATURE_DEADLINE}} - Deadline for signing
 
-Please generate a professional, legally-sound lease agreement that includes:
-1. Parties section
-2. Property description
-3. Lease term and rent details
-4. Security deposit terms
-5. Maintenance responsibilities
-6. Rules and policies
-7. Termination clauses
-8. Signatures section
+Template Settings:
+- Agreement Type: ${template.agreement_type}
+- Payment Frequency: ${template.payment_frequency}
+${template.pet_policy ? `- Pet Policy: ${template.pet_policy}` : ''}
+${template.house_rules ? `- House Rules: ${template.house_rules}` : ''}
+${template.parking_details ? `- Parking: ${template.parking_details}` : ''}
 
-Format the agreement professionally with proper sections and legal language.`;
+Generate a complete lease agreement that includes:
+1. Title and parties section (using {{LANDLORD_NAME}}, {{TENANT_NAME}}, etc.)
+2. Property description (using {{PROPERTY_ADDRESS}}, {{UNIT_NUMBER}}, etc.)
+3. Lease term section (using {{START_DATE}}, {{END_DATE}}, etc.)
+4. Rent and payment terms (using {{RENT_AMOUNT}}, {{PAYMENT_DUE_DAY}}, etc.)
+5. Security deposit terms
+6. Maintenance and repairs responsibilities
+7. Rules and policies (using {{PET_POLICY}}, {{HOUSE_RULES}}, etc.)
+8. Termination clauses
+9. Signatures section with date placeholders
 
-      const result = await aiService.generateText({
+Format it professionally with clear section headers. Use the placeholders exactly as shown above.`;
+
+      const result = await aiService.generateForFeature('document_generation', {
         prompt,
-        context: 'lease_agreement',
-        max_tokens: 3000,
+        systemPrompt:
+          'You are a legal document expert. Generate professional lease agreement templates using the exact placeholder format provided. Ensure the document is comprehensive and legally sound.',
+        max_tokens: 4000,
+        temperature: 0.7,
       });
 
-      setGeneratedText(result.text);
-      setTemplate(prev => ({
+      setTemplate((prev) => ({
         ...prev,
-        generated_text: result.text,
-        ai_prompt_used: prompt,
-        ai_model_used: result.model || 'openai',
-        ai_generated_at: new Date().toISOString(),
+        template_content: result.text,
       }));
     } catch (error: any) {
       console.error('Error generating agreement:', error);
@@ -157,34 +203,33 @@ Format the agreement professionally with proper sections and legal language.`;
       return;
     }
 
-    if (!generatedText) {
-      alert('Please generate agreement text first');
+    if (!template.template_content) {
+      alert('Please add template content');
       return;
+    }
+
+    // Validate placeholders
+    const validation = agreementPlaceholderService.validateTemplatePlaceholders(
+      template.template_content
+    );
+    if (!validation.valid) {
+      const proceed = confirm(
+        `Warning: Unknown placeholders found: ${validation.unknownPlaceholders.join(', ')}\n\nThese will not be replaced when generating agreements. Continue anyway?`
+      );
+      if (!proceed) return;
     }
 
     try {
       setLoading(true);
 
-      const templateData: Partial<AgreementTemplate> = {
+      const templateData: Partial<import('../services/agreementService').AgreementTemplate> = {
         ...template,
-        content: formData,
-        generated_text: generatedText,
-        default_rent_amount: parseFloat(formData.rentalAmount) || 0,
-        default_security_deposit: parseFloat(formData.securityDeposit) || 0,
-        default_lease_term_months: parseInt(formData.leaseTermMonths) || 12,
-        payment_frequency: formData.paymentFrequency as any,
-        pet_policy: formData.petPolicy,
-        house_rules: formData.houseRules,
-        cancellation_policy: formData.cancellationPolicy,
-        damage_policy: formData.damagePolicy,
-        refund_policy: formData.refundPolicy,
-        utilities_included: formData.utilitiesIncluded,
-        amenities: formData.amenities,
-        parking_details: formData.parkingDetails,
-        max_occupants: parseInt(formData.maxOccupants) || undefined,
+        business_id: currentBusiness?.id,
+        default_rent_amount: template.default_rent_amount || undefined,
+        default_security_deposit: template.default_security_deposit || undefined,
       };
 
-      let saved: AgreementTemplate;
+      let saved;
       if (templateId) {
         saved = await agreementService.updateTemplate(templateId, templateData);
       } else {
@@ -199,6 +244,13 @@ Format the agreement professionally with proper sections and legal language.`;
     } finally {
       setLoading(false);
     }
+  };
+
+  const getPreviewContent = () => {
+    if (previewMode === 'sample') {
+      return agreementPlaceholderService.getPreviewWithSampleData(template.template_content);
+    }
+    return template.template_content;
   };
 
   if (loading) {
@@ -220,13 +272,37 @@ Format the agreement professionally with proper sections and legal language.`;
             <ArrowLeft className="w-5 h-5" />
             Back to Editor
           </button>
-          <button
-            onClick={handleSave}
-            disabled={loading}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? 'Saving...' : 'Save Template'}
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setPreviewMode('placeholders')}
+                className={`px-3 py-1 rounded text-sm ${
+                  previewMode === 'placeholders'
+                    ? 'bg-white shadow text-blue-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Show Placeholders
+              </button>
+              <button
+                onClick={() => setPreviewMode('sample')}
+                className={`px-3 py-1 rounded text-sm ${
+                  previewMode === 'sample'
+                    ? 'bg-white shadow text-blue-600'
+                    : 'text-gray-600 hover:text-gray-800'
+                }`}
+              >
+                Sample Data
+              </button>
+            </div>
+            <button
+              onClick={handleSave}
+              disabled={loading}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : 'Save Template'}
+            </button>
+          </div>
         </div>
 
         <div className="bg-white shadow-lg rounded-lg p-8">
@@ -236,7 +312,11 @@ Format the agreement professionally with proper sections and legal language.`;
           </p>
 
           <div className="prose max-w-none whitespace-pre-wrap">
-            {generatedText}
+            {previewMode === 'placeholders' ? (
+              <PreviewWithHighlightedPlaceholders content={template.template_content} />
+            ) : (
+              getPreviewContent()
+            )}
           </div>
         </div>
       </div>
@@ -244,7 +324,7 @@ Format the agreement professionally with proper sections and legal language.`;
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto p-6">
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
@@ -253,21 +333,21 @@ Format the agreement professionally with proper sections and legal language.`;
               <h1 className="text-2xl font-bold text-gray-800">
                 {templateId ? 'Edit Agreement Template' : 'Create Agreement Template'}
               </h1>
-              <p className="text-gray-600">Use AI to generate a professional lease agreement</p>
+              <p className="text-gray-600">
+                Create a reusable template with placeholders for dynamic content
+              </p>
             </div>
           </div>
           {onCancel && (
-            <button
-              onClick={onCancel}
-              className="text-gray-600 hover:text-gray-800"
-            >
+            <button onClick={onCancel} className="text-gray-600 hover:text-gray-800">
               Cancel
             </button>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Settings */}
         <div className="space-y-6">
           <div className="bg-white shadow rounded-lg p-6">
             <h2 className="text-lg font-semibold mb-4">Template Information</h2>
@@ -280,22 +360,33 @@ Format the agreement professionally with proper sections and legal language.`;
                 <input
                   type="text"
                   value={template.template_name}
-                  onChange={(e) => setTemplate(prev => ({ ...prev, template_name: e.target.value }))}
+                  onChange={(e) => handleInputChange('template_name', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., Standard Residential Lease"
+                  placeholder="e.g., Standard 12-Month Lease"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  value={template.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={2}
+                  placeholder="Brief description of this template"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
+                  Agreement Title
                 </label>
-                <textarea
-                  value={template.description}
-                  onChange={(e) => setTemplate(prev => ({ ...prev, description: e.target.value }))}
+                <input
+                  type="text"
+                  value={template.agreement_title}
+                  onChange={(e) => handleInputChange('agreement_title', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={2}
-                  placeholder="Brief description of this template"
+                  placeholder="Residential Lease Agreement"
                 />
               </div>
 
@@ -305,7 +396,7 @@ Format the agreement professionally with proper sections and legal language.`;
                 </label>
                 <select
                   value={template.agreement_type}
-                  onChange={(e) => setTemplate(prev => ({ ...prev, agreement_type: e.target.value as any }))}
+                  onChange={(e) => handleInputChange('agreement_type', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="lease">Lease Agreement</option>
@@ -318,31 +409,20 @@ Format the agreement professionally with proper sections and legal language.`;
           </div>
 
           <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-4">Basic Terms</h2>
+            <h2 className="text-lg font-semibold mb-4">Default Terms</h2>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Property Owner Name *
-                </label>
-                <input
-                  type="text"
-                  value={formData.propertyOwnerName}
-                  onChange={(e) => handleInputChange('propertyOwnerName', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="John Smith"
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Rental Amount *
+                    Default Rent ($)
                   </label>
                   <input
                     type="number"
-                    value={formData.rentalAmount}
-                    onChange={(e) => handleInputChange('rentalAmount', e.target.value)}
+                    value={template.default_rent_amount || ''}
+                    onChange={(e) =>
+                      handleInputChange('default_rent_amount', parseFloat(e.target.value) || 0)
+                    }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="1500"
                   />
@@ -350,18 +430,20 @@ Format the agreement professionally with proper sections and legal language.`;
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payment Frequency
+                    Security Deposit ($)
                   </label>
-                  <select
-                    value={formData.paymentFrequency}
-                    onChange={(e) => handleInputChange('paymentFrequency', e.target.value)}
+                  <input
+                    type="number"
+                    value={template.default_security_deposit || ''}
+                    onChange={(e) =>
+                      handleInputChange(
+                        'default_security_deposit',
+                        parseFloat(e.target.value) || 0
+                      )
+                    }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="monthly">Monthly</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="bi-weekly">Bi-Weekly</option>
-                    <option value="daily">Daily</option>
-                  </select>
+                    placeholder="1500"
+                  />
                 </div>
               </div>
 
@@ -372,73 +454,50 @@ Format the agreement professionally with proper sections and legal language.`;
                   </label>
                   <input
                     type="number"
-                    value={formData.leaseTermMonths}
-                    onChange={(e) => handleInputChange('leaseTermMonths', e.target.value)}
+                    value={template.default_lease_term_months}
+                    onChange={(e) =>
+                      handleInputChange('default_lease_term_months', parseInt(e.target.value) || 12)
+                    }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="12"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Security Deposit
+                    Payment Frequency
                   </label>
-                  <input
-                    type="number"
-                    value={formData.securityDeposit}
-                    onChange={(e) => handleInputChange('securityDeposit', e.target.value)}
+                  <select
+                    value={template.payment_frequency}
+                    onChange={(e) => handleInputChange('payment_frequency', e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="1500"
-                  />
+                  >
+                    <option value="monthly">Monthly</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="bi-weekly">Bi-Weekly</option>
+                    <option value="daily">Daily</option>
+                  </select>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-4">Policies & Rules</h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Pet Policy
-                </label>
-                <select
-                  value={formData.petPolicy}
-                  onChange={(e) => handleInputChange('petPolicy', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="No pets allowed">No pets allowed</option>
-                  <option value="Cats allowed with deposit">Cats allowed with deposit</option>
-                  <option value="Dogs allowed with deposit">Dogs allowed with deposit</option>
-                  <option value="Pets allowed with deposit">All pets allowed with deposit</option>
-                  <option value="Pets allowed - no deposit">Pets allowed - no deposit</option>
-                </select>
-              </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  House Rules
-                </label>
-                <textarea
-                  value={formData.houseRules}
-                  onChange={(e) => handleInputChange('houseRules', e.target.value)}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Pet Policy</label>
+                <input
+                  type="text"
+                  value={template.pet_policy}
+                  onChange={(e) => handleInputChange('pet_policy', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="Quiet hours 10pm-7am, No smoking indoors..."
+                  placeholder="No pets allowed"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cancellation Policy
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">House Rules</label>
                 <textarea
-                  value={formData.cancellationPolicy}
-                  onChange={(e) => handleInputChange('cancellationPolicy', e.target.value)}
+                  value={template.house_rules}
+                  onChange={(e) => handleInputChange('house_rules', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   rows={2}
-                  placeholder="30-day written notice required..."
+                  placeholder="Quiet hours 10pm-7am..."
                 />
               </div>
 
@@ -448,66 +507,27 @@ Format the agreement professionally with proper sections and legal language.`;
                 </label>
                 <input
                   type="number"
-                  value={formData.maxOccupants}
-                  onChange={(e) => handleInputChange('maxOccupants', e.target.value)}
+                  value={template.max_occupants || ''}
+                  onChange={(e) =>
+                    handleInputChange(
+                      'max_occupants',
+                      e.target.value ? parseInt(e.target.value) : undefined
+                    )
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="4"
                 />
               </div>
             </div>
           </div>
-
-          <div className="bg-white shadow rounded-lg p-6">
-            <h2 className="text-lg font-semibold mb-4">Property Details</h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Property Description
-                </label>
-                <textarea
-                  value={formData.propertyDescription}
-                  onChange={(e) => handleInputChange('propertyDescription', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="3 bedroom, 2 bathroom house with garage..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Parking Details
-                </label>
-                <input
-                  type="text"
-                  value={formData.parkingDetails}
-                  onChange={(e) => handleInputChange('parkingDetails', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="2-car garage, 2 driveway spaces"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Additional Terms
-                </label>
-                <textarea
-                  value={formData.additionalTerms}
-                  onChange={(e) => handleInputChange('additionalTerms', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3}
-                  placeholder="Any additional terms or conditions..."
-                />
-              </div>
-            </div>
-          </div>
         </div>
 
-        <div className="space-y-6">
+        {/* Middle Column - Template Content */}
+        <div className="lg:col-span-1">
           <div className="bg-white shadow rounded-lg p-6 sticky top-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Generated Agreement</h2>
-              {generatedText && (
+              <h2 className="text-lg font-semibold">Template Content</h2>
+              {template.template_content && (
                 <button
                   onClick={() => setPreview(true)}
                   className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
@@ -536,20 +556,18 @@ Format the agreement professionally with proper sections and legal language.`;
               )}
             </button>
 
-            {generatedText ? (
-              <div className="border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
-                <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                  {generatedText}
-                </div>
-              </div>
-            ) : (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center text-gray-500">
-                <Sparkles className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>Click "Generate with AI" to create your agreement</p>
-              </div>
-            )}
+            <textarea
+              ref={textareaRef}
+              value={template.template_content}
+              onChange={(e) => handleInputChange('template_content', e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+              rows={20}
+              placeholder="Enter your agreement template here. Use placeholders like {{TENANT_NAME}} for dynamic content..."
+            />
 
-            {generatedText && (
+            <PlaceholderValidation template={template.template_content} />
+
+            {template.template_content && (
               <div className="mt-4 flex gap-3">
                 <button
                   onClick={handleSave}
@@ -563,7 +581,56 @@ Format the agreement professionally with proper sections and legal language.`;
             )}
           </div>
         </div>
+
+        {/* Right Column - Placeholder Picker */}
+        <div className="space-y-6">
+          <PlaceholderPicker onInsert={insertPlaceholder} />
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-blue-900 mb-2">How Placeholders Work</h3>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>
+                1. Click a placeholder to copy it, then paste into your template where you want the
+                value to appear.
+              </li>
+              <li>
+                2. When you issue an agreement to a tenant, placeholders will be automatically
+                replaced with actual values.
+              </li>
+              <li>
+                3. You can also use "Generate with AI" to create a template that already includes
+                appropriate placeholders.
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Preview component that highlights placeholders
+ */
+function PreviewWithHighlightedPlaceholders({ content }: { content: string }) {
+  // Split content by placeholders and render with highlighting
+  const parts = content.split(/(\{\{[A-Z_]+\}\})/g);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.match(/^\{\{[A-Z_]+\}\}$/)) {
+          return (
+            <span
+              key={index}
+              className="inline-block bg-blue-100 text-blue-800 px-1 py-0.5 rounded font-mono text-sm mx-0.5"
+            >
+              {part}
+            </span>
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </>
   );
 }

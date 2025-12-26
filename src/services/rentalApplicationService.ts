@@ -2,11 +2,12 @@ import { supabase } from '../lib/supabase';
 import { RentalListing, RentalApplication, RentalApplicationForm } from '../types';
 import { tenantInvitationService } from './tenantInvitationService';
 import { aiService } from './aiService';
+import { agreementService } from './agreementService';
 
 export const rentalApplicationService = {
   // LISTINGS
 
-  async createListing(organizationId: string, listing: Partial<RentalListing>): Promise<RentalListing> {
+  async createListing(businessId: string, listing: Partial<RentalListing>): Promise<RentalListing> {
     const user = (await supabase.auth.getUser()).data.user;
 
     // Generate unique listing code
@@ -17,7 +18,7 @@ export const rentalApplicationService = {
       .from('rental_listings')
       .insert({
         ...listing,
-        organization_id: organizationId,
+        business_id: businessId,
         listing_code: code,
         created_by: user?.id,
       })
@@ -39,15 +40,20 @@ export const rentalApplicationService = {
     return data;
   },
 
-  async getListingsByOrganization(organizationId: string): Promise<RentalListing[]> {
+  async getListingsByBusiness(businessId: string): Promise<RentalListing[]> {
     const { data, error } = await supabase
       .from('rental_listings')
       .select('*')
-      .eq('organization_id', organizationId)
+      .eq('business_id', businessId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
     return data || [];
+  },
+
+  // Legacy alias for backwards compatibility
+  async getListingsByOrganization(businessId: string): Promise<RentalListing[]> {
+    return this.getListingsByBusiness(businessId);
   },
 
   async getListingsByUnit(unitId: string): Promise<RentalListing[]> {
@@ -219,8 +225,14 @@ export const rentalApplicationService = {
       lease_start_date: string;
       lease_end_date: string;
       monthly_rent_cents: number;
+      security_deposit_cents?: number;
+      payment_due_day?: number;
+    },
+    agreementOptions?: {
+      sendAgreement: boolean; // true = auto-send, false = create draft for manual review
+      templateId?: string; // Override unit's default template
     }
-  ): Promise<{ tenantId: string; invitationCode: string }> {
+  ): Promise<{ tenantId: string; invitationCode: string; agreementId?: string }> {
     // First, approve the application
     await this.approveApplication(applicationId);
 
@@ -250,9 +262,79 @@ export const rentalApplicationService = {
       }
     );
 
+    let agreementId: string | undefined;
+
+    // Handle agreement generation if requested
+    if (agreementOptions) {
+      try {
+        // Get template - use provided ID or unit's default
+        let templateId = agreementOptions.templateId;
+        if (!templateId) {
+          const unitTemplate = await agreementService.getUnitDefaultTemplate(application.unit_id);
+          templateId = unitTemplate?.id;
+        }
+
+        if (templateId) {
+          // Get business ID from the listing
+          const { data: listing } = await supabase
+            .from('rental_listings')
+            .select('business_id')
+            .eq('id', application.listing_id)
+            .single();
+
+          const businessId = listing?.business_id || application.organization_id;
+
+          // Build context for placeholder substitution
+          const context = await agreementService.buildContextForAgreement(
+            businessId,
+            application.property_id,
+            application.unit_id,
+            {
+              first_name: application.applicant_first_name,
+              last_name: application.applicant_last_name,
+              email: application.applicant_email,
+              phone: application.applicant_phone,
+            },
+            {
+              start_date: leaseDetails.lease_start_date,
+              end_date: leaseDetails.lease_end_date,
+              rent_amount: leaseDetails.monthly_rent_cents,
+              security_deposit: leaseDetails.security_deposit_cents,
+              payment_due_day: leaseDetails.payment_due_day,
+            },
+            templateId
+          );
+
+          // Generate the agreement
+          const agreement = await agreementService.generateAgreementFromTemplateWithContext(
+            templateId,
+            context,
+            {
+              tenantId,
+              unitId: application.unit_id,
+              propertyId: application.property_id,
+              businessId,
+              startDate: leaseDetails.lease_start_date,
+              endDate: leaseDetails.lease_end_date,
+              rentAmount: leaseDetails.monthly_rent_cents,
+              securityDeposit: leaseDetails.security_deposit_cents,
+              paymentDueDay: leaseDetails.payment_due_day,
+              autoSend: agreementOptions.sendAgreement,
+            }
+          );
+
+          agreementId = agreement.id;
+        }
+      } catch (error) {
+        // Log error but don't fail the whole operation
+        console.error('Failed to generate agreement:', error);
+      }
+    }
+
     return {
       tenantId,
       invitationCode: invitation.invitation_code,
+      agreementId,
     };
   },
 
@@ -372,16 +454,14 @@ Provide your analysis in this exact JSON format:
   "recommendation": "<approve|review|reject> - <brief explanation>"
 }`;
 
-      const response = await aiService.generateCompletion({
-        featureName: 'application_screening',
-        organizationId,
+      const response = await aiService.generateForFeature('tenant_screening', {
+        prompt: userPrompt,
         systemPrompt,
-        userPrompt,
-        maxTokens: 500,
+        max_tokens: 500,
         temperature: 0.5,
       });
 
-      const parsed = JSON.parse(response.content);
+      const parsed = JSON.parse(response.text);
       return {
         summary: parsed.summary,
         strengths: parsed.strengths || [],
@@ -424,16 +504,14 @@ Provide a brief comparison (2-3 paragraphs) that:
 2. Highlights key differentiators
 3. Recommends who to prioritize and why`;
 
-      const response = await aiService.generateCompletion({
-        featureName: 'application_comparison',
-        organizationId,
+      const response = await aiService.generateForFeature('tenant_screening', {
+        prompt: userPrompt,
         systemPrompt,
-        userPrompt,
-        maxTokens: 400,
+        max_tokens: 400,
         temperature: 0.6,
       });
 
-      return response.content;
+      return response.text;
     } catch (error) {
       console.error('Failed to compare applications:', error);
       return 'Unable to generate comparison at this time.';

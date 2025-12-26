@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Business } from '../types';
+import { organizationService } from './organizationService';
 
 export interface BusinessWithStats extends Business {
   property_count?: number;
@@ -98,6 +99,10 @@ export const businessService = {
     const user = (await supabase.auth.getUser()).data.user;
     if (!user) throw new Error('User not authenticated');
 
+    // Get user's organization
+    const organization = await organizationService.getUserOrganization();
+    if (!organization) throw new Error('User organization not found');
+
     // Check limits using user-based function
     const { data: canAdd, error: limitError } = await supabase.rpc('check_business_limit_for_user', {
       p_user_id: user.id,
@@ -112,7 +117,7 @@ export const businessService = {
     const { data, error } = await supabase
       .from('businesses')
       .insert({
-        organization_id: null,  // No organization
+        organization_id: organization.id,  // Business belongs to user's organization
         owner_user_id: user.id,
         business_name: business.business_name,
         legal_name: business.legal_name,
@@ -159,10 +164,14 @@ export const businessService = {
     const user = (await supabase.auth.getUser()).data.user;
     if (!user) throw new Error('User not authenticated');
 
+    // Get user's organization
+    const organization = await organizationService.getUserOrganization();
+    if (!organization) throw new Error('User organization not found');
+
     const { data, error } = await supabase
       .from('businesses')
       .insert({
-        organization_id: null,  // No organization
+        organization_id: organization.id,  // Business belongs to user's organization
         owner_user_id: user.id,
         business_name: businessName,
         email: userData?.email || user.email,

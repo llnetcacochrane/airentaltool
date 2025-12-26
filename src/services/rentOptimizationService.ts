@@ -31,15 +31,24 @@ export const rentOptimizationService = {
 
     if (!property) return null;
 
-    const { data: leases } = await supabase
+    // Get all units for this property first
+    const { data: units } = await supabase
+      .from('units')
+      .select('id')
+      .eq('property_id', propertyId);
+
+    const unitIds = units?.map(u => u.id) || [];
+
+    // Get leases for those units
+    const { data: leases } = unitIds.length > 0 ? await supabase
       .from('leases')
       .select(`
         *,
         tenants(*),
         payment_schedules(*)
       `)
-      .eq('property_id', propertyId)
-      .eq('organization_id', organizationId);
+      .in('unit_id', unitIds)
+      .eq('organization_id', organizationId) : { data: [] };
 
     const { data: maintenance } = await supabase
       .from('maintenance_requests')
@@ -214,16 +223,14 @@ Provide your analysis in this exact JSON format:
   "marketContext": "<1-2 sentences about general market conditions and timing considerations>"
 }`;
 
-    const response = await aiService.generateCompletion({
-      featureName: 'rent_optimization',
-      organizationId,
+    const response = await aiService.generateForFeature('rent_optimization', {
+      prompt: userPrompt,
       systemPrompt,
-      userPrompt,
-      maxTokens: 300,
+      max_tokens: 300,
       temperature: 0.7,
     });
 
-    const parsed = JSON.parse(response.content);
+    const parsed = JSON.parse(response.text);
     return {
       insights: parsed.insights,
       marketContext: parsed.marketContext,

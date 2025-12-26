@@ -14,6 +14,7 @@ import {
   Calendar,
   MessageSquare,
 } from 'lucide-react';
+import { SlidePanel } from '../../components/SlidePanel';
 
 const CATEGORIES = [
   { value: 'plumbing', label: 'Plumbing', description: 'Leaks, clogs, water issues' },
@@ -381,7 +382,143 @@ export function TenantMaintenance() {
         </div>
       </div>
 
-      {/* New Request Modal */}
+      {/* New Request SlidePanel */}
+      <SlidePanel
+        isOpen={showNewRequestModal}
+        onClose={() => setShowNewRequestModal(false)}
+        title="New Maintenance Request"
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setShowNewRequestModal(false)}
+              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="maintenance-form"
+              disabled={isSubmitting || !newRequest.title || !newRequest.category || !newRequest.description}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Request'}
+            </button>
+          </div>
+        }
+      >
+        <form id="maintenance-form" onSubmit={handleSubmitRequest} className="space-y-6">
+          {submitError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <p className="text-sm text-red-800">{submitError}</p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Issue Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={newRequest.title}
+              onChange={(e) => setNewRequest({ ...newRequest, title: e.target.value })}
+              placeholder="Brief description of the issue"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Category <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat.value}
+                  type="button"
+                  onClick={() => setNewRequest({ ...newRequest, category: cat.value })}
+                  className={`p-3 text-left rounded-lg border transition ${
+                    newRequest.category === cat.value
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <p className="font-medium text-sm text-gray-900">{cat.label}</p>
+                  <p className="text-xs text-gray-500">{cat.description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Priority <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {PRIORITIES.map(priority => (
+                <button
+                  key={priority.value}
+                  type="button"
+                  onClick={() => setNewRequest({ ...newRequest, priority: priority.value as any })}
+                  className={`p-3 text-left rounded-lg border transition ${
+                    newRequest.priority === priority.value
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <p className="font-medium text-sm text-gray-900">{priority.label}</p>
+                  <p className="text-xs text-gray-500">{priority.description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={newRequest.description}
+              onChange={(e) => setNewRequest({ ...newRequest, description: e.target.value })}
+              placeholder="Provide details about the issue..."
+              rows={4}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={newRequest.entry_allowed}
+                onChange={(e) => setNewRequest({ ...newRequest, entry_allowed: e.target.checked })}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm text-gray-700">
+                Allow maintenance staff to enter my unit when I am not home
+              </span>
+            </label>
+          </div>
+
+          {newRequest.entry_allowed && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Entry Notes (Optional)
+              </label>
+              <input
+                type="text"
+                value={newRequest.entry_notes}
+                onChange={(e) => setNewRequest({ ...newRequest, entry_notes: e.target.value })}
+                placeholder="e.g., Spare key under mat, call before entering"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          )}
+        </form>
+      </SlidePanel>
       {showNewRequestModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4">

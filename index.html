@@ -9,11 +9,11 @@
     <!-- Note: This is a relaxed CSP for development. Tighten for production -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.paypal.com https://sandbox.web.squarecdn.com https://web.squarecdn.com;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.paypal.com https://sandbox.web.squarecdn.com https://web.squarecdn.com https://www.googletagmanager.com https://www.google-analytics.com;
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
       img-src 'self' data: https: blob:;
-      connect-src 'self' https://api.airentaltool.com wss://api.airentaltool.com https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://api.paypal.com https://api.openai.com https://api.qrserver.com;
+      connect-src 'self' https://api.airentaltool.com wss://api.airentaltool.com https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://api.paypal.com https://api.openai.com https://api.qrserver.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net;
       frame-src 'self' https://js.stripe.com https://www.paypal.com https://sandbox.paypal.com https://squareup.com;
       object-src 'none';
       base-uri 'self';

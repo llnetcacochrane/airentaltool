@@ -168,16 +168,14 @@ Provide your response in this exact JSON format:
   "breakdown": ["<item 1>", "<item 2>", ...]
 }`;
 
-      const response = await aiService.generateCompletion({
-        featureName: 'maintenance_cost_estimation',
-        organizationId,
+      const response = await aiService.generateForFeature('maintenance_categorization', {
+        prompt: userPrompt,
         systemPrompt,
-        userPrompt,
-        maxTokens: 500,
+        max_tokens: 500,
         temperature: 0.3,
       });
 
-      const parsed = JSON.parse(response.content);
+      const parsed = JSON.parse(response.text);
 
       return {
         estimatedCost: parsed.estimatedCost,
@@ -270,16 +268,14 @@ Provide your analysis in this exact JSON format:
   "preventiveMeasures": ["<measure 1>", "<measure 2>", ...]
 }`;
 
-      const response = await aiService.generateCompletion({
-        featureName: 'maintenance_analysis',
-        organizationId,
+      const response = await aiService.generateForFeature('maintenance_categorization', {
+        prompt: userPrompt,
         systemPrompt,
-        userPrompt,
-        maxTokens: 400,
+        max_tokens: 400,
         temperature: 0.4,
       });
 
-      const parsed = JSON.parse(response.content);
+      const parsed = JSON.parse(response.text);
 
       return {
         urgencyAssessment: parsed.urgencyAssessment,

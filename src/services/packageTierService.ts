@@ -233,6 +233,121 @@ export const packageTierService = {
     if (error) throw error;
   },
 
+  /**
+   * Get count of users/organizations subscribed to a package
+   */
+  async getPackageSubscriberCount(packageTierId: string): Promise<number> {
+    // Count user_profiles with this tier
+    const { count: userCount, error: userError } = await supabase
+      .from('user_profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('selected_tier', (await this.getPackageTier(packageTierId))?.tier_slug || '');
+
+    if (userError) {
+      console.error('Error counting user subscribers:', userError);
+    }
+
+    // Count organizations with this package
+    const { count: orgCount, error: orgError } = await supabase
+      .from('organization_package_settings')
+      .select('id', { count: 'exact', head: true })
+      .eq('package_tier_id', packageTierId);
+
+    if (orgError) {
+      console.error('Error counting org subscribers:', orgError);
+    }
+
+    return (userCount || 0) + (orgCount || 0);
+  },
+
+  /**
+   * Get all packages including inactive ones (for admin)
+   */
+  async getAllPackageTiersAdmin(): Promise<PackageTier[]> {
+    const { data, error } = await supabase
+      .from('package_tiers')
+      .select('*')
+      .order('display_order');
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
+   * Archive a package (soft delete, keeps existing subscribers)
+   */
+  async archivePackageTier(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('package_tiers')
+      .update({
+        is_active: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  /**
+   * Permanently delete a package (only if no subscribers)
+   */
+  async hardDeletePackageTier(id: string): Promise<void> {
+    const subscriberCount = await this.getPackageSubscriberCount(id);
+    if (subscriberCount > 0) {
+      throw new Error(`Cannot delete package with ${subscriberCount} active subscribers`);
+    }
+
+    const { error } = await supabase
+      .from('package_tiers')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  /**
+   * Migrate subscribers from one package to another
+   */
+  async migrateSubscribers(fromPackageId: string, toPackageId: string): Promise<number> {
+    const fromPackage = await this.getPackageTier(fromPackageId);
+    const toPackage = await this.getPackageTier(toPackageId);
+
+    if (!fromPackage || !toPackage) {
+      throw new Error('Invalid package IDs');
+    }
+
+    let migratedCount = 0;
+
+    // Migrate user_profiles
+    const { data: users, error: usersError } = await supabase
+      .from('user_profiles')
+      .update({
+        selected_tier: toPackage.tier_slug,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('selected_tier', fromPackage.tier_slug)
+      .select();
+
+    if (usersError) throw usersError;
+    migratedCount += users?.length || 0;
+
+    // Migrate organization_package_settings
+    const { data: orgs, error: orgsError } = await supabase
+      .from('organization_package_settings')
+      .update({
+        package_tier_id: toPackageId,
+        package_version: toPackage.version,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('package_tier_id', fromPackageId)
+      .select();
+
+    if (orgsError) throw orgsError;
+    migratedCount += orgs?.length || 0;
+
+    return migratedCount;
+  },
+
   async getPackageTierVersions(packageTierId: string): Promise<PackageTierVersion[]> {
     const { data, error } = await supabase
       .from('package_tier_versions')
@@ -406,26 +521,84 @@ export const packageTierService = {
       max_users: number;
     };
   }> {
-    const { effective } = await this.getEffectivePackageSettings(organizationId);
+    // Get user/owner first to get their effective package settings
+    const user = (await supabase.auth.getUser()).data.user;
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
 
-    const [businessesCount, propertiesCount, unitsCount, tenantsCount, usersCount] = await Promise.all([
-      supabase.from('businesses').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId).eq('is_active', true),
-      supabase.from('properties').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId).eq('is_active', true),
-      supabase.from('units').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId).eq('is_active', true),
-      supabase.from('tenants').select('id', { count: 'exact', head: true }).eq('organization_id', organizationId).eq('is_active', true),
-      supabase
-        .from('organization_members')
-        .select('id', { count: 'exact', head: true })
-        .eq('organization_id', organizationId)
-        .eq('is_active', true),
-    ]);
+    // Get user's effective package settings (not organization-based)
+    const { effective } = await this.getEffectivePackageSettingsForUser(user.id);
+
+    // Count all businesses owned by user
+    const { count: businessesCount } = await supabase
+      .from('businesses')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_user_id', user.id)
+      .eq('is_active', true);
+
+    // Get all properties owned by user across all their businesses
+    const { data: userBusinesses } = await supabase
+      .from('businesses')
+      .select('id')
+      .eq('owner_user_id', user.id)
+      .eq('is_active', true);
+
+    const businessIds = (userBusinesses || []).map(b => b.id);
+
+    let propertiesCount = 0;
+    let unitsCount = 0;
+    let tenantsCount = 0;
+
+    if (businessIds.length > 0) {
+      // Get properties for all user's businesses
+      const { data: properties } = await supabase
+        .from('properties')
+        .select('id')
+        .in('business_id', businessIds)
+        .eq('is_active', true);
+
+      propertiesCount = properties?.length || 0;
+      const propertyIds = (properties || []).map(p => p.id);
+
+      if (propertyIds.length > 0) {
+        // Count units across all properties
+        const unitsResult = await supabase
+          .from('units')
+          .select('id', { count: 'exact', head: true })
+          .in('property_id', propertyIds)
+          .eq('is_active', true);
+
+        unitsCount = unitsResult.count || 0;
+
+        // Get unit IDs to count tenants
+        const { data: unitData } = await supabase
+          .from('units')
+          .select('id')
+          .in('property_id', propertyIds)
+          .eq('is_active', true);
+
+        const unitIds = (unitData || []).map(u => u.id);
+
+        if (unitIds.length > 0) {
+          // Count tenants via unit_tenant_access
+          const tenantsResult = await supabase
+            .from('unit_tenant_access')
+            .select('tenant_id', { count: 'exact', head: true })
+            .in('unit_id', unitIds)
+            .eq('is_active', true);
+
+          tenantsCount = tenantsResult.count || 0;
+        }
+      }
+    }
 
     const current_usage = {
-      businesses: businessesCount.count || 0,
-      properties: propertiesCount.count || 0,
-      units: unitsCount.count || 0,
-      tenants: tenantsCount.count || 0,
-      users: usersCount.count || 0,
+      businesses: businessesCount || 0,
+      properties: propertiesCount,
+      units: unitsCount,
+      tenants: tenantsCount,
+      users: 1, // Single user per account in current model
     };
 
     const violations: string[] = [];

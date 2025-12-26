@@ -1,9 +1,24 @@
 import { supabase } from '../lib/supabase';
 import { Unit, Tenant, Lease } from '../types';
 import { businessService } from './businessService';
-import { addonService } from './addonService';
 
 export const unitService = {
+  /**
+   * Get all units for the current user's default business
+   * Alias method for compatibility with TenantForm.tsx
+   */
+  async getAllUnits(): Promise<Unit[]> {
+    return this.getAllUserUnits();
+  },
+
+  /**
+   * Get all units for a business
+   * Alias method for compatibility with Applications.tsx
+   */
+  async getUnitsByBusiness(businessId: string): Promise<Unit[]> {
+    return this.getBusinessUnits(businessId);
+  },
+
   /**
    * Get all units for a business
    */
@@ -71,12 +86,17 @@ export const unitService = {
 
   /**
    * Create a unit in a property
-   * Now takes organizationId instead of portfolioId for limit checking
+   * businessId is used for limit checking
    */
-  async createUnit(organizationId: string, propertyId: string, unit: Partial<Unit>): Promise<Unit> {
-    // Check unit limit
-    const canAdd = await addonService.checkLimit(organizationId, 'unit');
-    if (!canAdd) {
+  async createUnit(businessId: string, propertyId: string, unit: Partial<Unit>): Promise<Unit> {
+    // Check unit limit using business-based function
+    const { data: canAdd, error: limitError } = await supabase.rpc('check_unit_limit_for_business', {
+      p_business_id: businessId,
+    });
+
+    if (limitError) {
+      console.error('Failed to check unit limit:', limitError);
+    } else if (!canAdd) {
       throw new Error('LIMIT_REACHED:unit');
     }
 
@@ -85,7 +105,7 @@ export const unitService = {
     const { data, error } = await supabase
       .from('units')
       .insert({
-        organization_id: organizationId,
+        organization_id: null, // No longer used
         property_id: propertyId,
         unit_number: unit.unit_number,
         unit_name: unit.unit_name,
@@ -286,9 +306,18 @@ export const unitService = {
   },
 
   /**
-   * Check if user can create more units
+   * Check if user can create more units for a business
    */
-  async canCreateUnit(organizationId: string): Promise<boolean> {
-    return addonService.checkLimit(organizationId, 'unit');
+  async canCreateUnit(businessId: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('check_unit_limit_for_business', {
+      p_business_id: businessId,
+    });
+
+    if (error) {
+      console.error('Error checking unit limit:', error);
+      return true; // Allow by default if check fails
+    }
+
+    return data === true;
   },
 };

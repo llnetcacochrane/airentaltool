@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { FileText, CheckCircle, Download, AlertCircle, Loader } from 'lucide-react';
 import { agreementService, LeaseAgreement, AgreementSignature } from '../services/agreementService';
 import { DigitalSignature } from '../components/DigitalSignature';
@@ -8,13 +8,13 @@ import { useToast } from '../components/Toast';
 
 export default function AgreementSigning() {
   const { agreementId } = useParams<{ agreementId: string }>();
-  const navigate = useNavigate();
   const toast = useToast();
   const [agreement, setAgreement] = useState<LeaseAgreement | null>(null);
   const [signatures, setSignatures] = useState<AgreementSignature[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
-  const [signing, setSigning] = useState(false);
+  // Note: signing state is managed but not currently displayed to user - could add loading state in future
+  const [, setSigning] = useState(false);
 
   useEffect(() => {
     loadAgreement();
@@ -242,7 +242,7 @@ export default function AgreementSigning() {
             <div className="mb-8">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Agreement Details</h3>
               <div className="prose max-w-none text-sm text-gray-700 whitespace-pre-wrap">
-                {agreement.generated_text}
+                {agreement.final_content || agreement.generated_text}
               </div>
             </div>
 

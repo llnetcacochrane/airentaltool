@@ -6,6 +6,13 @@ import { PropertyForm } from '../components/PropertyForm';
 import { UnitManagement } from '../components/UnitManagement';
 import { EmptyStatePresets } from '../components/EmptyState';
 import { Plus, MapPin, Home, Edit2, Trash2, Bed, Bath, Maximize, Calendar, X, DoorClosed } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { ExportButton } from '../components/ExportButton';
+import { exportProperties } from '../utils/exportHelpers';
+import { ExportFormat } from '../services/dataExportService';
+import { useBulkSelection, BulkActionBar, CommonBulkActions } from '../components/BulkActionBar';
+import { Checkbox } from '../components/Checkbox';
+import { SlidePanel } from '../components/SlidePanel';
 
 export function Properties() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -17,6 +24,18 @@ export function Properties() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { currentBusiness } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const bulkSelection = useBulkSelection(properties);
+
+  // Check for ?new=true URL parameter to auto-open the form
+  useEffect(() => {
+    if (searchParams.get('new') === 'true') {
+      setShowAddForm(true);
+      // Remove the 'new' parameter from URL after opening the form
+      searchParams.delete('new');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     loadData();
@@ -87,6 +106,21 @@ export function Properties() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    try {
+      await Promise.all(
+        bulkSelection.selectedItems.map((property) =>
+          propertyService.deleteProperty(property.id)
+        )
+      );
+      await loadData();
+      bulkSelection.clearSelection();
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete properties');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 overflow-auto">
@@ -108,13 +142,21 @@ export function Properties() {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Properties</h1>
             <p className="text-sm sm:text-base text-gray-600 mt-1">{properties.length} total properties</p>
           </div>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition w-full sm:w-auto"
-          >
-            <Plus size={20} />
-            Add Property
-          </button>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <ExportButton
+              onExport={(format: ExportFormat) => exportProperties(properties, format)}
+              disabled={properties.length === 0}
+              variant="secondary"
+              size="md"
+            />
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex-1 sm:flex-initial"
+            >
+              <Plus size={20} />
+              Add Property
+            </button>
+          </div>
         </div>
       </div>
 
@@ -133,9 +175,15 @@ export function Properties() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {properties.map((property) => (
-              <div key={property.id} className="bg-white rounded-lg shadow hover:shadow-lg transition">
+              <div key={property.id} className="bg-white rounded-lg shadow hover:shadow-lg transition relative">
                 <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="absolute top-4 left-4 z-10">
+                    <Checkbox
+                      checked={bulkSelection.isSelected(property.id)}
+                      onChange={() => bulkSelection.toggleSelection(property.id)}
+                    />
+                  </div>
+                  <div className="flex items-start justify-between mb-4 ml-8">
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900 text-lg">{property.name}</h3>
                       <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
@@ -233,29 +281,31 @@ export function Properties() {
         />
       )}
 
-      {viewingProperty && currentBusiness && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl p-6 max-w-6xl w-full mx-4 my-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{viewingProperty.name}</h2>
-                <p className="text-sm text-gray-600">{viewingProperty.address_line1}</p>
-              </div>
-              <button
-                onClick={() => setViewingProperty(null)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X size={24} />
-              </button>
-            </div>
+      <SlidePanel
+        isOpen={!!viewingProperty}
+        onClose={() => setViewingProperty(null)}
+        title={viewingProperty?.name || 'Property Details'}
+        subtitle={viewingProperty?.address_line1}
+        size="xl"
+      >
+        {viewingProperty && currentBusiness && (
+          <UnitManagement
+            propertyId={viewingProperty.id}
+            organizationId={currentBusiness.id}
+          />
+        )}
+      </SlidePanel>
 
-            <UnitManagement
-              propertyId={viewingProperty.id}
-              organizationId={currentBusiness.id}
-            />
-          </div>
-        </div>
-      )}
+      <BulkActionBar
+        selectedCount={bulkSelection.selectedCount}
+        totalCount={properties.length}
+        onClearSelection={bulkSelection.clearSelection}
+        onSelectAll={bulkSelection.selectAll}
+        selectAllLabel="Select all properties"
+        actions={[
+          CommonBulkActions.delete(handleBulkDelete),
+        ]}
+      />
     </div>
   );
 }

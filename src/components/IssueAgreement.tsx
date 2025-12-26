@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, Send, ArrowLeft, Check, Calendar, DollarSign, User, Home, Loader, AlertCircle } from 'lucide-react';
-import { agreementService, AgreementTemplate, LeaseAgreement } from '../services/agreementService';
+import { useState, useEffect, Fragment } from 'react';
+import { FileText, Send, ArrowLeft, Check, Calendar, DollarSign, User, Home, Loader, AlertCircle, Eye } from 'lucide-react';
+import { agreementService, AgreementTemplate } from '../services/agreementService';
+import { agreementPlaceholderService, PlaceholderContext } from '../services/agreementPlaceholderService';
 import { tenantService } from '../services/tenantService';
 import { propertyService } from '../services/propertyService';
 import { unitService } from '../services/unitService';
@@ -17,7 +18,7 @@ interface IssueAgreementProps {
 type Step = 'template' | 'tenant' | 'details' | 'review';
 
 export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, preselectedTenantId }: IssueAgreementProps) {
-  const { currentBusiness, userProfile } = useAuth();
+  const { currentBusiness, userProfile, supabaseUser } = useAuth();
   const [currentStep, setCurrentStep] = useState<Step>('template');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -34,6 +35,9 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
+
+  // Preview
+  const [showFullPreview, setShowFullPreview] = useState(false);
 
   // Agreement details
   const [agreementDetails, setAgreementDetails] = useState({
@@ -162,44 +166,44 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
       setSending(true);
       setError('');
 
-      const landlordName = userProfile?.first_name && userProfile?.last_name
-        ? `${userProfile.first_name} ${userProfile.last_name}`
-        : currentBusiness?.name || 'Property Manager';
+      // Build the placeholder context
+      const context = await agreementService.buildContextForAgreement(
+        currentBusiness?.id || '',
+        selectedProperty.id,
+        selectedUnit.id,
+        {
+          first_name: selectedTenant.first_name,
+          last_name: selectedTenant.last_name,
+          email: selectedTenant.email,
+          phone: selectedTenant.phone,
+        },
+        {
+          start_date: agreementDetails.startDate,
+          end_date: agreementDetails.endDate,
+          rent_amount: Math.round(parseFloat(agreementDetails.rentAmount || '0') * 100), // Convert to cents
+          security_deposit: Math.round(parseFloat(agreementDetails.securityDeposit || '0') * 100),
+          payment_due_day: parseInt(agreementDetails.paymentDueDay),
+        },
+        selectedTemplate.id
+      );
 
-      // Create the agreement
-      const agreement = await agreementService.createAgreement({
-        template_id: selectedTemplate.id,
-        tenant_id: selectedTenant.id,
-        unit_id: selectedUnit.id,
-        property_id: selectedProperty.id,
-        landlord_name: landlordName,
-        landlord_email: userProfile?.email || '',
-        landlord_phone: userProfile?.phone || '',
-        tenant_name: `${selectedTenant.first_name} ${selectedTenant.last_name}`,
-        tenant_email: selectedTenant.email,
-        tenant_phone: selectedTenant.phone || '',
-        agreement_title: selectedTemplate.agreement_title,
-        agreement_type: selectedTemplate.agreement_type,
-        content: selectedTemplate.content,
-        generated_text: selectedTemplate.generated_text || '',
-        start_date: agreementDetails.startDate,
-        end_date: agreementDetails.endDate,
-        rent_amount: parseFloat(agreementDetails.rentAmount),
-        security_deposit: parseFloat(agreementDetails.securityDeposit || '0'),
-        payment_frequency: selectedTemplate.payment_frequency,
-        payment_due_day: parseInt(agreementDetails.paymentDueDay),
-        late_fee_amount: parseFloat(agreementDetails.lateFeeAmount || '0'),
-        late_fee_grace_days: parseInt(agreementDetails.lateFeeGraceDays || '5'),
-        property_address: `${selectedProperty.address}, ${selectedProperty.city}, ${selectedProperty.state} ${selectedProperty.zip_code}`,
-        property_description: selectedUnit.unit_number ? `Unit ${selectedUnit.unit_number}` : undefined,
-        status: 'draft',
-        requires_signature: true,
-        signature_deadline: agreementDetails.signatureDeadline || undefined,
-        reminder_count: 0,
-      });
-
-      // Send the agreement
-      await agreementService.sendAgreement(agreement.id);
+      // Generate the agreement with placeholder substitution
+      await agreementService.generateAgreementFromTemplateWithContext(
+        selectedTemplate.id,
+        context,
+        {
+          tenantId: selectedTenant.id,
+          unitId: selectedUnit.id,
+          propertyId: selectedProperty.id,
+          businessId: currentBusiness?.id || '',
+          startDate: agreementDetails.startDate,
+          endDate: agreementDetails.endDate,
+          rentAmount: Math.round(parseFloat(agreementDetails.rentAmount || '0') * 100),
+          securityDeposit: Math.round(parseFloat(agreementDetails.securityDeposit || '0') * 100),
+          paymentDueDay: parseInt(agreementDetails.paymentDueDay),
+          autoSend: true, // Send immediately
+        }
+      );
 
       onComplete?.();
     } catch (err: any) {
@@ -208,6 +212,55 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
     } finally {
       setSending(false);
     }
+  };
+
+  // Build a preview context for displaying substituted content
+  const getPreviewContext = (): PlaceholderContext => {
+    const landlordName = userProfile?.first_name && userProfile?.last_name
+      ? `${userProfile.first_name} ${userProfile.last_name}`
+      : currentBusiness?.business_name || 'Property Manager';
+
+    return {
+      landlord_name: landlordName,
+      landlord_email: supabaseUser?.email || '',
+      landlord_phone: userProfile?.phone || '',
+      business_name: currentBusiness?.business_name || '',
+      property_name: selectedProperty?.name || '',
+      property_address: selectedProperty
+        ? `${selectedProperty.address_line1}, ${selectedProperty.city}, ${selectedProperty.state} ${selectedProperty.postal_code}`
+        : '',
+      unit_number: selectedUnit?.unit_number || '',
+      bedrooms: selectedUnit?.bedrooms,
+      bathrooms: selectedUnit?.bathrooms,
+      square_feet: selectedUnit?.square_feet,
+      tenant_name: selectedTenant ? `${selectedTenant.first_name} ${selectedTenant.last_name}` : '',
+      tenant_first_name: selectedTenant?.first_name || '',
+      tenant_last_name: selectedTenant?.last_name || '',
+      tenant_email: selectedTenant?.email || '',
+      tenant_phone: selectedTenant?.phone || '',
+      start_date: agreementDetails.startDate,
+      end_date: agreementDetails.endDate,
+      rent_amount: Math.round(parseFloat(agreementDetails.rentAmount || '0') * 100),
+      security_deposit: Math.round(parseFloat(agreementDetails.securityDeposit || '0') * 100),
+      payment_frequency: selectedTemplate?.payment_frequency || 'monthly',
+      payment_due_day: parseInt(agreementDetails.paymentDueDay),
+      late_fee_amount: Math.round(parseFloat(agreementDetails.lateFeeAmount || '0') * 100),
+      late_fee_grace_days: parseInt(agreementDetails.lateFeeGraceDays || '5'),
+      pet_policy: selectedTemplate?.pet_policy,
+      house_rules: selectedTemplate?.house_rules,
+      parking_details: selectedTemplate?.parking_details,
+      max_occupants: selectedTemplate?.max_occupants,
+      current_date: new Date().toISOString(),
+      signature_deadline: agreementDetails.signatureDeadline || undefined,
+    };
+  };
+
+  const getPreviewContent = (): string => {
+    if (!selectedTemplate) return '';
+    const templateContent = selectedTemplate.template_content || selectedTemplate.generated_text || '';
+    if (!templateContent) return '';
+    const context = getPreviewContext();
+    return agreementPlaceholderService.substitutePlaceholders(templateContent, context);
   };
 
   const formatCurrency = (amount: number) => {
@@ -252,7 +305,7 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
         {/* Progress Steps */}
         <div className="flex items-center gap-2">
           {(['template', 'tenant', 'details', 'review'] as Step[]).map((step, index) => (
-            <React.Fragment key={step}>
+            <Fragment key={step}>
               <div className={`flex items-center gap-2 ${getStepNumber(currentStep) >= index + 1 ? 'text-blue-600' : 'text-gray-400'}`}>
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                   getStepNumber(currentStep) > index + 1 ? 'bg-blue-600 text-white' :
@@ -264,7 +317,7 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
                 <span className="text-sm font-medium capitalize hidden sm:inline">{step}</span>
               </div>
               {index < 3 && <div className={`flex-1 h-0.5 ${getStepNumber(currentStep) > index + 1 ? 'bg-blue-600' : 'bg-gray-200'}`} />}
-            </React.Fragment>
+            </Fragment>
           ))}
         </div>
       </div>
@@ -351,7 +404,7 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
                   {tenant.status && (
                     <span className={`px-2 py-1 text-xs rounded ${
                       tenant.status === 'active' ? 'bg-green-100 text-green-700' :
-                      tenant.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                      tenant.status === 'applicant' ? 'bg-yellow-100 text-yellow-700' :
                       'bg-gray-100 text-gray-700'
                     }`}>
                       {tenant.status}
@@ -396,7 +449,7 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
                 <option value="">Select a property</option>
                 {properties.map((property) => (
                   <option key={property.id} value={property.id}>
-                    {property.name || property.address}
+                    {property.name || property.address_line1}
                   </option>
                 ))}
               </select>
@@ -561,9 +614,9 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
                   <p className="text-gray-900">
                     {userProfile?.first_name && userProfile?.last_name
                       ? `${userProfile.first_name} ${userProfile.last_name}`
-                      : currentBusiness?.name || 'Property Manager'}
+                      : currentBusiness?.business_name || 'Property Manager'}
                   </p>
-                  <p className="text-sm text-gray-500">{userProfile?.email}</p>
+                  <p className="text-sm text-gray-500">{supabaseUser?.email}</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-700 mb-2">Tenant</h4>
@@ -576,7 +629,7 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
               <div>
                 <h4 className="font-semibold text-gray-700 mb-2">Property</h4>
                 <p className="text-gray-900">
-                  {selectedProperty?.address}, {selectedProperty?.city}, {selectedProperty?.state} {selectedProperty?.zip_code}
+                  {selectedProperty?.address_line1}, {selectedProperty?.city}, {selectedProperty?.state} {selectedProperty?.postal_code}
                 </p>
                 {selectedUnit?.unit_number && (
                   <p className="text-sm text-gray-500">Unit {selectedUnit.unit_number}</p>
@@ -625,9 +678,19 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
             </div>
 
             <div className="p-6 border-t border-gray-200 bg-gray-50">
-              <p className="text-sm text-gray-600 mb-4">
-                An email will be sent to <strong>{selectedTenant?.email}</strong> with a link to view and sign this agreement.
-              </p>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm text-gray-600">
+                  An email will be sent to <strong>{selectedTenant?.email}</strong> with a link to view and sign this agreement.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowFullPreview(true)}
+                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm"
+                >
+                  <Eye className="w-4 h-4" />
+                  Preview Full Agreement
+                </button>
+              </div>
               <button
                 onClick={handleSendAgreement}
                 disabled={sending}
@@ -644,6 +707,52 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
                     Send Agreement to Tenant
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Agreement Preview Modal */}
+      {showFullPreview && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold">Agreement Preview</h3>
+              <button
+                onClick={() => setShowFullPreview(false)}
+                className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-700"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="prose max-w-none whitespace-pre-wrap text-sm">
+                {getPreviewContent() || (
+                  <div className="text-center py-8 text-gray-500">
+                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No template content available</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">
+              <button
+                onClick={() => setShowFullPreview(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setShowFullPreview(false);
+                  handleSendAgreement();
+                }}
+                disabled={sending}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                Send Agreement
               </button>
             </div>
           </div>
