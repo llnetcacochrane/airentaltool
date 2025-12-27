@@ -190,7 +190,7 @@ export function Register() {
       // Track affiliate signup if there's a stored referral
       const storedReferral = affiliateService.getStoredReferral();
       if (storedReferral && result?.user?.id && result?.organizationId) {
-        affiliateService.trackSignup(
+        await affiliateService.trackSignup(
           storedReferral.clickId,
           result.user.id,
           result.organizationId

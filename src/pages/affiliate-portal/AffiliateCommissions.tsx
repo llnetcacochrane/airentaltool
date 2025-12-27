@@ -216,8 +216,7 @@ export function AffiliateCommissions() {
                     <tr className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       <th className="px-6 py-3">Date</th>
                       <th className="px-6 py-3">Billing Month</th>
-                      <th className="px-6 py-3">Type</th>
-                      <th className="px-6 py-3">Payment Amount</th>
+                      <th className="px-6 py-3">Subscription Amount</th>
                       <th className="px-6 py-3">Commission</th>
                       <th className="px-6 py-3">Status</th>
                     </tr>
@@ -234,11 +233,8 @@ export function AffiliateCommissions() {
                             {commission.billing_month}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500 capitalize">
-                          {commission.commission_type.replace('_', ' ')}
-                        </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
-                          {formatCurrency(commission.payment_amount_cents)}
+                          {formatCurrency(commission.subscription_amount_cents)}
                         </td>
                         <td className="px-6 py-4 text-sm font-semibold text-green-600">
                           {formatCurrency(commission.commission_amount_cents)}

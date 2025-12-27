@@ -70,7 +70,7 @@ export function AffiliateApplication() {
     setError('');
 
     if (!isAuthenticated) {
-      navigate(`/login?redirect=${encodeURIComponent('/become-affiliate')}`);
+      navigate(`/login?redirect=${encodeURIComponent('/affiliate-application')}`);
       return;
     }
 

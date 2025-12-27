@@ -66,7 +66,7 @@ export function AffiliateManagement() {
     recurring_months: 12,
     minimum_payout_cents: 5000,
     cookie_duration_days: 30,
-    auto_approve_affiliates: false,
+    require_approval: true,
   });
 
   useEffect(() => {
@@ -108,10 +108,10 @@ export function AffiliateManagement() {
         setSettingsForm({
           program_active: settingsData.program_active,
           commission_percentage: settingsData.commission_percentage,
-          recurring_months: settingsData.recurring_months,
+          recurring_months: settingsData.recurring_months ?? 12,
           minimum_payout_cents: settingsData.minimum_payout_cents,
           cookie_duration_days: settingsData.cookie_duration_days,
-          auto_approve_affiliates: settingsData.auto_approve_affiliates,
+          require_approval: settingsData.require_approval,
         });
       }
     } catch (error) {
@@ -683,14 +683,14 @@ export function AffiliateManagement() {
                   <label className="flex items-center gap-3">
                     <input
                       type="checkbox"
-                      checked={settingsForm.auto_approve_affiliates}
-                      onChange={(e) => setSettingsForm(prev => ({ ...prev, auto_approve_affiliates: e.target.checked }))}
+                      checked={settingsForm.require_approval}
+                      onChange={(e) => setSettingsForm(prev => ({ ...prev, require_approval: e.target.checked }))}
                       className="w-5 h-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
                     />
-                    <span className="text-sm font-medium text-gray-900">Auto-Approve Applications</span>
+                    <span className="text-sm font-medium text-gray-900">Require Approval for Applications</span>
                   </label>
                   <p className="text-xs text-gray-500 mt-1 ml-8">
-                    Automatically approve new affiliate applications (not recommended)
+                    New affiliate applications must be manually approved (recommended)
                   </p>
                 </div>
 

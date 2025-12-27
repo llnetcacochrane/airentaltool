@@ -20,7 +20,6 @@ interface OutletContext {
 
 export function AffiliateSettings() {
   const { affiliate } = useOutletContext<OutletContext>();
-  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);

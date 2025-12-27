@@ -109,7 +109,7 @@ export function AffiliateLayout() {
             You don't have an affiliate account yet. Apply to become an affiliate to start earning commissions.
           </p>
           <Link
-            to="/become-affiliate"
+            to="/affiliate-application"
             className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
           >
             Apply to Become an Affiliate
