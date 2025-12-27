@@ -645,3 +645,158 @@ export interface BusinessUserMessage {
   parent_message_id?: string;
   created_at: string;
 }
+
+// ============================================
+// Affiliate Marketing System Types
+// ============================================
+
+export type AffiliateStatus = 'pending' | 'approved' | 'suspended' | 'rejected';
+export type AffiliatePayoutMethod = 'paypal' | 'bank_transfer' | 'check' | 'e_transfer';
+export type AffiliateCommissionType = 'one_time' | 'recurring';
+export type AffiliateCommissionStatus = 'earned' | 'pending_payout' | 'paid' | 'refunded' | 'cancelled';
+export type AffiliatePayoutStatus = 'pending' | 'approved' | 'processing' | 'completed' | 'failed' | 'cancelled';
+export type AffiliatePayoutSchedule = 'weekly' | 'biweekly' | 'monthly';
+
+export interface AffiliateSettings {
+  id: string;
+  commission_type: AffiliateCommissionType;
+  commission_percentage: number; // Basis points (2000 = 20%)
+  recurring_months: number | null; // NULL = lifetime
+  minimum_payout_cents: number;
+  payout_schedule: AffiliatePayoutSchedule;
+  attribution_window_days: number;
+  cookie_duration_days: number;
+  program_active: boolean;
+  require_approval: boolean;
+  allow_self_referral: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Affiliate {
+  id: string;
+  user_id: string;
+  referral_code: string;
+  company_name?: string;
+  website_url?: string;
+  promotional_methods?: string;
+  status: AffiliateStatus;
+  approved_at?: string;
+  approved_by?: string;
+  rejection_reason?: string;
+  suspension_reason?: string;
+  payout_method?: AffiliatePayoutMethod;
+  payout_email?: string;
+  bank_details?: Record<string, unknown>;
+  total_clicks: number;
+  total_signups: number;
+  total_paid_signups: number;
+  total_commission_earned_cents: number;
+  total_commission_paid_cents: number;
+  pending_commission_cents: number;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  user?: {
+    email: string;
+    first_name?: string;
+    last_name?: string;
+  };
+}
+
+export interface AffiliateReferral {
+  id: string;
+  affiliate_id: string;
+  referred_user_id?: string;
+  referred_organization_id?: string;
+  click_id: string;
+  clicked_at: string;
+  ip_address?: string;
+  user_agent?: string;
+  landing_page?: string;
+  referrer_url?: string;
+  signup_at?: string;
+  first_payment_at?: string;
+  first_payment_amount_cents?: number;
+  converted: boolean;
+  attribution_expires_at: string;
+  created_at: string;
+  // Joined data
+  referred_user?: {
+    email: string;
+    first_name?: string;
+    last_name?: string;
+  };
+  referred_organization?: {
+    name: string;
+  };
+}
+
+export interface AffiliateCommission {
+  id: string;
+  affiliate_id: string;
+  referral_id: string;
+  subscription_payment_id?: string;
+  billing_month: string;
+  subscription_amount_cents: number;
+  commission_percentage: number;
+  commission_amount_cents: number;
+  status: AffiliateCommissionStatus;
+  payout_id?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  referral?: AffiliateReferral;
+}
+
+export interface AffiliatePayout {
+  id: string;
+  affiliate_id: string;
+  amount_cents: number;
+  commission_count: number;
+  period_start: string;
+  period_end: string;
+  status: AffiliatePayoutStatus;
+  payout_method: string;
+  transaction_id?: string;
+  failure_reason?: string;
+  requested_at: string;
+  approved_at?: string;
+  approved_by?: string;
+  processed_at?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  affiliate?: Affiliate;
+}
+
+export interface AffiliateApplication {
+  company_name?: string;
+  website_url?: string;
+  promotional_methods?: string;
+  payout_method: AffiliatePayoutMethod;
+  payout_email: string;
+}
+
+export interface AffiliateStats {
+  total_clicks: number;
+  total_signups: number;
+  total_paid_signups: number;
+  conversion_rate: number;
+  total_commission_earned_cents: number;
+  total_commission_paid_cents: number;
+  pending_commission_cents: number;
+  this_month_clicks: number;
+  this_month_signups: number;
+  this_month_commission_cents: number;
+}
+
+export interface AffiliateDashboardData {
+  affiliate: Affiliate;
+  stats: AffiliateStats;
+  recent_referrals: AffiliateReferral[];
+  recent_commissions: AffiliateCommission[];
+  settings: AffiliateSettings;
+}

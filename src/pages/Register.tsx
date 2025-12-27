@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, ChevronDown, ChevronUp } from 'lucide-react';
 import { PublicHeader } from '../components/PublicHeader';
 import { Footer } from '../components/Footer';
+import { affiliateService } from '../services/affiliateService';
 
 // Canadian provinces/territories
 const CANADIAN_PROVINCES = [
@@ -85,6 +86,18 @@ export function Register() {
   const navigate = useNavigate();
   const { register } = useAuth();
 
+  // Track affiliate referral click on page load
+  useEffect(() => {
+    const referralCode = searchParams.get('ref');
+    if (referralCode) {
+      // Track the click via API (stores in localStorage internally)
+      affiliateService.trackClick(referralCode, {
+        landingPage: window.location.href,
+        referrerUrl: document.referrer,
+      });
+    }
+  }, [searchParams]);
+
   const updateField = (field: keyof RegistrationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -156,7 +169,7 @@ export function Register() {
         `${formData.firstName.trim()} ${formData.lastName.trim()}`;
 
       // Register with extended data
-      await register(
+      const result = await register(
         formData.email,
         formData.password,
         formData.firstName,
@@ -173,6 +186,16 @@ export function Register() {
           country: formData.country,
         }
       );
+
+      // Track affiliate signup if there's a stored referral
+      const storedReferral = affiliateService.getStoredReferral();
+      if (storedReferral && result?.user?.id && result?.organizationId) {
+        affiliateService.trackSignup(
+          storedReferral.clickId,
+          result.user.id,
+          result.organizationId
+        );
+      }
 
       // Navigate to registration success page to check email for verification
       navigate(`/registration-success?email=${encodeURIComponent(formData.email)}`);

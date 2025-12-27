@@ -84,6 +84,17 @@ const OwnerProperties = lazyWithRetry(() => import('./pages/owner-portal/OwnerPr
 const OwnerReports = lazyWithRetry(() => import('./pages/owner-portal/OwnerReports').then(m => ({ default: m.OwnerReports })), 'OwnerReports');
 const OwnerMessages = lazyWithRetry(() => import('./pages/owner-portal/OwnerMessages').then(m => ({ default: m.OwnerMessages })), 'OwnerMessages');
 
+// Lazy load: Affiliate portal pages
+const AffiliateApplication = lazyWithRetry(() => import('./pages/AffiliateApplication').then(m => ({ default: m.AffiliateApplication })), 'AffiliateApplication');
+const AffiliateLayout = lazyWithRetry(() => import('./components/AffiliateLayout').then(m => ({ default: m.AffiliateLayout })), 'AffiliateLayout');
+const AffiliateDashboard = lazyWithRetry(() => import('./pages/affiliate-portal/AffiliateDashboard').then(m => ({ default: m.AffiliateDashboard })), 'AffiliateDashboard');
+const AffiliateReferrals = lazyWithRetry(() => import('./pages/affiliate-portal/AffiliateReferrals').then(m => ({ default: m.AffiliateReferrals })), 'AffiliateReferrals');
+const AffiliateCommissions = lazyWithRetry(() => import('./pages/affiliate-portal/AffiliateCommissions').then(m => ({ default: m.AffiliateCommissions })), 'AffiliateCommissions');
+const AffiliatePayouts = lazyWithRetry(() => import('./pages/affiliate-portal/AffiliatePayouts').then(m => ({ default: m.AffiliatePayouts })), 'AffiliatePayouts');
+const AffiliateSettings = lazyWithRetry(() => import('./pages/affiliate-portal/AffiliateSettings').then(m => ({ default: m.AffiliateSettings })), 'AffiliateSettings');
+const AffiliateResources = lazyWithRetry(() => import('./pages/affiliate-portal/AffiliateResources').then(m => ({ default: m.AffiliateResources })), 'AffiliateResources');
+const AffiliateManagement = lazyWithRetry(() => import('./pages/AffiliateManagement').then(m => ({ default: m.AffiliateManagement })), 'AffiliateManagement');
+
 // Lazy load: Public pages
 const Pricing = lazyWithRetry(() => import('./pages/Pricing').then(m => ({ default: m.Pricing })), 'Pricing');
 const About = lazyWithRetry(() => import('./pages/About').then(m => ({ default: m.About })), 'About');
@@ -257,6 +268,38 @@ function AppWithAnalytics() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/super-admin/affiliates"
+        element={
+          <ProtectedRoute>
+            <AffiliateManagement />
+          </ProtectedRoute>
+        }
+      />
+      {/* Affiliate Application (protected - must be logged in) */}
+      <Route
+        path="/affiliate-application"
+        element={
+          <ProtectedRoute>
+            <AffiliateApplication />
+          </ProtectedRoute>
+        }
+      />
+      {/* Affiliate Portal Routes */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <AffiliateLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/affiliate-portal" element={<AffiliateDashboard />} />
+        <Route path="/affiliate-portal/referrals" element={<AffiliateReferrals />} />
+        <Route path="/affiliate-portal/commissions" element={<AffiliateCommissions />} />
+        <Route path="/affiliate-portal/payouts" element={<AffiliatePayouts />} />
+        <Route path="/affiliate-portal/settings" element={<AffiliateSettings />} />
+        <Route path="/affiliate-portal/resources" element={<AffiliateResources />} />
+      </Route>
       <Route
         element={
           <ProtectedRoute>
