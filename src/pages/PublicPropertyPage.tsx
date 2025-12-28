@@ -212,7 +212,7 @@ export function PublicPropertyPage() {
           <div className="flex items-center gap-2 text-gray-600 mb-4">
             <MapPin className="w-5 h-5" />
             <span className="text-lg">
-              {property.address}, {property.city}, {property.state_province} {property.postal_code}
+              {property.address_line1}, {property.city}, {property.state} {property.postal_code}
             </span>
           </div>
           {pageDescription && (

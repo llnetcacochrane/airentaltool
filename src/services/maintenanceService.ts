@@ -65,7 +65,7 @@ export const maintenanceService = {
       .from('maintenance_requests')
       .select(`
         *,
-        property:properties(id, name, address),
+        property:properties(id, name, address_line1),
         tenant:tenants(id, first_name, last_name, email, phone)
       `)
       .eq('portfolio_id', portfolioId)
@@ -87,7 +87,7 @@ export const maintenanceService = {
       .from('maintenance_requests')
       .select(`
         *,
-        property:properties(id, name, address),
+        property:properties(id, name, address_line1),
         tenant:tenants(id, first_name, last_name, email, phone)
       `)
       .eq('id', id)

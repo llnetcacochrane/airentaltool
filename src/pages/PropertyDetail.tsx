@@ -168,7 +168,7 @@ export function PropertyDetail() {
               />
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{property.name}</h1>
               <p className="text-gray-600 mt-1">
-                {property.address}, {property.city}, {property.state_province}
+                {property.address_line1}, {property.city}, {property.state}
               </p>
             </div>
             <div className="flex gap-2">

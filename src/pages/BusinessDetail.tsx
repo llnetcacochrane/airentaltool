@@ -270,7 +270,7 @@ export function BusinessDetail() {
                       <div className="flex-1 min-w-0">
                         <h3 className="text-lg font-bold text-gray-900 mb-1">{property.name}</h3>
                         <p className="text-sm text-gray-600 mb-3">
-                          {property.address}, {property.city}
+                          {property.address_line1}, {property.city}
                         </p>
                         <div className="flex items-center gap-4 text-sm">
                           <span className="text-gray-600">

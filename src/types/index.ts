@@ -93,6 +93,8 @@ export type MaintenancePriority = 'low' | 'medium' | 'high' | 'emergency';
 
 export type MaintenanceStatus =
   | 'open'
+  | 'submitted'
+  | 'acknowledged'
   | 'in_progress'
   | 'waiting_parts'
   | 'completed'
@@ -192,7 +194,7 @@ export interface Business {
 
 export interface Property {
   id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
   business_id: string;
   name: string;
   property_type: PropertyType;
@@ -219,7 +221,7 @@ export interface Property {
 
 export interface Unit {
   id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
   property_id: string;
   unit_number: string;
   unit_name?: string;
@@ -251,7 +253,7 @@ export interface Unit {
 
 export interface Tenant {
   id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
   unit_id: string;
   user_id?: string;
   first_name: string;
@@ -295,7 +297,7 @@ export interface UnitTenantAccess {
 
 export interface Lease {
   id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
   unit_id: string;
   lease_type: LeaseType;
   start_date: string;
@@ -321,7 +323,7 @@ export interface Lease {
 
 export interface Payment {
   id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
   unit_id: string;
   tenant_id?: string;
   lease_id?: string;
@@ -352,7 +354,7 @@ export interface PaymentSchedule {
 
 export interface PaymentGateway {
   id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
   gateway_name: string;
   api_key: string;
   api_secret?: string;
@@ -364,7 +366,7 @@ export interface PaymentGateway {
 
 export interface Expense {
   id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
   business_id?: string;
   property_id?: string;
   unit_id?: string;
@@ -388,7 +390,7 @@ export interface Expense {
 
 export interface MaintenanceRequest {
   id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
   property_id: string;
   unit_id?: string;
   tenant_id?: string;
@@ -425,7 +427,7 @@ export interface AuthSession {
 
 export interface TenantInvitation {
   id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
   property_id: string;
   unit_id: string;
   tenant_id?: string;
@@ -443,7 +445,7 @@ export interface TenantInvitation {
 
 export interface InvitationDetails {
   invitation_id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
   organization_name: string;
   property_id: string;
   property_name: string;
@@ -463,7 +465,7 @@ export type DocumentType = 'id' | 'proof_of_income' | 'reference_letter' | 'cred
 
 export interface RentalApplicationForm {
   id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
   name: string;
   description?: string;
   form_schema: {
@@ -516,7 +518,7 @@ export interface RentalListing {
 export interface RentalApplication {
   id: string;
   listing_id: string;
-  organization_id: string;
+  organization_id?: string | null;  // Optional - businesses are now top-level entities
   property_id: string;
   unit_id: string;
   applicant_email: string;

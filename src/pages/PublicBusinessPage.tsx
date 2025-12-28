@@ -610,7 +610,7 @@ export function PublicBusinessPage() {
                   <div className="flex items-center gap-2 text-gray-600 mb-3">
                     <MapPin className="w-4 h-4" />
                     <span className="text-sm">
-                      {property.address}, {property.city}, {property.state_province}
+                      {property.address_line1}, {property.city}, {property.state}
                     </span>
                   </div>
                   {property.public_page_description && (

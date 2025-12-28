@@ -204,10 +204,10 @@ export const pdfGenerationService = {
     doc.text(property.name, 105, yPosition, { align: 'center' });
     yPosition += 7;
 
-    if (property.address) {
+    if (property.address_line1) {
       doc.setFontSize(10);
       doc.setTextColor(100);
-      doc.text(property.address, 105, yPosition, { align: 'center' });
+      doc.text(property.address_line1, 105, yPosition, { align: 'center' });
       yPosition += 10;
     }
 

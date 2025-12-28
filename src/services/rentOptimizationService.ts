@@ -199,7 +199,7 @@ export const rentOptimizationService = {
     const userPrompt = `Analyze this rental property and provide insights:
 
 Property: ${property.name}
-Location: ${property.address || 'N/A'}
+Location: ${property.address_line1 || 'N/A'}
 Bedrooms: ${property.bedrooms || 'N/A'}
 Bathrooms: ${property.bathrooms || 'N/A'}
 Square Feet: ${property.square_feet || 'N/A'}

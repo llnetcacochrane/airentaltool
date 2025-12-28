@@ -178,7 +178,7 @@ export function OwnerProperties() {
                       <h3 className="font-semibold text-gray-900">{property.name}</h3>
                       <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
                         <MapPin size={14} />
-                        <span>{property.address}, {property.city}, {property.state_province}</span>
+                        <span>{property.address_line1}, {property.city}, {property.state}</span>
                       </div>
                     </div>
                   </div>

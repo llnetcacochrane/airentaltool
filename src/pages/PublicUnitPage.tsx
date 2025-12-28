@@ -332,7 +332,7 @@ export function PublicUnitPage() {
               <div className="flex items-center gap-2 text-gray-600">
                 <MapPin className="w-5 h-5" />
                 <span>
-                  {listing.property.address}, {listing.property.city}, {listing.property.state_province}
+                  {listing.property.address_line1}, {listing.property.city}, {listing.property.state}
                 </span>
               </div>
             </div>

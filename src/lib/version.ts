@@ -1,7 +1,7 @@
 export const VERSION = {
   major: 5,
   minor: 5,
-  patch: 0,
+  patch: 1,
   prerelease: '',
   buildDate: '2025-12-28',
 };
