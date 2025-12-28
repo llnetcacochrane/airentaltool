@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { emailService } from './emailService';
 import type {
   Affiliate,
   AffiliateCommission,
@@ -156,6 +157,15 @@ export const affiliateAdminService = {
       .single();
 
     if (error) throw error;
+
+    // Send approval email notification
+    if (data.payout_email) {
+      emailService.sendAffiliateApprovedEmail(data.payout_email, {
+        affiliateName: data.company_name || 'Affiliate',
+        referralCode: data.referral_code,
+      }).catch(err => console.error('Failed to send approval email:', err));
+    }
+
     return data;
   },
 
@@ -174,6 +184,15 @@ export const affiliateAdminService = {
       .single();
 
     if (error) throw error;
+
+    // Send rejection email notification
+    if (data.payout_email) {
+      emailService.sendAffiliateRejectedEmail(data.payout_email, {
+        affiliateName: data.company_name || 'Applicant',
+        reason: reason,
+      }).catch(err => console.error('Failed to send rejection email:', err));
+    }
+
     return data;
   },
 
@@ -297,129 +316,81 @@ export const affiliateAdminService = {
   },
 
   /**
-   * Complete a payout
+   * Complete a payout using atomic database function
+   * This handles all updates in a single transaction with row locking
    */
   async completePayout(payoutId: string, transactionId: string): Promise<AffiliatePayout> {
-    // Get payout details first
-    const { data: payout, error: fetchError } = await supabase
-      .from('affiliate_payouts')
-      .select('affiliate_id, amount_cents')
-      .eq('id', payoutId)
-      .single();
+    const { data, error } = await supabase.rpc('complete_affiliate_payout', {
+      p_payout_id: payoutId,
+      p_transaction_id: transactionId,
+    });
 
-    if (fetchError) throw fetchError;
+    if (error) throw error;
 
-    // Get current affiliate totals
-    const { data: affiliate, error: affiliateError } = await supabase
+    const payout = data as AffiliatePayout;
+
+    // Fetch affiliate details for email notification
+    const { data: affiliate } = await supabase
       .from('affiliates')
-      .select('total_commission_paid_cents, pending_commission_cents')
+      .select('payout_email, company_name, payout_method')
       .eq('id', payout.affiliate_id)
       .single();
 
-    if (affiliateError) throw affiliateError;
+    if (affiliate?.payout_email) {
+      emailService.sendAffiliatePayoutCompletedEmail(affiliate.payout_email, {
+        affiliateName: affiliate.company_name || 'Affiliate',
+        amount: this.formatCurrency(payout.amount_cents),
+        transactionId: transactionId,
+        payoutMethod: affiliate.payout_method?.replace('_', ' ') || 'direct deposit',
+      }).catch(err => console.error('Failed to send payout completed email:', err));
+    }
 
-    // Update payout status
-    const { data, error } = await supabase
-      .from('affiliate_payouts')
-      .update({
-        status: 'completed',
-        transaction_id: transactionId,
-        processed_at: new Date().toISOString(),
-      })
-      .eq('id', payoutId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Update commission statuses
-    await supabase
-      .from('affiliate_commissions')
-      .update({ status: 'paid' })
-      .eq('payout_id', payoutId);
-
-    // Update affiliate totals (calculate new values from current)
-    const { error: updateError } = await supabase
-      .from('affiliates')
-      .update({
-        total_commission_paid_cents: (affiliate.total_commission_paid_cents || 0) + payout.amount_cents,
-        pending_commission_cents: Math.max(0, (affiliate.pending_commission_cents || 0) - payout.amount_cents),
-      })
-      .eq('id', payout.affiliate_id);
-
-    if (updateError) throw updateError;
-
-    return data;
+    return payout;
   },
 
   /**
-   * Mark payout as failed
+   * Mark payout as failed using atomic database function
+   * This reverts commissions back to earned status atomically
    */
   async failPayout(payoutId: string, reason: string): Promise<AffiliatePayout> {
-    // Get payout to get affiliate_id
-    const { data: payout, error: fetchError } = await supabase
-      .from('affiliate_payouts')
-      .select('affiliate_id')
-      .eq('id', payoutId)
-      .single();
-
-    if (fetchError) throw fetchError;
-
-    // Update payout status
-    const { data, error } = await supabase
-      .from('affiliate_payouts')
-      .update({
-        status: 'failed',
-        failure_reason: reason,
-      })
-      .eq('id', payoutId)
-      .select()
-      .single();
+    const { data, error } = await supabase.rpc('fail_affiliate_payout', {
+      p_payout_id: payoutId,
+      p_failure_reason: reason,
+    });
 
     if (error) throw error;
 
-    // Revert commission statuses back to earned
-    await supabase
-      .from('affiliate_commissions')
-      .update({ status: 'earned', payout_id: null })
-      .eq('payout_id', payoutId);
+    const payout = data as AffiliatePayout;
 
-    return data;
+    // Fetch affiliate details for email notification
+    const { data: affiliate } = await supabase
+      .from('affiliates')
+      .select('payout_email, company_name')
+      .eq('id', payout.affiliate_id)
+      .single();
+
+    if (affiliate?.payout_email) {
+      emailService.sendAffiliatePayoutFailedEmail(affiliate.payout_email, {
+        affiliateName: affiliate.company_name || 'Affiliate',
+        amount: this.formatCurrency(payout.amount_cents),
+        reason: reason,
+      }).catch(err => console.error('Failed to send payout failed email:', err));
+    }
+
+    return payout;
   },
 
   /**
-   * Cancel a payout request
+   * Cancel a payout request using atomic database function
+   * This reverts commissions back to earned status atomically
    */
-  async cancelPayout(payoutId: string, notes?: string): Promise<AffiliatePayout> {
-    // Get payout to get affiliate_id
-    const { data: payout, error: fetchError } = await supabase
-      .from('affiliate_payouts')
-      .select('affiliate_id')
-      .eq('id', payoutId)
-      .single();
-
-    if (fetchError) throw fetchError;
-
-    // Update payout status
-    const { data, error } = await supabase
-      .from('affiliate_payouts')
-      .update({
-        status: 'cancelled',
-        notes,
-      })
-      .eq('id', payoutId)
-      .select()
-      .single();
+  async cancelPayout(payoutId: string): Promise<AffiliatePayout> {
+    const { data, error } = await supabase.rpc('cancel_affiliate_payout', {
+      p_payout_id: payoutId,
+    });
 
     if (error) throw error;
-
-    // Revert commission statuses back to earned
-    await supabase
-      .from('affiliate_commissions')
-      .update({ status: 'earned', payout_id: null })
-      .eq('payout_id', payoutId);
-
-    return data;
+    return data as AffiliatePayout;
   },
 
   // ============================================

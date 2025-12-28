@@ -369,4 +369,128 @@ export const emailService = {
       details_url: data.detailsUrl || '',
     });
   },
+
+  // ============================================
+  // Affiliate Email Notifications
+  // ============================================
+
+  /**
+   * Send affiliate application approved email
+   */
+  async sendAffiliateApprovedEmail(
+    to: string,
+    data: {
+      affiliateName: string;
+      referralCode: string;
+      dashboardUrl?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'notification', {
+      subject: 'Congratulations! Your Affiliate Application is Approved',
+      name: data.affiliateName,
+      message: `Great news! Your affiliate application has been approved. Your unique referral code is: ${data.referralCode}. Start sharing and earning commissions today!`,
+      action_url: data.dashboardUrl || `${window.location.origin}/affiliate`,
+      action_text: 'Go to Affiliate Dashboard',
+    });
+  },
+
+  /**
+   * Send affiliate application rejected email
+   */
+  async sendAffiliateRejectedEmail(
+    to: string,
+    data: {
+      affiliateName: string;
+      reason: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'notification', {
+      subject: 'Affiliate Application Update',
+      name: data.affiliateName,
+      message: `We've reviewed your affiliate application. Unfortunately, we're unable to approve it at this time. Reason: ${data.reason}. If you have questions, please contact our support team.`,
+      action_url: `${window.location.origin}/contact`,
+      action_text: 'Contact Support',
+    });
+  },
+
+  /**
+   * Send affiliate payout completed email
+   */
+  async sendAffiliatePayoutCompletedEmail(
+    to: string,
+    data: {
+      affiliateName: string;
+      amount: string;
+      transactionId: string;
+      payoutMethod: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'notification', {
+      subject: 'Your Affiliate Payout Has Been Processed',
+      name: data.affiliateName,
+      message: `Your affiliate payout of ${data.amount} has been successfully processed via ${data.payoutMethod}. Transaction ID: ${data.transactionId}. Thank you for being part of our affiliate program!`,
+      action_url: `${window.location.origin}/affiliate/payouts`,
+      action_text: 'View Payout History',
+    });
+  },
+
+  /**
+   * Send affiliate payout failed email
+   */
+  async sendAffiliatePayoutFailedEmail(
+    to: string,
+    data: {
+      affiliateName: string;
+      amount: string;
+      reason: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'notification', {
+      subject: 'Affiliate Payout Issue',
+      name: data.affiliateName,
+      message: `We were unable to process your affiliate payout of ${data.amount}. Reason: ${data.reason}. Please verify your payout details in your affiliate settings and contact support if you need assistance.`,
+      action_url: `${window.location.origin}/affiliate/settings`,
+      action_text: 'Update Payout Settings',
+    });
+  },
+
+  /**
+   * Send new affiliate referral conversion email
+   */
+  async sendAffiliateConversionEmail(
+    to: string,
+    data: {
+      affiliateName: string;
+      signupDate: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'notification', {
+      subject: 'New Referral Converted!',
+      name: data.affiliateName,
+      message: `Great news! One of your referrals signed up on ${data.signupDate} and has converted to a paying customer. You'll earn a commission on their subscription payments according to your affiliate agreement.`,
+      action_url: `${window.location.origin}/affiliate`,
+      action_text: 'View Dashboard',
+    });
+  },
+
+  /**
+   * Send new affiliate signup notification (to admin)
+   */
+  async sendNewAffiliateApplicationEmail(
+    to: string,
+    data: {
+      affiliateName: string;
+      companyName: string;
+      email: string;
+      reviewUrl?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'notification', {
+      subject: 'New Affiliate Application Received',
+      name: 'Admin',
+      message: `A new affiliate application has been submitted. Applicant: ${data.affiliateName} (${data.companyName}). Email: ${data.email}. Please review the application at your earliest convenience.`,
+      action_url: data.reviewUrl || `${window.location.origin}/super-admin/affiliates`,
+      action_text: 'Review Application',
+    });
+  },
 };

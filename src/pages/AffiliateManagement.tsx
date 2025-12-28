@@ -59,6 +59,18 @@ export function AffiliateManagement() {
   const [actionReason, setActionReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Payout modal states
+  const [payoutModal, setPayoutModal] = useState<{
+    isOpen: boolean;
+    payoutId: string;
+    action: 'complete' | 'fail' | 'cancel' | null;
+  }>({ isOpen: false, payoutId: '', action: null });
+  const [payoutTransactionId, setPayoutTransactionId] = useState('');
+  const [payoutFailReason, setPayoutFailReason] = useState('');
+
+  // Toast notification
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
   // Settings form
   const [settingsForm, setSettingsForm] = useState({
     program_active: true,
@@ -152,48 +164,88 @@ export function AffiliateManagement() {
           break;
       }
 
+      showToast(`Affiliate ${actionType}${actionType.endsWith('e') ? 'd' : 'ed'} successfully`, 'success');
       await loadData();
       setSelectedAffiliate(null);
       setActionType(null);
       setActionReason('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Action failed:', error);
-      alert('Action failed. Please try again.');
+      showToast(error.message || 'Action failed. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Payout actions
+  // Show toast notification
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // Payout actions - opens modal for actions that need input
   const handlePayoutAction = async (payoutId: string, action: 'approve' | 'complete' | 'fail' | 'cancel') => {
+    if (action === 'complete' || action === 'fail' || action === 'cancel') {
+      setPayoutModal({ isOpen: true, payoutId, action });
+      return;
+    }
+
+    // Direct action for approve
     try {
-      switch (action) {
-        case 'approve':
-          await affiliateAdminService.approvePayout(payoutId);
-          break;
-        case 'complete':
-          const transactionId = prompt('Enter transaction ID:');
-          if (transactionId) {
-            await affiliateAdminService.completePayout(payoutId, transactionId);
-          }
-          break;
-        case 'fail':
-          const failReason = prompt('Enter failure reason:');
-          if (failReason) {
-            await affiliateAdminService.failPayout(payoutId, failReason);
-          }
-          break;
-        case 'cancel':
-          if (confirm('Are you sure you want to cancel this payout?')) {
-            await affiliateAdminService.cancelPayout(payoutId);
-          }
-          break;
-      }
+      await affiliateAdminService.approvePayout(payoutId);
+      showToast('Payout approved successfully', 'success');
       await loadData();
     } catch (error) {
       console.error('Payout action failed:', error);
-      alert('Action failed. Please try again.');
+      showToast('Failed to approve payout. Please try again.', 'error');
     }
+  };
+
+  // Execute payout action from modal
+  const executePayoutAction = async () => {
+    if (!payoutModal.payoutId || !payoutModal.action) return;
+
+    setIsSubmitting(true);
+    try {
+      switch (payoutModal.action) {
+        case 'complete':
+          if (!payoutTransactionId.trim()) {
+            showToast('Transaction ID is required', 'error');
+            setIsSubmitting(false);
+            return;
+          }
+          await affiliateAdminService.completePayout(payoutModal.payoutId, payoutTransactionId.trim());
+          showToast('Payout marked as completed', 'success');
+          break;
+        case 'fail':
+          if (!payoutFailReason.trim()) {
+            showToast('Failure reason is required', 'error');
+            setIsSubmitting(false);
+            return;
+          }
+          await affiliateAdminService.failPayout(payoutModal.payoutId, payoutFailReason.trim());
+          showToast('Payout marked as failed', 'success');
+          break;
+        case 'cancel':
+          await affiliateAdminService.cancelPayout(payoutModal.payoutId);
+          showToast('Payout cancelled successfully', 'success');
+          break;
+      }
+      await loadData();
+      closePayoutModal();
+    } catch (error: any) {
+      console.error('Payout action failed:', error);
+      showToast(error.message || 'Action failed. Please try again.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Close payout modal and reset state
+  const closePayoutModal = () => {
+    setPayoutModal({ isOpen: false, payoutId: '', action: null });
+    setPayoutTransactionId('');
+    setPayoutFailReason('');
   };
 
   // Save settings
@@ -201,11 +253,11 @@ export function AffiliateManagement() {
     setIsSubmitting(true);
     try {
       await affiliateAdminService.updateSettings(settingsForm);
-      alert('Settings saved successfully!');
+      showToast('Settings saved successfully!', 'success');
       await loadData();
     } catch (error) {
       console.error('Failed to save settings:', error);
-      alert('Failed to save settings. Please try again.');
+      showToast('Failed to save settings. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -888,6 +940,100 @@ export function AffiliateManagement() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Payout Action Modal */}
+        {payoutModal.isOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                {payoutModal.action === 'complete' && 'Complete Payout'}
+                {payoutModal.action === 'fail' && 'Mark Payout as Failed'}
+                {payoutModal.action === 'cancel' && 'Cancel Payout'}
+              </h3>
+
+              {payoutModal.action === 'complete' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Transaction ID *
+                  </label>
+                  <input
+                    type="text"
+                    value={payoutTransactionId}
+                    onChange={(e) => setPayoutTransactionId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="e.g., TXN-123456 or e-Transfer reference"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Enter the transaction ID from your payment provider
+                  </p>
+                </div>
+              )}
+
+              {payoutModal.action === 'fail' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Failure Reason *
+                  </label>
+                  <textarea
+                    value={payoutFailReason}
+                    onChange={(e) => setPayoutFailReason(e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                    placeholder="Describe why the payout failed..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    This will revert the commissions back to earned status
+                  </p>
+                </div>
+              )}
+
+              {payoutModal.action === 'cancel' && (
+                <div className="mb-4">
+                  <p className="text-gray-600">
+                    Are you sure you want to cancel this payout? The associated commissions will be reverted to earned status.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={closePayoutModal}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executePayoutAction}
+                  disabled={isSubmitting}
+                  className={`px-4 py-2 rounded-lg font-semibold transition disabled:opacity-50 ${
+                    payoutModal.action === 'complete'
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : payoutModal.action === 'fail'
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-gray-600 text-white hover:bg-gray-700'
+                  }`}
+                >
+                  {isSubmitting ? 'Processing...' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Toast Notification */}
+        {toast && (
+          <div className={`fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-2 ${
+            toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+          }`}>
+            {toast.type === 'success' ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : (
+              <AlertCircle className="w-5 h-5" />
+            )}
+            {toast.message}
           </div>
         )}
       </div>
