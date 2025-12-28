@@ -86,8 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (inactiveTime >= SESSION_TIMEOUT_MS) {
         // SECURITY: Auto-logout after inactivity
         console.warn('Session timeout due to inactivity');
-        // TEMPORARILY DISABLED FOR DEBUGGING
-        // authService.logout();
+        authService.logout();
       } else if (inactiveTime >= SESSION_TIMEOUT_MS - SESSION_WARNING_MS) {
         // TODO: Show warning toast to user about impending timeout
         // Consider adding a modal with "Stay logged in" option

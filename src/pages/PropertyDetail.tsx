@@ -305,7 +305,7 @@ export function PropertyDetail() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <button
-            onClick={() => navigate(`/property/${propertyId}/tenants`)}
+            onClick={() => navigate(`/tenants?propertyId=${propertyId}`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-purple-200"
           >
             <div className="flex items-center justify-between mb-4">
@@ -319,7 +319,7 @@ export function PropertyDetail() {
           </button>
 
           <button
-            onClick={() => navigate(`/property/${propertyId}/maintenance`)}
+            onClick={() => navigate(`/maintenance?propertyId=${propertyId}`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-amber-200"
           >
             <div className="flex items-center justify-between mb-4">
@@ -333,7 +333,7 @@ export function PropertyDetail() {
           </button>
 
           <button
-            onClick={() => navigate(`/property/${propertyId}/financials`)}
+            onClick={() => navigate(`/payments?propertyId=${propertyId}`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-green-200"
           >
             <div className="flex items-center justify-between mb-4">
@@ -342,12 +342,12 @@ export function PropertyDetail() {
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-green-600 transition" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Financials</h3>
-            <p className="text-sm text-gray-600">Payments & expenses</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Payments</h3>
+            <p className="text-sm text-gray-600">Rent & transactions</p>
           </button>
 
           <button
-            onClick={() => navigate(`/property/${propertyId}/leases`)}
+            onClick={() => navigate(`/agreements?propertyId=${propertyId}`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-blue-200"
           >
             <div className="flex items-center justify-between mb-4">
@@ -356,26 +356,26 @@ export function PropertyDetail() {
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Leases</h3>
-            <p className="text-sm text-gray-600">Active agreements</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Agreements</h3>
+            <p className="text-sm text-gray-600">Leases & contracts</p>
           </button>
 
           <button
-            onClick={() => navigate(`/property/${propertyId}/documents`)}
-            className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-gray-200"
+            onClick={() => navigate(`/expenses?propertyId=${propertyId}`)}
+            className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-red-200"
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-gray-200 transition">
-                <FileText className="w-6 h-6 text-gray-600" />
+              <div className="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center group-hover:bg-red-200 transition">
+                <FileText className="w-6 h-6 text-red-600" />
               </div>
-              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition" />
+              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-red-600 transition" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Documents</h3>
-            <p className="text-sm text-gray-600">Contracts & files</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Expenses</h3>
+            <p className="text-sm text-gray-600">Costs & receipts</p>
           </button>
 
           <button
-            onClick={() => navigate(`/property/${propertyId}/reports`)}
+            onClick={() => navigate(`/reports?propertyId=${propertyId}`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-blue-200"
           >
             <div className="flex items-center justify-between mb-4">

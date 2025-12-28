@@ -6,6 +6,7 @@ import { BusinessProvider } from './context/BusinessContext';
 import { TenantProvider } from './context/TenantContext';
 import { ToastProvider } from './components/Toast';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { SuperAdminRoute } from './components/SuperAdminRoute';
 import { Layout } from './components/Layout';
 import { TenantLayout } from './components/TenantLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -191,89 +192,89 @@ function AppWithAnalytics() {
       <Route
         path="/super-admin"
         element={
-          <ProtectedRoute>
+          <SuperAdminRoute>
             <SuperAdminDashboard />
-          </ProtectedRoute>
+          </SuperAdminRoute>
         }
       />
       <Route
         path="/super-admin/config"
         element={
-          <ProtectedRoute>
+          <SuperAdminRoute>
             <SystemConfiguration />
-          </ProtectedRoute>
+          </SuperAdminRoute>
         }
       />
       <Route
         path="/super-admin/packages"
         element={
-          <ProtectedRoute>
+          <SuperAdminRoute>
             <PackageManagement />
-          </ProtectedRoute>
+          </SuperAdminRoute>
         }
       />
       <Route
         path="/super-admin/features"
         element={
-          <ProtectedRoute>
+          <SuperAdminRoute>
             <FeatureManagement />
-          </ProtectedRoute>
+          </SuperAdminRoute>
         }
       />
       <Route
         path="/super-admin/users"
         element={
-          <ProtectedRoute>
+          <SuperAdminRoute>
             <SuperAdminUsers />
-          </ProtectedRoute>
+          </SuperAdminRoute>
         }
       />
       <Route
         path="/super-admin/organizations/:organizationId/package"
         element={
-          <ProtectedRoute>
+          <SuperAdminRoute>
             <OrganizationPackageSettings />
-          </ProtectedRoute>
+          </SuperAdminRoute>
         }
       />
       <Route
         path="/super-admin/ai-keys"
         element={
-          <ProtectedRoute>
+          <SuperAdminRoute>
             <AIApiKeys />
-          </ProtectedRoute>
+          </SuperAdminRoute>
         }
       />
       <Route
         path="/super-admin/email-diagnostics"
         element={
-          <ProtectedRoute>
+          <SuperAdminRoute>
             <EmailDiagnostics />
-          </ProtectedRoute>
+          </SuperAdminRoute>
         }
       />
       <Route
         path="/super-admin/email-accounts"
         element={
-          <ProtectedRoute>
+          <SuperAdminRoute>
             <EmailAccounts />
-          </ProtectedRoute>
+          </SuperAdminRoute>
         }
       />
       <Route
         path="/super-admin/impersonate/:userId"
         element={
-          <ProtectedRoute>
+          <SuperAdminRoute>
             <ImpersonateUser />
-          </ProtectedRoute>
+          </SuperAdminRoute>
         }
       />
       <Route
         path="/super-admin/affiliates"
         element={
-          <ProtectedRoute>
+          <SuperAdminRoute>
             <AffiliateManagement />
-          </ProtectedRoute>
+          </SuperAdminRoute>
         }
       />
       {/* Affiliate Application (protected - must be logged in) */}
