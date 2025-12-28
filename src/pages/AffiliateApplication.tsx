@@ -294,7 +294,7 @@ export function AffiliateApplication() {
                 <p className="text-blue-800 text-sm">
                   You need to be logged in to apply.{' '}
                   <Link
-                    to={`/login?redirect=${encodeURIComponent('/become-affiliate')}`}
+                    to={`/login?redirect=${encodeURIComponent('/affiliate-application')}`}
                     className="font-semibold underline"
                   >
                     Log in

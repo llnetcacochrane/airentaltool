@@ -309,6 +309,15 @@ export const affiliateAdminService = {
 
     if (fetchError) throw fetchError;
 
+    // Get current affiliate totals
+    const { data: affiliate, error: affiliateError } = await supabase
+      .from('affiliates')
+      .select('total_commission_paid_cents, pending_commission_cents')
+      .eq('id', payout.affiliate_id)
+      .single();
+
+    if (affiliateError) throw affiliateError;
+
     // Update payout status
     const { data, error } = await supabase
       .from('affiliate_payouts')
@@ -329,14 +338,16 @@ export const affiliateAdminService = {
       .update({ status: 'paid' })
       .eq('payout_id', payoutId);
 
-    // Update affiliate totals
-    await supabase
+    // Update affiliate totals (calculate new values from current)
+    const { error: updateError } = await supabase
       .from('affiliates')
       .update({
-        total_commission_paid_cents: supabase.rpc('increment', { x: payout.amount_cents }),
-        pending_commission_cents: supabase.rpc('decrement', { x: payout.amount_cents }),
+        total_commission_paid_cents: (affiliate.total_commission_paid_cents || 0) + payout.amount_cents,
+        pending_commission_cents: Math.max(0, (affiliate.pending_commission_cents || 0) - payout.amount_cents),
       })
       .eq('id', payout.affiliate_id);
+
+    if (updateError) throw updateError;
 
     return data;
   },

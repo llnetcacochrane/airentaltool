@@ -151,6 +151,7 @@ export const affiliateService = {
   /**
    * Track a click on an affiliate link
    * Called when someone visits with ?ref=CODE
+   * Includes deduplication to prevent multiple clicks from page refreshes
    */
   async trackClick(
     referralCode: string,
@@ -160,9 +161,22 @@ export const affiliateService = {
     }
   ): Promise<string | null> {
     try {
+      const normalizedCode = referralCode.toUpperCase();
+
+      // Check for existing click to prevent duplicates from page refreshes
+      const existingRef = this.getStoredReferral();
+      if (existingRef && existingRef.code === normalizedCode) {
+        // Already tracked a click for this code, return existing click ID
+        // Only deduplicate within 24 hours
+        const hoursSinceClick = (Date.now() - existingRef.timestamp) / (1000 * 60 * 60);
+        if (hoursSinceClick < 24) {
+          return existingRef.clickId;
+        }
+      }
+
       const { data: clickId, error } = await supabase
         .rpc('track_affiliate_click', {
-          p_referral_code: referralCode.toUpperCase(),
+          p_referral_code: normalizedCode,
           p_ip_address: null, // Can't get IP from client
           p_user_agent: navigator.userAgent,
           p_landing_page: metadata?.landingPage || window.location.href,
@@ -176,7 +190,7 @@ export const affiliateService = {
 
       // Store in localStorage for attribution
       if (clickId) {
-        localStorage.setItem(AFFILIATE_REF_KEY, referralCode.toUpperCase());
+        localStorage.setItem(AFFILIATE_REF_KEY, normalizedCode);
         localStorage.setItem(AFFILIATE_REF_TIME_KEY, Date.now().toString());
         localStorage.setItem(AFFILIATE_CLICK_ID_KEY, clickId);
       }
