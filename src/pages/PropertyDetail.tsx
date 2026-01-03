@@ -177,11 +177,11 @@ export function PropertyDetail() {
   };
 
   const handleAddUnit = async (data: Partial<Unit>) => {
-    if (!propertyId) return;
+    if (!propertyId || !property?.business_id) return;
     setIsSubmitting(true);
     setUnitError('');
     try {
-      await unitService.createUnit(propertyId, data);
+      await unitService.createUnit(property.business_id, propertyId, data);
       await loadPropertyData();
       setShowAddUnit(false);
     } catch (err) {
