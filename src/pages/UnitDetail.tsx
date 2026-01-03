@@ -62,10 +62,20 @@ export function UnitDetail() {
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [publicPageEnabled, setPublicPageEnabled] = useState(false);
+  const [isSavingPublicSetting, setIsSavingPublicSetting] = useState(false);
+  const [businessSlug, setBusinessSlug] = useState<string>('');
 
   useEffect(() => {
     loadUnitData();
   }, [unitId]);
+
+  // Sync public page setting when unit loads
+  useEffect(() => {
+    if (unit) {
+      setPublicPageEnabled(unit.public_page_enabled || false);
+    }
+  }, [unit]);
 
   const loadUnitData = async () => {
     if (!unitId) return;
@@ -82,6 +92,18 @@ export function UnitDetail() {
 
       setUnit(unitData);
       setProperty(unitData.properties);
+
+      // Fetch business public_page_slug for public page links
+      if (unitData.properties?.business_id) {
+        const { data: businessData } = await supabase
+          .from('businesses')
+          .select('public_page_slug')
+          .eq('id', unitData.properties.business_id)
+          .single();
+        if (businessData?.public_page_slug) {
+          setBusinessSlug(businessData.public_page_slug);
+        }
+      }
 
       // Get tenants for this unit
       const { data: tenantAccess } = await supabase
@@ -239,6 +261,20 @@ export function UnitDetail() {
     }
   };
 
+  const handleTogglePublicVisibility = async (enabled: boolean) => {
+    if (!unitId) return;
+    setIsSavingPublicSetting(true);
+    try {
+      await unitService.updateUnit(unitId, { public_page_enabled: enabled });
+      setPublicPageEnabled(enabled);
+    } catch (err) {
+      console.error('Failed to update public visibility:', err);
+      alert('Failed to update visibility. Please try again.');
+    } finally {
+      setIsSavingPublicSetting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -254,7 +290,7 @@ export function UnitDetail() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600">Unit not found</p>
         </div>
       </div>
@@ -286,7 +322,7 @@ export function UnitDetail() {
                 className="mb-2"
               />
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                <h1 className="text-2xl sm:text-2xl sm:text-3xl font-bold text-gray-900">
                   Unit {unit.unit_number}
                 </h1>
                 {stats.leaseStatus === 'occupied' ? (
@@ -324,30 +360,30 @@ export function UnitDetail() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-xs text-gray-600 mb-1">Monthly Rent</p>
-              <p className="text-2xl font-bold text-gray-900">${stats.monthlyRent.toLocaleString()}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">${stats.monthlyRent.toLocaleString()}</p>
             </div>
             {isLandProperty ? (
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-xs text-gray-600 mb-1">Property Type</p>
-                <p className="text-2xl font-bold text-gray-900">Land</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">Land</p>
               </div>
             ) : (
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-xs text-gray-600 mb-1">Size</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">
                   {unit.bedrooms} bed · {unit.bathrooms} bath
                 </p>
               </div>
             )}
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-xs text-gray-600 mb-1">{isLandProperty ? 'Lot Size' : 'Square Feet'}</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">
                 {unit.square_feet ? `${unit.square_feet.toLocaleString()}${isLandProperty ? ' sq ft' : ''}` : '—'}
               </p>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-xs text-gray-600 mb-1">Tenants</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.tenantCount}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.tenantCount}</p>
             </div>
           </div>
         </div>
@@ -364,6 +400,43 @@ export function UnitDetail() {
                   <p>{stats.maintenanceRequests} open maintenance request{stats.maintenanceRequests > 1 ? 's' : ''}</p>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Public Page Visibility - Only show when property uses custom display mode */}
+        {property?.public_unit_display_mode === 'custom' && (
+          <div className={`rounded-xl p-6 border ${
+            publicPageEnabled ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+          }`}>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  publicPageEnabled ? 'bg-green-100' : 'bg-gray-200'
+                }`}>
+                  <Eye className={`w-6 h-6 ${
+                    publicPageEnabled ? 'text-green-600' : 'text-gray-500'
+                  }`} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Public Page Visibility</h3>
+                  <p className="text-sm text-gray-600">
+                    {publicPageEnabled
+                      ? 'This unit is visible on the property\'s public page'
+                      : 'This unit is hidden from the property\'s public page'}
+                  </p>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={publicPageEnabled}
+                  onChange={(e) => handleTogglePublicVisibility(e.target.checked)}
+                  disabled={isSavingPublicSetting}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+              </label>
             </div>
           </div>
         )}
@@ -419,9 +492,9 @@ export function UnitDetail() {
                   </button>
                 ) : (
                   <div className="flex items-center gap-2">
-                    {stats.hasActiveListing && listing && (
+                    {stats.hasActiveListing && listing && businessSlug && property?.public_page_slug && (
                       <a
-                        href={`/browse/${listing.slug}`}
+                        href={`/browse/${businessSlug}/${property.public_page_slug}/${unitId}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
@@ -431,11 +504,11 @@ export function UnitDetail() {
                       </a>
                     )}
                     <button
-                      onClick={() => navigate(`/unit/${unitId}/listing`)}
+                      onClick={() => navigate(`/applications?unitId=${unitId}`)}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
                     >
-                      <Settings size={16} />
-                      Edit Listing
+                      <Edit2 size={16} />
+                      Manage Listing
                     </button>
                   </div>
                 )}
@@ -446,8 +519,8 @@ export function UnitDetail() {
 
         {/* Current Tenants */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">
               {stats.leaseStatus === 'occupied' ? 'Current Tenants' : 'Tenants'}
             </h2>
             {stats.leaseStatus === 'vacant' && (
@@ -463,7 +536,7 @@ export function UnitDetail() {
 
           {tenants.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-              <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <Users className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No Tenants</h3>
               <p className="text-gray-600 mb-6">This unit is currently vacant</p>
               <button
@@ -479,7 +552,7 @@ export function UnitDetail() {
               {tenants.map((tenant) => (
                 <button
                   key={tenant.id}
-                  onClick={() => navigate(`/tenant/${tenant.id}`)}
+                  onClick={() => navigate(`/tenants?tenantId=${tenant.id}`)}
                   className="group bg-white rounded-xl shadow-sm hover:shadow-md transition border border-gray-100 hover:border-blue-200 p-6 text-left"
                 >
                   <div className="flex items-start justify-between gap-4">
@@ -508,10 +581,10 @@ export function UnitDetail() {
         {/* Quick Actions */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <button
-            onClick={() => navigate(`/unit/${unitId}/payments`)}
+            onClick={() => navigate(`/payments?unitId=${unitId}`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-green-200"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
               <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition">
                 <DollarSign className="w-6 h-6 text-green-600" />
               </div>
@@ -522,10 +595,10 @@ export function UnitDetail() {
           </button>
 
           <button
-            onClick={() => navigate(`/unit/${unitId}/maintenance`)}
+            onClick={() => navigate(`/maintenance?unitId=${unitId}`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-amber-200"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
               <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition">
                 <Wrench className="w-6 h-6 text-amber-600" />
               </div>
@@ -536,10 +609,10 @@ export function UnitDetail() {
           </button>
 
           <button
-            onClick={() => navigate(`/unit/${unitId}/lease`)}
+            onClick={() => navigate(`/agreements?unitId=${unitId}`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-blue-200"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
               <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition">
                 <Calendar className="w-6 h-6 text-blue-600" />
               </div>
@@ -550,25 +623,25 @@ export function UnitDetail() {
           </button>
 
           <button
-            onClick={() => navigate(`/unit/${unitId}/documents`)}
+            onClick={() => navigate(`/agreements?unitId=${unitId}`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-gray-200"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
               <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-gray-200 transition">
                 <FileText className="w-6 h-6 text-gray-600" />
               </div>
               <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition" />
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">Documents</h3>
-            <p className="text-sm text-gray-600">Files & records</p>
+            <p className="text-sm text-gray-600">Agreements & files</p>
           </button>
 
           {stats.hasActiveListing && (
             <button
-              onClick={() => navigate(`/unit/${unitId}/applications`)}
+              onClick={() => navigate(`/applications?unitId=${unitId}`)}
               className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-purple-200"
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
                 <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition">
                   <FileText className="w-6 h-6 text-purple-600" />
                 </div>
@@ -756,7 +829,7 @@ export function UnitDetail() {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Unit</h3>
             <p className="text-gray-600 mb-4">
               Are you sure you want to delete unit <strong>{unit?.unit_number}</strong>?

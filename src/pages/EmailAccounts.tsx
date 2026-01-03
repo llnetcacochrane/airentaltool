@@ -437,7 +437,7 @@ export function EmailAccounts() {
       <div className="bg-white rounded-lg shadow">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Email Accounts</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Email Accounts</h2>
             <p className="text-sm text-gray-600 mt-1">{accounts.length} accounts</p>
           </div>
           <button

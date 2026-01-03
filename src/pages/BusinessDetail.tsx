@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { businessService } from '../services/businessService';
 import { propertyService } from '../services/propertyService';
 import { Breadcrumbs } from '../components/Breadcrumbs';
-import { Business } from '../types';
+import { PropertyForm } from '../components/PropertyForm';
+import { Business, Property } from '../types';
 import {
   ArrowLeft, Home, FileText, Wrench, DollarSign, ChevronRight,
   Users, Calendar, TrendingUp, Settings, AlertCircle, Plus, Globe, ExternalLink
@@ -25,6 +26,9 @@ export function BusinessDetail() {
     expiringLeases: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [showAddProperty, setShowAddProperty] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     loadBusinessData();
@@ -53,6 +57,26 @@ export function BusinessDetail() {
       console.error('Failed to load business data:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAddProperty = async (data: Partial<Property>) => {
+    if (!businessId) return;
+    setIsSubmitting(true);
+    setError('');
+    try {
+      await propertyService.createProperty(businessId, data);
+      await loadBusinessData();
+      setShowAddProperty(false);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to add property';
+      if (errorMsg.includes('LIMIT_REACHED')) {
+        setError('You have reached the property limit for your package. Please upgrade to add more properties.');
+      } else {
+        setError(errorMsg);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -88,7 +112,7 @@ export function BusinessDetail() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600">Business not found</p>
         </div>
       </div>
@@ -114,7 +138,7 @@ export function BusinessDetail() {
                 ]}
                 className="mb-2"
               />
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{business.business_name}</h1>
+              <h1 className="text-2xl sm:text-2xl sm:text-3xl font-bold text-gray-900">{business.business_name}</h1>
             </div>
             <button
               onClick={() => navigate(`/business/${businessId}/settings`)}
@@ -128,21 +152,21 @@ export function BusinessDetail() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-xs text-gray-600 mb-1">Properties</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalProperties}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.totalProperties}</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-xs text-gray-600 mb-1">Units</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">
                 {stats.occupiedUnits}/{stats.totalUnits}
               </p>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-xs text-gray-600 mb-1">Tenants</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalTenants}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.totalTenants}</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-xs text-gray-600 mb-1">Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">${stats.monthlyRevenue.toLocaleString()}</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">${stats.monthlyRevenue.toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -230,10 +254,10 @@ export function BusinessDetail() {
         </div>
 
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Properties</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Properties</h2>
             <button
-              onClick={() => navigate(`/business/${businessId}/properties/new`)}
+              onClick={() => setShowAddProperty(true)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
             >
               <Plus size={18} />
@@ -243,11 +267,11 @@ export function BusinessDetail() {
 
           {properties.length === 0 ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-              <Home className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <Home className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No Properties Yet</h3>
               <p className="text-gray-600 mb-6">Add your first property to this business</p>
               <button
-                onClick={() => navigate(`/properties`, { state: { showAddProperty: true, businessId: businessId } })}
+                onClick={() => setShowAddProperty(true)}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
               >
                 <Plus size={20} />
@@ -296,7 +320,7 @@ export function BusinessDetail() {
             onClick={() => navigate(`/agreements`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-blue-200"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
               <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition">
                 <FileText className="w-6 h-6 text-blue-600" />
               </div>
@@ -310,7 +334,7 @@ export function BusinessDetail() {
             onClick={() => navigate(`/maintenance`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-amber-200"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
               <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition">
                 <Wrench className="w-6 h-6 text-amber-600" />
               </div>
@@ -324,7 +348,7 @@ export function BusinessDetail() {
             onClick={() => navigate(`/payments`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-green-200"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
               <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition">
                 <DollarSign className="w-6 h-6 text-green-600" />
               </div>
@@ -338,7 +362,7 @@ export function BusinessDetail() {
             onClick={() => navigate(`/tenants`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-purple-200"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
               <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition">
                 <Users className="w-6 h-6 text-purple-600" />
               </div>
@@ -352,7 +376,7 @@ export function BusinessDetail() {
             onClick={() => navigate(`/applications`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-amber-200"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
               <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition">
                 <Calendar className="w-6 h-6 text-amber-600" />
               </div>
@@ -366,7 +390,7 @@ export function BusinessDetail() {
             onClick={() => navigate(`/reports`)}
             className="group bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 text-left border border-gray-100 hover:border-blue-200"
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
               <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition">
                 <TrendingUp className="w-6 h-6 text-blue-600" />
               </div>
@@ -377,6 +401,19 @@ export function BusinessDetail() {
           </button>
         </div>
       </div>
+
+      {/* Add Property Modal */}
+      {showAddProperty && (
+        <PropertyForm
+          onSubmit={handleAddProperty}
+          onCancel={() => {
+            setShowAddProperty(false);
+            setError('');
+          }}
+          isSubmitting={isSubmitting}
+          error={error}
+        />
+      )}
     </div>
   );
 }

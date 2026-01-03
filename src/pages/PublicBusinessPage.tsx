@@ -247,8 +247,8 @@ export function PublicBusinessPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Not Found</h1>
+          <Building2 className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Not Found</h1>
           <p className="text-gray-600 mb-6">{error || 'This page is not available'}</p>
           <button
             onClick={() => navigate('/')}
@@ -285,7 +285,7 @@ export function PublicBusinessPage() {
       {/* Business Header */}
       <div className={`bg-white border-b border-gray-200 ${business.public_page_header_image_url ? '-mt-32 relative z-10' : ''}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-start gap-6">
+          <div className="flex items-start gap-4 sm:gap-6">
             {business.public_page_logo_url && (
               <img
                 src={business.public_page_logo_url}
@@ -361,7 +361,7 @@ export function PublicBusinessPage() {
               </button>
 
               <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                   {signupMode === 'signup' ? 'Create an Account' : 'Welcome Back'}
                 </h2>
                 <p className="text-gray-600 mt-1">
@@ -543,7 +543,7 @@ export function PublicBusinessPage() {
             {business.public_page_custom_content.sections.map((section: any, index: number) => (
               <div key={index} className="mb-6 last:mb-0">
                 {section.title && (
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4">{section.title}</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">{section.title}</h2>
                 )}
                 {section.content && (
                   <div className="text-gray-600 whitespace-pre-wrap">{section.content}</div>
@@ -557,7 +557,7 @@ export function PublicBusinessPage() {
       {/* Properties List */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Available Properties</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Available Properties</h2>
           <p className="text-gray-600">
             {properties.length} {properties.length === 1 ? 'property' : 'properties'} available
           </p>
@@ -565,12 +565,12 @@ export function PublicBusinessPage() {
 
         {properties.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-            <Home className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <Home className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Properties Available</h3>
             <p className="text-gray-600">Please check back later for new listings</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {properties.map((property) => (
               <button
                 key={property.id}
@@ -593,7 +593,7 @@ export function PublicBusinessPage() {
                   </div>
                 ) : (
                   <div className="relative h-48 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                    <Home className="w-16 h-16 text-white/50" />
+                    <Home className="w-12 h-12 sm:w-16 sm:h-16 text-white/50" />
                     {property.available_units > 0 && (
                       <div className="absolute top-4 right-4 px-3 py-1 bg-green-600 text-white text-sm font-semibold rounded-full">
                         {property.available_units} Available
@@ -604,7 +604,7 @@ export function PublicBusinessPage() {
 
                 {/* Property Info */}
                 <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition">
                     {property.public_page_title || property.name}
                   </h3>
                   <div className="flex items-center gap-2 text-gray-600 mb-3">

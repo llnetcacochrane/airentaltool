@@ -103,7 +103,7 @@ export function AffiliateCommissions() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Commissions</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Commissions</h1>
           <p className="text-gray-600 mt-1">
             View your earned commissions and payment history.
           </p>
@@ -118,7 +118,7 @@ export function AffiliateCommissions() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Earned</p>
-                <p className="text-xl font-bold text-gray-900">{formatCurrency(totalEarned)}</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900">{formatCurrency(totalEarned)}</p>
               </div>
             </div>
           </div>
@@ -130,7 +130,7 @@ export function AffiliateCommissions() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Pending Balance</p>
-                <p className="text-xl font-bold text-green-600">{formatCurrency(pendingBalance)}</p>
+                <p className="text-lg sm:text-xl font-bold text-green-600">{formatCurrency(pendingBalance)}</p>
               </div>
             </div>
           </div>
@@ -142,7 +142,7 @@ export function AffiliateCommissions() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Paid Out</p>
-                <p className="text-xl font-bold text-gray-900">{formatCurrency(totalPaid)}</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900">{formatCurrency(totalPaid)}</p>
               </div>
             </div>
           </div>

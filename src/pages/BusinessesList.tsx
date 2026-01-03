@@ -4,10 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { businessService, BusinessWithStats } from '../services/businessService';
 import { supabase } from '../lib/supabase';
 import { Breadcrumbs } from '../components/Breadcrumbs';
-import { Business } from '../types';
 import {
-  Plus, Building2, ChevronRight, AlertCircle, Zap, Upload,
-  Home, Users, Wrench, DollarSign, ArrowLeft, Lock, DoorClosed
+  Building2, ChevronRight, AlertCircle, Zap, Upload,
+  Home, Users, Wrench, ArrowLeft, DoorClosed
 } from 'lucide-react';
 import { EnhancedImportWizard } from '../components/EnhancedImportWizard';
 
@@ -24,7 +23,7 @@ export function BusinessesList() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [showImportWizard, setShowImportWizard] = useState(false);
-  const { currentBusiness, userProfile } = useAuth();
+  const { userProfile } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -129,9 +128,10 @@ export function BusinessesList() {
   }
 
   const packageTier = userProfile?.selected_tier || 'free';
-  const isFree = packageTier === 'free';
-  const isBasicOrLandlord = packageTier === 'basic' || packageTier === 'landlord';
-  const canManageBusinesses = ['basic', 'landlord', 'professional', 'management-company'].includes(packageTier);
+  // Free tier = Landlord tier (same features, just with limits)
+  // Free and landlord users get 1 business, professional/management get more
+  const isLandlordTier = packageTier === 'free' || packageTier === 'basic' || packageTier === 'landlord';
+  const isPropertyManager = packageTier === 'professional' || packageTier === 'management-company' || packageTier === 'management_company';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -147,44 +147,34 @@ export function BusinessesList() {
             <div className="flex-1">
               <Breadcrumbs items={[{ label: 'Businesses' }]} className="mb-2" />
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                {isBasicOrLandlord ? 'My Business' : 'My Businesses'}
+                {isLandlordTier ? 'My Business' : 'My Businesses'}
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                {isFree ? (
-                  <span className="flex items-center gap-1">
-                    <Lock size={14} />
-                    Upgrade to a paid plan to manage business entities
-                  </span>
-                ) : (
-                  <>
-                    {businesses.length} {businesses.length === 1 ? 'business' : 'businesses'}
-                    {isBasicOrLandlord && ' (Landlord Plan: 1 business entity)'}
-                  </>
-                )}
+                {businesses.length} {businesses.length === 1 ? 'business' : 'businesses'}
+                {isLandlordTier && ' (Landlord Plan: 1 business entity)'}
               </p>
             </div>
           </div>
 
-          {!isFree && (
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setShowImportWizard(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
+            >
+              <Upload size={18} />
+              Import
+            </button>
+            {/* Landlord tier gets 1 business, Property Managers can add more */}
+            {((!isLandlordTier && isPropertyManager) || businesses.length === 0) && (
               <button
-                onClick={() => setShowImportWizard(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
+                onClick={() => navigate('/quick-start')}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
               >
-                <Upload size={18} />
-                Import
+                <Zap size={18} />
+                {businesses.length > 0 ? 'Add Another Business' : 'Property Wizard'}
               </button>
-              {(!isBasicOrLandlord || businesses.length === 0) && (
-                <button
-                  onClick={() => navigate('/quick-start')}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-                >
-                  <Zap size={18} />
-                  {businesses.length > 0 ? 'Add Another Business' : 'Property Wizard'}
-                </button>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -195,27 +185,10 @@ export function BusinessesList() {
           </div>
         )}
 
-        {isFree ? (
+        {businesses.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-blue-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Business Entities Available in Paid Plans</h3>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
-              Upgrade to the Landlord Plan or higher to organize your properties under business entities for better accounting and tax management.
-            </p>
-            <button
-              onClick={() => navigate('/settings')}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-            >
-              View Plans
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        ) : businesses.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-            <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Businesses Yet</h3>
+            <Building2 className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No Businesses Yet</h3>
             <p className="text-gray-600 mb-6 max-w-md mx-auto">
               Get started by adding your first business entity. Businesses help organize your properties.
             </p>
@@ -243,7 +216,7 @@ export function BusinessesList() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-bold text-gray-900 truncate">
+                        <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
                           {business.business_name}
                         </h3>
                         {business.is_active ? (

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { rentalApplicationService } from '../services/rentalApplicationService';
 import { fileStorageService } from '../services/fileStorageService';
@@ -11,8 +11,6 @@ import { SlidePanel } from '../components/SlidePanel';
 import {
   Users,
   TrendingUp,
-  DollarSign,
-  Calendar,
   Check,
   X,
   Eye,
@@ -20,14 +18,11 @@ import {
   AlertCircle,
   Loader,
   CheckCircle,
-  FileText,
-  Download,
 } from 'lucide-react';
 
 export function Applications() {
   const { currentBusiness } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [applications, setApplications] = useState<RentalApplication[]>([]);
   const [properties, setProperties] = useState<Record<string, Property>>({});
   const [units, setUnits] = useState<Record<string, Unit>>({});
@@ -39,6 +34,7 @@ export function Applications() {
     lease_start_date: '',
     lease_end_date: '',
     monthly_rent_cents: 0,
+    move_in_date: '',
   });
 
   // Create listing state
@@ -196,11 +192,13 @@ export function Applications() {
 
   const handleApprove = (app: RentalApplication) => {
     setSelectedApp(app);
-    // Pre-fill lease details based on listing
+    // Pre-fill lease details based on application data
+    const desiredMoveIn = app.responses.move_in_date || '';
     setLeaseDetails({
-      lease_start_date: app.responses.move_in_date || '',
+      lease_start_date: desiredMoveIn,
       lease_end_date: '',
       monthly_rent_cents: 0, // Will need to get from listing
+      move_in_date: desiredMoveIn, // Default to same as lease start
     });
     setShowModal(true);
   };
@@ -293,7 +291,7 @@ export function Applications() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader className="w-8 h-8 text-blue-600 animate-spin" />
+        <Loader className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 animate-spin" />
       </div>
     );
   }
@@ -305,41 +303,41 @@ export function Applications() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Rental Applications</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Rental Applications</h1>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Total Applications</p>
             <Users className="w-5 h-5 text-blue-600" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{applications.length}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900">{applications.length}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Pending Review</p>
             <AlertCircle className="w-5 h-5 text-yellow-600" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{pendingApps.length}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900">{pendingApps.length}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Approved</p>
             <CheckCircle className="w-5 h-5 text-green-600" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">{approvedApps.length}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900">{approvedApps.length}</p>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Avg AI Score</p>
             <TrendingUp className="w-5 h-5 text-blue-600" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-2xl sm:text-3xl font-bold text-gray-900">
             {applications.length > 0
               ? Math.round(
                   applications.filter((a) => a.ai_score).reduce((sum, a) => sum + (a.ai_score || 0), 0) /
@@ -380,7 +378,7 @@ export function Applications() {
                       {app.ai_score && (
                         <div className="text-center">
                           <p className="text-sm text-gray-600">AI Score</p>
-                          <p className={`text-2xl font-bold ${getScoreColor(app.ai_score)}`}>{app.ai_score}</p>
+                          <p className={`text-xl sm:text-2xl font-bold ${getScoreColor(app.ai_score)}`}>{app.ai_score}</p>
                         </div>
                       )}
 
@@ -536,6 +534,17 @@ export function Applications() {
                   step="0.01"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Move-in Date</label>
+                <input
+                  type="date"
+                  value={leaseDetails.move_in_date}
+                  onChange={(e) => setLeaseDetails({ ...leaseDetails, move_in_date: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">When the tenant will physically move in (can differ from lease start)</p>
+              </div>
             </div>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -554,7 +563,7 @@ export function Applications() {
 
       {pendingApps.length === 0 && applications.length > 0 && (
         <div className="bg-white rounded-lg shadow p-12 text-center">
-          <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <Users className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No Pending Applications</h3>
           <p className="text-gray-600">New applications will appear here for review</p>
         </div>

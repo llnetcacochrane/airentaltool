@@ -233,8 +233,8 @@ export function PublicUnitPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <DoorClosed className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Not Found</h1>
+          <DoorClosed className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Not Found</h1>
           <p className="text-gray-600 mb-6">{error || 'This listing is not available'}</p>
           <button
             onClick={() => navigate(`/browse/${businessSlug}/${propertySlug}`)}
@@ -322,7 +322,7 @@ export function PublicUnitPage() {
                   <p className="text-gray-600">Unit {listing.unit.unit_number}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-3xl font-bold text-blue-600">
+                  <p className="text-2xl sm:text-3xl font-bold text-blue-600">
                     ${(listing.monthly_rent_cents / 100).toLocaleString()}
                   </p>
                   <p className="text-gray-600">per month</p>
@@ -339,28 +339,28 @@ export function PublicUnitPage() {
 
             {/* Key Features */}
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Key Features</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Key Features</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
                 <div className="text-center">
-                  <Bed className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-gray-900">{listing.bedrooms}</p>
+                  <Bed className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 mx-auto mb-2" />
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{listing.bedrooms}</p>
                   <p className="text-sm text-gray-600">Bedrooms</p>
                 </div>
                 <div className="text-center">
-                  <Bath className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                  <p className="text-2xl font-bold text-gray-900">{listing.bathrooms}</p>
+                  <Bath className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 mx-auto mb-2" />
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{listing.bathrooms}</p>
                   <p className="text-sm text-gray-600">Bathrooms</p>
                 </div>
                 {listing.square_feet && (
                   <div className="text-center">
-                    <Maximize className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <p className="text-2xl font-bold text-gray-900">{listing.square_feet}</p>
+                    <Maximize className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 mx-auto mb-2" />
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900">{listing.square_feet}</p>
                     <p className="text-sm text-gray-600">Sq Ft</p>
                   </div>
                 )}
                 {listing.available_date && (
                   <div className="text-center">
-                    <Calendar className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                    <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 mx-auto mb-2" />
                     <p className="text-sm font-bold text-gray-900">
                       {new Date(listing.available_date).toLocaleDateString()}
                     </p>
@@ -373,7 +373,7 @@ export function PublicUnitPage() {
             {/* Description */}
             {listing.description && (
               <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">About This Unit</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">About This Unit</h2>
                 <p className="text-gray-600 whitespace-pre-wrap">{listing.description}</p>
               </div>
             )}
@@ -381,7 +381,7 @@ export function PublicUnitPage() {
             {/* Amenities */}
             {listing.amenities && listing.amenities.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Amenities</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Amenities</h2>
                 <div className="grid grid-cols-2 gap-3">
                   {listing.amenities.map((amenity, index) => (
                     <div key={index} className="flex items-center gap-2 text-gray-700">
@@ -396,7 +396,7 @@ export function PublicUnitPage() {
             {/* Utilities */}
             {listing.utilities_included && listing.utilities_included.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Utilities Included</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Utilities Included</h2>
                 <div className="grid grid-cols-2 gap-3">
                   {listing.utilities_included.map((utility, index) => (
                     <div key={index} className="flex items-center gap-2 text-gray-700">
@@ -411,7 +411,7 @@ export function PublicUnitPage() {
             {/* Pet Policy */}
             {listing.pets_allowed && (
               <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Pet Policy</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Pet Policy</h2>
                 <div className="flex items-start gap-3 text-gray-700">
                   <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div>
@@ -502,7 +502,7 @@ export function PublicUnitPage() {
             <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b border-gray-200 p-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-gray-900">Apply for This Unit</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Apply for This Unit</h2>
                   <button
                     onClick={() => setShowApplicationForm(false)}
                     className="text-gray-400 hover:text-gray-600 transition"

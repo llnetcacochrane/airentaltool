@@ -161,10 +161,10 @@ export function RegisterType1() {
           <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
             {/* Header */}
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                <Home className="w-8 h-8 text-blue-600" />
+              <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full mb-4">
+                <Home className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               </div>
-              <h1 className="text-3xl font-bold text-gray-900">Get Started</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Get Started</h1>
               <p className="text-gray-600 mt-2">
                 Set up your account to manage your rental property
               </p>
@@ -184,7 +184,7 @@ export function RegisterType1() {
                   <h2 className="text-lg font-semibold text-gray-900">Your Information</h2>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       First Name <span className="text-red-500">*</span>

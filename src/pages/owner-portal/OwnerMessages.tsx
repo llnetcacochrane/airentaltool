@@ -108,7 +108,7 @@ export function OwnerMessages() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+        <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 animate-spin" />
       </div>
     );
   }
@@ -117,7 +117,7 @@ export function OwnerMessages() {
     <div className="p-6 lg:p-8 h-[calc(100vh-4rem)]">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Messages</h1>
+        <h1 className="text-2xl lg:text-2xl sm:text-3xl font-bold text-gray-900">Messages</h1>
         <p className="text-gray-600 mt-1">Communicate with your property manager</p>
       </div>
 
@@ -236,7 +236,7 @@ export function OwnerMessages() {
           ) : (
             <div className="flex-1 flex items-center justify-center text-gray-500">
               <div className="text-center">
-                <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <MessageSquare className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
                 <p>Select a conversation to view messages</p>
               </div>
             </div>

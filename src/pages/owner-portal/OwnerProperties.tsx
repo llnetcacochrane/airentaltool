@@ -15,9 +15,9 @@ import {
 interface Property {
   id: string;
   name: string;
-  address: string;
+  address_line1: string;
   city: string;
-  state_province: string;
+  state: string;
   property_type: string;
   units: Unit[];
 }
@@ -131,7 +131,7 @@ export function OwnerProperties() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+        <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 animate-spin" />
       </div>
     );
   }
@@ -140,14 +140,14 @@ export function OwnerProperties() {
     <div className="p-6 lg:p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Properties</h1>
+        <h1 className="text-2xl lg:text-2xl sm:text-3xl font-bold text-gray-900">Properties</h1>
         <p className="text-gray-600 mt-1">View your property portfolio and unit details</p>
       </div>
 
       {/* Properties List */}
       {properties.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <Building2 className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No properties found</h3>
           <p className="text-gray-500">
             Properties assigned to you will appear here.
@@ -183,7 +183,7 @@ export function OwnerProperties() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-4 sm:gap-6">
                     <div className="text-right hidden md:block">
                       <p className="text-sm text-gray-500">Type</p>
                       <p className="font-medium text-gray-900">{getPropertyTypeLabel(property.property_type)}</p>
@@ -231,7 +231,7 @@ export function OwnerProperties() {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-4 sm:gap-6">
                               {unit.tenant_name && (
                                 <div className="flex items-center gap-2 text-sm text-gray-600">
                                   <Users size={14} />

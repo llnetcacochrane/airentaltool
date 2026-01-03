@@ -37,26 +37,26 @@ interface UsageData {
 }
 
 export function UsageLimitsWidget({ compact = false }: UsageLimitsWidgetProps) {
-  const { currentBusiness, userProfile } = useAuth();
+  const { currentBusiness, packageTier } = useAuth();
   const navigate = useNavigate();
   const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadUsageData();
-  }, [currentBusiness?.id]);
+  }, [currentBusiness?.id, packageTier]);
 
   const loadUsageData = async () => {
     if (!currentBusiness?.id) return;
 
     try {
+      // Use user-based limits, not organization-based
       const limitData = await packageTierService.checkPackageLimits(currentBusiness.id);
-      const packageSettings = await packageTierService.getEffectivePackageSettings(currentBusiness.id);
 
       setUsageData({
         current_usage: limitData.current_usage,
         limits: limitData.limits,
-        tier: packageSettings.tier,
+        tier: packageTier,
       });
     } catch (err) {
       console.error('Failed to load usage data:', err);

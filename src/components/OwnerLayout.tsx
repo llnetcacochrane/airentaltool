@@ -21,7 +21,7 @@ const navItems = [
 ];
 
 export function OwnerLayout() {
-  const { userProfile, logout } = useAuth();
+  const { userProfile, supabaseUser, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -61,7 +61,7 @@ export function OwnerLayout() {
                   <p className="font-medium text-gray-900 truncate">
                     {userProfile?.first_name || ''} {userProfile?.last_name || ''}
                   </p>
-                  <p className="text-sm text-gray-500 truncate">{userProfile?.email || 'Loading...'}</p>
+                  <p className="text-sm text-gray-500 truncate">{supabaseUser?.email || 'Loading...'}</p>
                 </div>
                 <button
                   onClick={handleLogout}
@@ -139,7 +139,7 @@ export function OwnerLayout() {
                 <p className="font-medium text-gray-900 truncate">
                   {userProfile?.first_name || ''} {userProfile?.last_name || ''}
                 </p>
-                <p className="text-sm text-gray-500 truncate">{userProfile?.email || 'Loading...'}</p>
+                <p className="text-sm text-gray-500 truncate">{supabaseUser?.email || 'Loading...'}</p>
               </div>
             </div>
             <button

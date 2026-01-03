@@ -131,8 +131,8 @@ export function AffiliateApplication() {
         <PublicHeader />
         <div className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4 py-12">
           <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-green-500 mx-auto mb-4" />
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
               You're Already an Affiliate!
             </h1>
             <p className="text-gray-600 mb-6">
@@ -140,7 +140,7 @@ export function AffiliateApplication() {
             </p>
             <Link
               to="/affiliate-portal"
-              className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
             >
               Go to Affiliate Portal
               <ArrowRight className="w-4 h-4" />
@@ -159,8 +159,8 @@ export function AffiliateApplication() {
         <PublicHeader />
         <div className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4 py-12">
           <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 text-green-500 mx-auto mb-4" />
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
               Application Submitted!
             </h1>
             <p className="text-gray-600 mb-6">
@@ -168,7 +168,7 @@ export function AffiliateApplication() {
             </p>
             <Link
               to="/dashboard"
-              className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
             >
               Return to Dashboard
               <ArrowRight className="w-4 h-4" />
@@ -187,8 +187,8 @@ export function AffiliateApplication() {
         <PublicHeader />
         <div className="flex-1 bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4 py-12">
           <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-            <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 text-yellow-500 mx-auto mb-4" />
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
               Program Currently Closed
             </h1>
             <p className="text-gray-600 mb-6">
@@ -196,7 +196,7 @@ export function AffiliateApplication() {
             </p>
             <Link
               to="/"
-              className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+              className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
             >
               Return Home
               <ArrowRight className="w-4 h-4" />
@@ -222,7 +222,7 @@ export function AffiliateApplication() {
             Earn {settings ? formatPercentage(settings.commission_percentage) : '20%'} commission for every customer you refer.
             {settings?.commission_type === 'recurring' && ' Recurring commissions on monthly subscriptions!'}
           </p>
-          <div className="flex flex-wrap justify-center gap-6">
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
             <div className="flex items-center gap-2">
               <DollarSign className="w-5 h-5" />
               <span>{settings ? formatPercentage(settings.commission_percentage) : '20%'} Commission</span>
@@ -242,10 +242,10 @@ export function AffiliateApplication() {
       {/* Benefits Section */}
       <section className="py-12 px-4 bg-white">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-center text-gray-900 mb-8">
             Why Partner With Us?
           </h2>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
             <div className="text-center p-6">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <TrendingUp className="w-6 h-6 text-blue-600" />
@@ -285,7 +285,7 @@ export function AffiliateApplication() {
       <section className="py-12 px-4 bg-gray-50">
         <div className="max-w-xl mx-auto">
           <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-6 text-center">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-6 text-center">
               Apply to Become an Affiliate
             </h2>
 

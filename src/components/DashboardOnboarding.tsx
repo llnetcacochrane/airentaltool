@@ -15,13 +15,13 @@ interface OnboardingStep {
 
 export function DashboardOnboarding() {
   const navigate = useNavigate();
-  const { user, businesses, packageType, isPropertyManager } = useAuth();
+  const { supabaseUser, businesses, packageType, isPropertyManager } = useAuth();
   const [dismissed, setDismissed] = useState(false);
   const [steps, setSteps] = useState<OnboardingStep[]>([]);
 
   useEffect(() => {
     // Check if user has dismissed onboarding
-    const dismissedOnboarding = localStorage.getItem(`onboarding_dismissed_${user?.id}`);
+    const dismissedOnboarding = localStorage.getItem(`onboarding_dismissed_${supabaseUser?.id}`);
     if (dismissedOnboarding) {
       setDismissed(true);
       return;
@@ -64,11 +64,11 @@ export function DashboardOnboarding() {
     } else {
       setDismissed(true);
     }
-  }, [user, businesses, isPropertyManager]);
+  }, [supabaseUser, businesses, isPropertyManager]);
 
   const handleDismiss = () => {
-    if (user?.id) {
-      localStorage.setItem(`onboarding_dismissed_${user.id}`, 'true');
+    if (supabaseUser?.id) {
+      localStorage.setItem(`onboarding_dismissed_${supabaseUser.id}`, 'true');
     }
     setDismissed(true);
   };

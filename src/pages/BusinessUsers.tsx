@@ -270,7 +270,7 @@ export function BusinessUsers() {
                 <Users className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Business Users</h1>
+                <h1 className="text-2xl sm:text-2xl sm:text-3xl font-bold text-gray-900">Business Users</h1>
                 <p className="text-gray-600">Manage users who have signed up for your business</p>
               </div>
             </div>
@@ -278,7 +278,7 @@ export function BusinessUsers() {
         </div>
         <div className="px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-white rounded-lg shadow p-8 text-center">
-            <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Business Selected</h3>
             <p className="text-gray-600">Please select a business to manage its users.</p>
           </div>
@@ -298,7 +298,7 @@ export function BusinessUsers() {
                 <Users className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Business Users</h1>
+                <h1 className="text-2xl sm:text-2xl sm:text-3xl font-bold text-gray-900">Business Users</h1>
                 <p className="text-gray-600">Manage users for {currentBusiness.business_name}</p>
               </div>
             </div>
@@ -338,45 +338,45 @@ export function BusinessUsers() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center gap-3">
-              <Users className="w-8 h-8 text-blue-600" />
+              <Users className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.total_users}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total_users}</p>
                 <p className="text-sm text-gray-600">Total Users</p>
               </div>
             </div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center gap-3">
-              <Clock className="w-8 h-8 text-yellow-600" />
+              <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-600" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.pending_users}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.pending_users}</p>
                 <p className="text-sm text-gray-600">Pending</p>
               </div>
             </div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center gap-3">
-              <Check className="w-8 h-8 text-green-600" />
+              <Check className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.active_users}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.active_users}</p>
                 <p className="text-sm text-gray-600">Active</p>
               </div>
             </div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center gap-3">
-              <Home className="w-8 h-8 text-purple-600" />
+              <Home className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.tenants}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.tenants}</p>
                 <p className="text-sm text-gray-600">Tenants</p>
               </div>
             </div>
           </div>
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center gap-3">
-              <MessageSquare className="w-8 h-8 text-orange-600" />
+              <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" />
               <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.unread_messages}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.unread_messages}</p>
                 <p className="text-sm text-gray-600">Unread Messages</p>
               </div>
             </div>
@@ -430,7 +430,7 @@ export function BusinessUsers() {
           </div>
         ) : filteredUsers.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-8 text-center">
-            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <Users className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Users Found</h3>
             <p className="text-gray-600 mb-4">
               {users.length === 0

@@ -104,13 +104,13 @@ export function Maintenance() {
   return (
     <div className="flex-1 overflow-auto">
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Maintenance</h1>
-              <p className="text-gray-600 mt-1">Manage property maintenance requests</p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Maintenance</h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">Manage property maintenance requests</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto flex-shrink-0">
               <ExportButton
                 onExport={(format: ExportFormat) => exportMaintenanceRequests(filteredRequests, format)}
                 disabled={filteredRequests.length === 0}
@@ -119,10 +119,11 @@ export function Maintenance() {
               />
               <button
                 onClick={() => setShowForm(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex-1 sm:flex-initial whitespace-nowrap"
               >
-                <Plus size={20} />
-                New Request
+                <Plus size={20} className="flex-shrink-0" />
+                <span className="hidden sm:inline">New Request</span>
+                <span className="sm:hidden">New</span>
               </button>
             </div>
           </div>

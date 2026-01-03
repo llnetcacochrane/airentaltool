@@ -151,48 +151,48 @@ export function EmailDiagnostics() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center gap-3">
-                <Activity className="w-8 h-8 text-blue-600" />
+                <Activity className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
                 <div>
                   <p className="text-sm text-gray-600">Total Tests (7d)</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total_tests}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total_tests}</p>
                 </div>
               </div>
             </div>
             <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center gap-3">
-                <Check className="w-8 h-8 text-green-600" />
+                <Check className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
                 <div>
                   <p className="text-sm text-gray-600">Successful</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.successful_tests}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.successful_tests}</p>
                 </div>
               </div>
             </div>
             <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center gap-3">
-                <X className="w-8 h-8 text-red-600" />
+                <X className="w-6 h-6 sm:w-8 sm:h-8 text-red-600" />
                 <div>
                   <p className="text-sm text-gray-600">Failed</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.failed_tests}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.failed_tests}</p>
                 </div>
               </div>
             </div>
             <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center gap-3">
-                <Clock className="w-8 h-8 text-purple-600" />
+                <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" />
                 <div>
                   <p className="text-sm text-gray-600">Avg Response</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.average_response_time}ms</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.average_response_time}ms</p>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Current Configuration</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Current Configuration</h2>
                 <button
                   onClick={() => setShowConfigForm(!showConfigForm)}
                   className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
@@ -415,7 +415,7 @@ export function EmailDiagnostics() {
 
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Test Email Delivery</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Test Email Delivery</h2>
             </div>
             <div className="p-6">
               {config ? (
@@ -479,7 +479,7 @@ export function EmailDiagnostics() {
 
         <div className="mt-6 bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-bold text-gray-900">Recent Test History</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Recent Test History</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -516,7 +516,7 @@ export function EmailDiagnostics() {
             </table>
             {logs.length === 0 && (
               <div className="text-center py-12">
-                <Mail className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <Mail className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-600">No test history yet. Send a test email to get started.</p>
               </div>
             )}

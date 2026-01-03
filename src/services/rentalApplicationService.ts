@@ -227,6 +227,7 @@ export const rentalApplicationService = {
       monthly_rent_cents: number;
       security_deposit_cents?: number;
       payment_due_day?: number;
+      move_in_date?: string;
     },
     agreementOptions?: {
       sendAgreement: boolean; // true = auto-send, false = create draft for manual review
@@ -246,6 +247,19 @@ export const rentalApplicationService = {
       });
 
     if (convertError) throw convertError;
+
+    // Update move_in_date if provided
+    if (leaseDetails.move_in_date && tenantId) {
+      const { error: updateError } = await supabase
+        .from('tenants')
+        .update({ move_in_date: leaseDetails.move_in_date })
+        .eq('id', tenantId);
+
+      if (updateError) {
+        console.error('Failed to set move_in_date:', updateError);
+        // Don't throw - tenant was created successfully
+      }
+    }
 
     // Get application details for invitation
     const application = await this.getApplication(applicationId);

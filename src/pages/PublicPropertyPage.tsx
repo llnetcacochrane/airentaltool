@@ -22,6 +22,7 @@ interface PublicProperty {
   public_page_photos: string[];
   public_page_amenities: string[];
   public_page_custom_content: any;
+  public_unit_display_mode: 'all' | 'vacant' | 'custom';
   business: {
     business_name: string;
     public_page_slug: string;
@@ -46,6 +47,8 @@ interface PublicListing {
   pets_allowed: boolean;
   unit: {
     unit_number: string;
+    occupancy_status: string;
+    public_page_enabled: boolean;
   };
 }
 
@@ -98,7 +101,7 @@ export function PublicPropertyPage() {
         .from('listings')
         .select(`
           *,
-          unit:units!inner(unit_number)
+          unit:units!inner(unit_number, occupancy_status, public_page_enabled)
         `)
         .eq('property_id', propertyData.id)
         .eq('status', 'active')
@@ -106,7 +109,24 @@ export function PublicPropertyPage() {
 
       if (listingsError) throw listingsError;
 
-      setListings(listingsData || []);
+      // Filter listings based on public_unit_display_mode
+      const displayMode = propertyData.public_unit_display_mode || 'all';
+      let filteredListings = listingsData || [];
+
+      if (displayMode === 'vacant') {
+        // Only show listings for vacant units
+        filteredListings = filteredListings.filter(
+          listing => listing.unit?.occupancy_status === 'vacant'
+        );
+      } else if (displayMode === 'custom') {
+        // Only show listings for units with public_page_enabled
+        filteredListings = filteredListings.filter(
+          listing => listing.unit?.public_page_enabled === true
+        );
+      }
+      // 'all' mode shows all active listings
+
+      setListings(filteredListings);
     } catch (err) {
       console.error('Failed to load public property data:', err);
       setError('Failed to load property information');
@@ -130,8 +150,8 @@ export function PublicPropertyPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Home className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Not Found</h1>
+          <Home className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Not Found</h1>
           <p className="text-gray-600 mb-6">{error || 'This page is not available'}</p>
           <button
             onClick={() => navigate(`/browse/${businessSlug}`)}
@@ -225,7 +245,7 @@ export function PublicPropertyPage() {
       {property.public_page_amenities && property.public_page_amenities.length > 0 && (
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Property Amenities</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">Property Amenities</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {property.public_page_amenities.map((amenity, index) => (
                 <div key={index} className="flex items-center gap-2 text-gray-700">
@@ -245,7 +265,7 @@ export function PublicPropertyPage() {
             {property.public_page_custom_content.sections.map((section: any, index: number) => (
               <div key={index} className="mb-6 last:mb-0">
                 {section.title && (
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4">{section.title}</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">{section.title}</h2>
                 )}
                 {section.content && (
                   <div className="text-gray-600 whitespace-pre-wrap">{section.content}</div>
@@ -259,7 +279,7 @@ export function PublicPropertyPage() {
       {/* Available Units */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Available Units</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Available Units</h2>
           <p className="text-gray-600">
             {listings.length} {listings.length === 1 ? 'unit' : 'units'} available for rent
           </p>
@@ -267,7 +287,7 @@ export function PublicPropertyPage() {
 
         {listings.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-            <DoorClosed className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <DoorClosed className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Units Available</h3>
             <p className="text-gray-600 mb-6">All units are currently occupied. Please check back later.</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -290,7 +310,7 @@ export function PublicPropertyPage() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {listings.map((listing) => (
               <button
                 key={listing.id}
@@ -308,7 +328,7 @@ export function PublicPropertyPage() {
                   </div>
                 ) : (
                   <div className="relative h-56 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                    <DoorClosed className="w-16 h-16 text-white/50" />
+                    <DoorClosed className="w-12 h-12 sm:w-16 sm:h-16 text-white/50" />
                   </div>
                 )}
 
@@ -316,13 +336,13 @@ export function PublicPropertyPage() {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition">
+                      <h3 className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-blue-600 transition">
                         {listing.title}
                       </h3>
                       <p className="text-sm text-gray-600">Unit {listing.unit.unit_number}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-blue-600">
+                      <p className="text-xl sm:text-2xl font-bold text-blue-600">
                         ${(listing.monthly_rent_cents / 100).toLocaleString()}
                       </p>
                       <p className="text-sm text-gray-600">per month</p>
@@ -373,7 +393,7 @@ export function PublicPropertyPage() {
         <div className="bg-blue-600 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="text-center">
-              <h2 className="text-3xl font-bold mb-4">Interested in Renting?</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold mb-4">Interested in Renting?</h2>
               <p className="text-blue-100 mb-8 text-lg">
                 Contact us to schedule a viewing or learn more about our available units
               </p>

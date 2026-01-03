@@ -74,7 +74,7 @@ export function AffiliateReferrals() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Referrals</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Referrals</h1>
           <p className="text-gray-600 mt-1">
             Track your referral clicks and conversions.
           </p>
@@ -89,7 +89,7 @@ export function AffiliateReferrals() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Clicks</p>
-                <p className="text-xl font-bold text-gray-900">{totalClicks}</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900">{totalClicks}</p>
               </div>
             </div>
           </div>
@@ -101,7 +101,7 @@ export function AffiliateReferrals() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Signups</p>
-                <p className="text-xl font-bold text-gray-900">{totalSignups}</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900">{totalSignups}</p>
               </div>
             </div>
           </div>
@@ -113,7 +113,7 @@ export function AffiliateReferrals() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Paid Signups</p>
-                <p className="text-xl font-bold text-gray-900">{totalPaidSignups}</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900">{totalPaidSignups}</p>
               </div>
             </div>
           </div>
@@ -125,7 +125,7 @@ export function AffiliateReferrals() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Conversion Rate</p>
-                <p className="text-xl font-bold text-gray-900">{conversionRate}%</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900">{conversionRate}%</p>
               </div>
             </div>
           </div>

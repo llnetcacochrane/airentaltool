@@ -8,10 +8,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UsageLimitsWidget } from '../components/UsageLimitsWidget';
 import { AddressInput } from '../components/AddressInput';
 import { supabase } from '../lib/supabase';
-import { User, Building2, Users as UsersIcon, Bell, Lock, CreditCard, Palette, ArrowLeft, Globe, ExternalLink, Copy, Check, Trash2, AlertTriangle } from 'lucide-react';
+import { FeaturePreviewModal, FEATURE_CATALOG } from '../components/upsell/FeatureGate';
+import { User, Building2, Users as UsersIcon, Bell, Lock, CreditCard, Palette, ArrowLeft, Globe, ExternalLink, Copy, Check, Trash2, AlertTriangle, Crown, Sparkles } from 'lucide-react';
 
 export function Settings() {
-  const { userProfile, supabaseUser, currentBusiness, currentRole, refreshBusinesses } = useAuth();
+  const { userProfile, supabaseUser, currentBusiness, currentRole, refreshBusinesses, hasFeature } = useAuth();
   const { branding, refreshBranding } = useBranding();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -23,6 +24,7 @@ export function Settings() {
   const [showDeleteBusinessConfirm, setShowDeleteBusinessConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [showFeatureModal, setShowFeatureModal] = useState<string | null>(null);
 
   const [profileData, setProfileData] = useState({
     first_name: '',
@@ -259,75 +261,161 @@ export function Settings() {
   };
 
   const allTabs = [
-    { id: 'profile', label: 'Profile', icon: User, requiresBusiness: false },
-    { id: 'business', label: 'Business', icon: Building2, requiresBusiness: true },
-    { id: 'public-page', label: 'Public Page', icon: Globe, requiresBusiness: true },
-    { id: 'branding', label: 'Branding', icon: Palette, requiresBusiness: true },
-    { id: 'team', label: 'Team Members', icon: UsersIcon, requiresBusiness: true },
-    { id: 'notifications', label: 'Notifications', icon: Bell, requiresBusiness: false },
-    { id: 'security', label: 'Security', icon: Lock, requiresBusiness: false },
-    { id: 'billing', label: 'Billing', icon: CreditCard, requiresBusiness: false },
+    { id: 'profile', label: 'Profile', icon: User, requiresBusiness: false, requiresFeature: null },
+    { id: 'business', label: 'Business', icon: Building2, requiresBusiness: true, requiresFeature: null },
+    { id: 'public-page', label: 'Public Page', icon: Globe, requiresBusiness: true, requiresFeature: null },
+    { id: 'branding', label: 'Branding', icon: Palette, requiresBusiness: true, requiresFeature: 'white_label' },
+    { id: 'team', label: 'Team Members', icon: UsersIcon, requiresBusiness: true, requiresFeature: 'multi_user' },
+    { id: 'notifications', label: 'Notifications', icon: Bell, requiresBusiness: false, requiresFeature: null },
+    { id: 'security', label: 'Security', icon: Lock, requiresBusiness: false, requiresFeature: null },
+    { id: 'billing', label: 'Billing', icon: CreditCard, requiresBusiness: false, requiresFeature: null },
   ];
 
-  const tabs = allTabs.filter(tab => !tab.requiresBusiness || currentBusiness);
+  // Show all tabs, but track which are locked for upselling
+  const tabs = allTabs.filter(tab => {
+    // Only filter out tabs that require business when no business exists
+    if (tab.requiresBusiness && !currentBusiness) return false;
+    return true;
+  });
+
+  // Check if a tab is locked (feature required but not available)
+  const isTabLocked = (tab: typeof allTabs[0]) => {
+    return tab.requiresFeature && !hasFeature(tab.requiresFeature);
+  };
+
+  // Handle tab click - show upsell modal if locked
+  const handleTabClick = (tab: typeof allTabs[0]) => {
+    if (isTabLocked(tab) && tab.requiresFeature) {
+      setShowFeatureModal(tab.requiresFeature);
+    } else {
+      setActiveTab(tab.id);
+    }
+  };
 
   return (
     <div className="flex-1 overflow-auto">
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <div className="flex items-center gap-4 mb-4">
             <button
               onClick={() => navigate('/dashboard')}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition"
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition text-sm sm:text-base"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={18} className="sm:hidden" />
+              <ArrowLeft size={20} className="hidden sm:block" />
               <span>Back to Dashboard</span>
             </button>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600 mt-1">Manage your account and business preferences</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Settings</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your account and business preferences</p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex gap-6">
-          <div className="w-64 flex-shrink-0">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Mobile tab selector */}
+          <div className="lg:hidden space-y-2">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const locked = isTabLocked(tab);
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabClick(tab)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg font-medium transition ${
+                    locked
+                      ? 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-amber-700'
+                      : activeTab === tab.id
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon size={20} />
+                    {tab.label}
+                  </div>
+                  {locked && (
+                    <div className="flex items-center gap-1 text-xs bg-amber-100 px-2 py-0.5 rounded-full">
+                      <Crown size={12} />
+                      Upgrade
+                    </div>
+                  )}
+                  {!locked && activeTab === tab.id && (
+                    <Check size={18} className="text-blue-600" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Desktop tab navigation */}
+          <div className="hidden lg:block lg:w-64 flex-shrink-0">
             <nav className="space-y-1">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
+                const locked = isTabLocked(tab);
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${
-                      activeTab === tab.id
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-700 hover:bg-gray-50'
+                    onClick={() => handleTabClick(tab)}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition ${
+                      locked
+                        ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 hover:from-amber-100 hover:to-orange-100 border border-amber-200'
+                        : activeTab === tab.id
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    <Icon size={20} />
-                    {tab.label}
+                    <div className="flex items-center gap-3">
+                      <Icon size={20} />
+                      {tab.label}
+                    </div>
+                    {locked && (
+                      <div className="flex items-center gap-1 text-xs bg-amber-100 px-2 py-0.5 rounded-full">
+                        <Crown size={12} />
+                        <span className="hidden xl:inline">Upgrade</span>
+                      </div>
+                    )}
                   </button>
                 );
               })}
             </nav>
+
+            {/* Upsell banner in sidebar */}
+            {tabs.some(t => isTabLocked(t)) && (
+              <div className="mt-6 p-4 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl text-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles size={18} />
+                  <span className="font-semibold text-sm">Unlock All Features</span>
+                </div>
+                <p className="text-xs text-blue-100 mb-3">
+                  Upgrade to access white-label branding, team management, and more.
+                </p>
+                <button
+                  onClick={() => navigate('/pricing')}
+                  className="w-full px-3 py-2 bg-white text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-50 transition"
+                >
+                  View Plans
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {activeTab === 'profile' && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Personal Information</h2>
+              <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Personal Information</h2>
 
                 {message && (
-                  <div className={`mb-4 p-4 rounded-lg ${
+                  <div className={`mb-4 p-3 sm:p-4 rounded-lg text-sm sm:text-base ${
                     message.includes('success') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
                   }`}>
                     {message}
                   </div>
                 )}
 
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         First Name
@@ -370,7 +458,7 @@ export function Settings() {
                     <button
                       onClick={handleSaveProfile}
                       disabled={isSaving}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                      className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
                     >
                       {isSaving ? 'Saving...' : 'Save Changes'}
                     </button>
@@ -380,19 +468,19 @@ export function Settings() {
             )}
 
             {activeTab === 'business' && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Business Details</h2>
+              <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Business Details</h2>
 
                 {message && (
-                  <div className={`mb-4 p-4 rounded-lg ${
+                  <div className={`mb-4 p-3 sm:p-4 rounded-lg text-sm sm:text-base ${
                     message.includes('success') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
                   }`}>
                     {message}
                   </div>
                 )}
 
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Business Name <span className="text-red-500">*</span>
@@ -589,7 +677,7 @@ export function Settings() {
                     <button
                       onClick={handleSaveBusiness}
                       disabled={isSaving}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                      className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
                     >
                       {isSaving ? 'Saving...' : 'Save Business'}
                     </button>
@@ -597,7 +685,7 @@ export function Settings() {
                 </div>
 
                 {/* Danger Zone */}
-                <div className="mt-8 border border-red-200 rounded-lg p-6">
+                <div className="mt-6 sm:mt-8 border border-red-200 rounded-lg p-4 sm:p-6">
                   <h3 className="text-lg font-semibold text-red-700 mb-2 flex items-center gap-2">
                     <AlertTriangle size={20} />
                     Danger Zone
@@ -617,19 +705,19 @@ export function Settings() {
             )}
 
             {activeTab === 'branding' && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">White Label Branding</h2>
-                <p className="text-gray-600 mb-6">Customize the application appearance for your business</p>
+              <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">White Label Branding</h2>
+                <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">Customize the application appearance for your business</p>
 
                 {message && (
-                  <div className={`mb-4 p-4 rounded-lg ${
+                  <div className={`mb-4 p-3 sm:p-4 rounded-lg text-sm sm:text-base ${
                     message.includes('success') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
                   }`}>
                     {message}
                   </div>
                 )}
 
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
                       <p className="font-semibold text-gray-900">Enable White Label Branding</p>
@@ -735,7 +823,7 @@ export function Settings() {
                     <button
                       onClick={handleSaveBranding}
                       disabled={isSaving}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                      className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
                     >
                       {isSaving ? 'Saving...' : 'Save Branding'}
                     </button>
@@ -745,19 +833,19 @@ export function Settings() {
             )}
 
             {activeTab === 'public-page' && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Public Business Page</h2>
-                <p className="text-gray-600 mb-6">Configure your public-facing business page where prospects can browse available properties and apply for rentals.</p>
+              <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Public Business Page</h2>
+                <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">Configure your public-facing business page where prospects can browse available properties and apply for rentals.</p>
 
                 {message && (
-                  <div className={`mb-4 p-4 rounded-lg ${
+                  <div className={`mb-4 p-3 sm:p-4 rounded-lg text-sm sm:text-base ${
                     message.includes('success') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
                   }`}>
                     {message}
                   </div>
                 )}
 
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   {/* Enable Public Page Toggle */}
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div>
@@ -930,7 +1018,7 @@ export function Settings() {
                     <button
                       onClick={handleSavePublicPage}
                       disabled={isSaving}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                      className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
                     >
                       {isSaving ? 'Saving...' : 'Save Public Page Settings'}
                     </button>
@@ -940,8 +1028,8 @@ export function Settings() {
             )}
 
             {activeTab === 'team' && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Team Members</h2>
+              <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Team Members</h2>
                 <div className="text-center py-12 text-gray-500">
                   <UsersIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <p>Team management coming soon</p>
@@ -951,8 +1039,8 @@ export function Settings() {
             )}
 
             {activeTab === 'notifications' && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Notification Preferences</h2>
+              <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Notification Preferences</h2>
 
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
@@ -992,8 +1080,8 @@ export function Settings() {
             )}
 
             {activeTab === 'security' && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Security Settings</h2>
+              <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Security Settings</h2>
 
                 <div className="space-y-6">
                   <div>
@@ -1047,8 +1135,8 @@ export function Settings() {
               <div className="space-y-6">
                 <UsageLimitsWidget />
 
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">Payment Method</h2>
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Payment Method</h2>
                   <div className="p-4 border border-gray-200 rounded-lg">
                     <p className="text-gray-600 text-sm">No payment method on file</p>
                     <button className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">
@@ -1057,8 +1145,8 @@ export function Settings() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">Billing History</h2>
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6">Billing History</h2>
                   <div className="text-center py-8 text-gray-500">
                     <p className="text-sm">No billing history yet</p>
                   </div>
@@ -1071,8 +1159,8 @@ export function Settings() {
 
       {/* Delete Business Confirmation Modal */}
       {showDeleteBusinessConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full">
             <h3 className="text-lg font-semibold text-red-700 mb-2 flex items-center gap-2">
               <AlertTriangle size={20} />
               Delete Business
@@ -1111,6 +1199,15 @@ export function Settings() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Feature Upgrade Modal */}
+      {showFeatureModal && (
+        <FeaturePreviewModal
+          isOpen={true}
+          onClose={() => setShowFeatureModal(null)}
+          featureKey={showFeatureModal}
+        />
       )}
     </div>
   );

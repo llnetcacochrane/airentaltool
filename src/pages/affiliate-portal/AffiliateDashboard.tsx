@@ -85,7 +85,7 @@ export function AffiliateDashboard() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Affiliate Dashboard</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Affiliate Dashboard</h1>
           <p className="text-gray-600 mt-1">
             Track your referrals, commissions, and earnings.
           </p>
@@ -118,7 +118,7 @@ export function AffiliateDashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -126,7 +126,7 @@ export function AffiliateDashboard() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Clicks</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.total_clicks || 0}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats?.total_clicks || 0}</p>
               </div>
             </div>
             <p className="text-xs text-gray-500 mt-3">
@@ -141,7 +141,7 @@ export function AffiliateDashboard() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Signups</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.total_signups || 0}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats?.total_signups || 0}</p>
               </div>
             </div>
             <p className="text-xs text-gray-500 mt-3">
@@ -156,7 +156,7 @@ export function AffiliateDashboard() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Conversion Rate</p>
-                <p className="text-2xl font-bold text-gray-900">{stats?.conversion_rate || 0}%</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats?.conversion_rate || 0}%</p>
               </div>
             </div>
             <p className="text-xs text-gray-500 mt-3">
@@ -171,7 +171,7 @@ export function AffiliateDashboard() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Earned</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">
                   {formatCurrency(stats?.total_commission_earned_cents || 0)}
                 </p>
               </div>
@@ -189,13 +189,13 @@ export function AffiliateDashboard() {
               <h3 className="text-lg font-semibold text-gray-900">Your Balance</h3>
               <div className="flex items-baseline gap-4 mt-2">
                 <div>
-                  <p className="text-3xl font-bold text-green-600">
+                  <p className="text-2xl sm:text-3xl font-bold text-green-600">
                     {formatCurrency(stats?.pending_commission_cents || 0)}
                   </p>
                   <p className="text-sm text-gray-500">Pending balance</p>
                 </div>
                 <div className="border-l pl-4">
-                  <p className="text-xl font-semibold text-gray-700">
+                  <p className="text-lg sm:text-xl font-semibold text-gray-700">
                     {formatCurrency(stats?.total_commission_paid_cents || 0)}
                   </p>
                   <p className="text-sm text-gray-500">Total paid out</p>
@@ -205,7 +205,7 @@ export function AffiliateDashboard() {
             {stats && settings && stats.pending_commission_cents >= settings.minimum_payout_cents && (
               <Link
                 to="/affiliate-portal/payouts"
-                className="inline-flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition"
+                className="inline-flex items-center gap-2 bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-green-700 transition"
               >
                 Request Payout
                 <CreditCard className="w-4 h-4" />
@@ -220,7 +220,7 @@ export function AffiliateDashboard() {
         </div>
 
         {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Recent Referrals */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100">
             <div className="flex items-center justify-between p-6 border-b border-gray-100">

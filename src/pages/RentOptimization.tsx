@@ -59,38 +59,38 @@ export function RentOptimization() {
   return (
     <div className="flex-1 overflow-auto">
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 border-b border-blue-800 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-white">AI Rent Optimization</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold text-white">AI Rent Optimization</h1>
                 <p className="text-blue-100 mt-1">Data-driven rent recommendations for maximum revenue</p>
               </div>
             </div>
             {recommendations.length > 0 && (
               <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 text-white">
                 <div className="text-sm text-blue-100 mb-1">Potential Annual Increase</div>
-                <div className="text-3xl font-bold">{formatCurrency(totalPotentialIncrease)}</div>
+                <div className="text-2xl sm:text-3xl font-bold">{formatCurrency(totalPotentialIncrease)}</div>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {recommendations.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-12 text-center">
-            <Sparkles className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <Sparkles className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No recommendations available</h3>
             <p className="text-gray-600">
               Add properties with active leases and payment history to get AI-powered rent recommendations
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6">
             {recommendations.map((rec) => (
               <div
                 key={rec.property_id}
@@ -100,8 +100,8 @@ export function RentOptimization() {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">{rec.property_name}</h3>
-                      <div className="flex items-center gap-6 text-sm">
+                      <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">{rec.property_name}</h3>
+                      <div className="flex items-center gap-4 sm:gap-6 text-sm">
                         <div>
                           <span className="text-gray-600">Current Rent:</span>
                           <span className="ml-2 font-semibold text-gray-900">{formatCurrency(rec.current_rent)}</span>
@@ -115,7 +115,7 @@ export function RentOptimization() {
                     <div className="text-right">
                       <div className="flex items-center gap-2 justify-end mb-2">
                         {getTrendIcon(rec.adjustment_percentage)}
-                        <span className={`text-3xl font-bold ${getTrendColor(rec.adjustment_percentage)}`}>
+                        <span className={`text-2xl sm:text-3xl font-bold ${getTrendColor(rec.adjustment_percentage)}`}>
                           {rec.adjustment_percentage > 0 ? '+' : ''}{rec.adjustment_percentage}%
                         </span>
                       </div>
@@ -131,7 +131,7 @@ export function RentOptimization() {
                       <DollarSign className="w-5 h-5 text-blue-600 mt-0.5" />
                       <div>
                         <div className="font-semibold text-gray-900 mb-1">Annual Revenue Impact</div>
-                        <div className="text-2xl font-bold text-blue-600">
+                        <div className="text-xl sm:text-2xl font-bold text-blue-600">
                           {rec.potential_annual_increase >= 0 ? '+' : ''}{formatCurrency(rec.potential_annual_increase)}
                         </div>
                       </div>
@@ -180,7 +180,7 @@ export function RentOptimization() {
         )}
 
         {recommendations.length > 0 && (
-          <div className="mt-8 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
+          <div className="mt-8 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 sm:p-6 border border-blue-200">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
               <div>
@@ -244,17 +244,17 @@ function PropertyDetailModal({
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-gray-50 rounded-lg p-4">
             <div className="text-sm text-gray-600 mb-1">Current Monthly Rent</div>
-            <div className="text-2xl font-bold text-gray-900">{formatCurrency(recommendation.current_rent)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(recommendation.current_rent)}</div>
           </div>
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="text-sm text-gray-600 mb-1">Recommended Monthly Rent</div>
-            <div className="text-2xl font-bold text-blue-600">{formatCurrency(recommendation.recommended_rent)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-blue-600">{formatCurrency(recommendation.recommended_rent)}</div>
           </div>
         </div>
 
         <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
           <div className="text-sm text-gray-700 mb-1">Potential Annual Revenue Increase</div>
-          <div className="text-3xl font-bold text-green-700">
+          <div className="text-2xl sm:text-3xl font-bold text-green-700">
             {recommendation.potential_annual_increase >= 0 ? '+' : ''}{formatCurrency(recommendation.potential_annual_increase)}
           </div>
         </div>

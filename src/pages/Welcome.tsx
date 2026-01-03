@@ -206,7 +206,7 @@ export function Welcome() {
                 <Package className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Your Package: {packageInfo.tier_name}</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Your Package: {packageInfo.tier_name}</h2>
                 <p className="text-gray-600">
                   {packageInfo.max_units === -1 ? 'Unlimited' : `Up to ${packageInfo.max_units}`} rental units
                 </p>
@@ -239,7 +239,7 @@ export function Welcome() {
         )}
 
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Getting Started Checklist</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-6">Getting Started Checklist</h2>
 
           <div className="space-y-4">
             <div className={`flex items-center gap-4 p-4 rounded-xl border-2 ${
@@ -389,8 +389,8 @@ export function Welcome() {
 
         {isComplete ? (
           <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-lg p-8 text-white text-center">
-            <Sparkles className="w-16 h-16 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold mb-3">You're All Set!</h2>
+            <Sparkles className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4" />
+            <h2 className="text-2xl sm:text-3xl font-bold mb-3">You're All Set!</h2>
             <p className="text-green-100 mb-6 text-lg">
               Your rental property management is configured and ready to use
             </p>
@@ -405,7 +405,7 @@ export function Welcome() {
         ) : (
           <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl shadow-lg p-8 text-white text-center">
             <div className="max-w-2xl mx-auto">
-              <h2 className="text-2xl font-bold mb-3">Ready to Get Started?</h2>
+              <h2 className="text-xl sm:text-2xl font-bold mb-3">Ready to Get Started?</h2>
               <p className="text-blue-100 mb-6">
                 {onboardingStatus?.next_step === 'create_business' &&
                   "Let's set up your business and start managing your rentals"}

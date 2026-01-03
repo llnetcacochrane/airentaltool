@@ -139,31 +139,32 @@ export const authService = {
       }
     }
 
-    // Step 4: Update user profile with all collected data
-    const profileUpdate: Record<string, any> = {
+    // Step 4: Upsert user profile with all collected data
+    // Using upsert to handle race condition with database trigger
+    const profileData: Record<string, any> = {
+      user_id: userId,
       first_name: firstName,
       last_name: lastName,
       selected_tier: tierSlug,
     };
 
     if (extendedData) {
-      profileUpdate.phone = extendedData.phone;
-      profileUpdate.address_line1 = extendedData.addressLine1;
-      profileUpdate.address_line2 = extendedData.addressLine2 || null;
-      profileUpdate.city = extendedData.city;
-      profileUpdate.state_province = extendedData.stateProvince;
-      profileUpdate.postal_code = extendedData.postalCode;
-      profileUpdate.country = extendedData.country;
-      profileUpdate.organization_name = organizationName;
+      profileData.phone = extendedData.phone;
+      profileData.address_line1 = extendedData.addressLine1;
+      profileData.address_line2 = extendedData.addressLine2 || null;
+      profileData.city = extendedData.city;
+      profileData.state_province = extendedData.stateProvince;
+      profileData.postal_code = extendedData.postalCode;
+      profileData.country = extendedData.country;
+      profileData.organization_name = organizationName;
     }
 
     const { error: profileError } = await supabase
       .from('user_profiles')
-      .update(profileUpdate)
-      .eq('user_id', userId);
+      .upsert(profileData, { onConflict: 'user_id' });
 
     if (profileError) {
-      console.error('Failed to update user profile:', profileError);
+      console.error('Failed to upsert user profile:', profileError);
     }
 
     // Step 5: Auto-create business(es) based on registration type

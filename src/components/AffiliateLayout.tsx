@@ -101,8 +101,8 @@ export function AffiliateLayout() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 text-yellow-500 mx-auto mb-4" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
             No Affiliate Account
           </h1>
           <p className="text-gray-600 mb-6">
@@ -110,7 +110,7 @@ export function AffiliateLayout() {
           </p>
           <Link
             to="/affiliate-application"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
           >
             Apply to Become an Affiliate
             <ExternalLink className="w-4 h-4" />
@@ -125,8 +125,8 @@ export function AffiliateLayout() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <Clock className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <Clock className="w-12 h-12 sm:w-16 sm:h-16 text-yellow-500 mx-auto mb-4" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
             Application Pending
           </h1>
           <p className="text-gray-600 mb-6">
@@ -134,7 +134,7 @@ export function AffiliateLayout() {
           </p>
           <Link
             to="/dashboard"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
           >
             Return to Dashboard
           </Link>
@@ -148,8 +148,8 @@ export function AffiliateLayout() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <AlertCircle className="w-12 h-12 sm:w-16 sm:h-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
             Account {affiliate.status === 'rejected' ? 'Rejected' : 'Suspended'}
           </h1>
           <p className="text-gray-600 mb-4">
@@ -164,7 +164,7 @@ export function AffiliateLayout() {
           )}
           <Link
             to="/dashboard"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
           >
             Return to Dashboard
           </Link>
@@ -180,7 +180,7 @@ export function AffiliateLayout() {
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
           {/* Logo */}
           <div className="flex items-center gap-3 h-16 px-6 border-b border-gray-200">
-            <DollarSign className="w-8 h-8 text-green-600" />
+            <DollarSign className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
             <span className="font-bold text-gray-900">Affiliate Portal</span>
           </div>
 

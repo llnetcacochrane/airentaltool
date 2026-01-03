@@ -48,11 +48,11 @@ export function Login() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="flex items-center justify-center gap-3 mb-8">
-            <LogIn className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">AI Rental Tools</h1>
+            <LogIn className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">AI Rental Tools</h1>
           </div>
 
-          <h2 className="text-xl font-semibold text-gray-900 mb-6 text-center">Sign In</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-6 text-center">Sign In</h2>
 
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">

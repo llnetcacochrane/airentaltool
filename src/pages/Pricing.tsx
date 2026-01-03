@@ -170,11 +170,11 @@ export function Pricing() {
                 </p>
               </div>
 
-              <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
                 {singleCompanyPackages.map((pkg) => (
                   <div
                     key={pkg.id}
-                    className={`bg-white rounded-2xl shadow-lg p-8 transition hover:shadow-xl ${
+                    className={`bg-white rounded-2xl shadow-lg p-6 sm:p-8 transition hover:shadow-xl ${
                       pkg.is_featured ? 'ring-2 ring-blue-600 relative' : ''
                     }`}
                   >
@@ -242,7 +242,7 @@ export function Pricing() {
                 </p>
               </div>
 
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
                 {managementPackages.map((pkg) => (
                   <div
                     key={pkg.id}

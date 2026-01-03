@@ -197,7 +197,7 @@ export function OwnerReports() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+        <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 animate-spin" />
       </div>
     );
   }
@@ -207,7 +207,7 @@ export function OwnerReports() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Financial Reports</h1>
+          <h1 className="text-2xl lg:text-2xl sm:text-3xl font-bold text-gray-900">Financial Reports</h1>
           <p className="text-gray-600 mt-1">View income, expenses, and statements</p>
         </div>
         <div className="flex items-center gap-3">
@@ -228,7 +228,7 @@ export function OwnerReports() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-medium text-gray-500">Total Income</p>
@@ -236,7 +236,7 @@ export function OwnerReports() {
               <ArrowUpRight className="w-5 h-5 text-green-600" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-green-600">${totals.totalIncome.toLocaleString()}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-green-600">${totals.totalIncome.toLocaleString()}</p>
           <p className="text-sm text-gray-500 mt-2">
             From rent and other income
           </p>
@@ -249,7 +249,7 @@ export function OwnerReports() {
               <ArrowDownRight className="w-5 h-5 text-red-600" />
             </div>
           </div>
-          <p className="text-3xl font-bold text-red-600">${totals.totalExpenses.toLocaleString()}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-red-600">${totals.totalExpenses.toLocaleString()}</p>
           <p className="text-sm text-gray-500 mt-2">
             Maintenance, repairs, etc.
           </p>
@@ -268,7 +268,7 @@ export function OwnerReports() {
               )}
             </div>
           </div>
-          <p className={`text-3xl font-bold ${totals.netIncome >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+          <p className={`text-2xl sm:text-3xl font-bold ${totals.netIncome >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
             ${totals.netIncome.toLocaleString()}
           </p>
           <p className="text-sm text-gray-500 mt-2">

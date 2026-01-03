@@ -97,7 +97,7 @@ export function Addons() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Add-Ons & Upgrades</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Add-Ons & Upgrades</h1>
         <p className="text-gray-600">
           Expand your account capacity without changing your plan. Purchase add-ons as you need them.
         </p>
@@ -107,10 +107,10 @@ export function Addons() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <div className="flex items-center gap-2 mb-6">
             <TrendingUp className="text-blue-600" size={24} />
-            <h2 className="text-xl font-semibold text-gray-900">Current Usage</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Current Usage</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <UsageCard
               label="Businesses"
               current={limitStatus.businesses.current}
@@ -154,7 +154,7 @@ export function Addons() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <div className="flex items-center gap-2 mb-6">
             <Package className="text-green-600" size={24} />
-            <h2 className="text-xl font-semibold text-gray-900">Active Add-Ons</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Active Add-Ons</h2>
           </div>
 
           <div className="space-y-4">
@@ -194,10 +194,10 @@ export function Addons() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center gap-2 mb-6">
           <ShoppingCart className="text-blue-600" size={24} />
-          <h2 className="text-xl font-semibold text-gray-900">Available Add-Ons</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Available Add-Ons</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {availableAddons.map((addon) => {
             const purchased = isPurchased(addon.id);
             const isCurrentlyPurchasing = purchasing === addon.id;
@@ -210,10 +210,10 @@ export function Addons() {
                 }`}
               >
                 <div className="text-4xl mb-4">{getAddonIcon(addon.addon_type)}</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{addon.display_name}</h3>
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">{addon.display_name}</h3>
                 <p className="text-gray-600 text-sm mb-4">{addon.description}</p>
                 <div className="mb-6">
-                  <span className="text-3xl font-bold text-gray-900">
+                  <span className="text-2xl sm:text-3xl font-bold text-gray-900">
                     {addonService.formatPrice(addon.monthly_price_cents)}
                   </span>
                   <span className="text-gray-600">/month</span>
@@ -228,7 +228,7 @@ export function Addons() {
                   <button
                     onClick={() => handlePurchase(addon.id)}
                     disabled={isCurrentlyPurchasing}
-                    className={`w-full px-6 py-3 rounded-lg font-semibold transition ${
+                    className={`w-full px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold transition ${
                       isCurrentlyPurchasing
                         ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                         : 'bg-blue-600 text-white hover:bg-blue-700'
@@ -279,7 +279,7 @@ function UsageCard({
   return (
     <div className="bg-gray-50 rounded-lg p-4">
       <div className="text-sm text-gray-600 mb-2">{label}</div>
-      <div className="text-2xl font-bold text-gray-900 mb-2">
+      <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
         {current} {!isUnlimited && `/ ${max}`}
       </div>
       {!isUnlimited && (

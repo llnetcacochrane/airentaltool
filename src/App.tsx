@@ -39,6 +39,8 @@ const QuickStart = lazyWithRetry(() => import('./pages/QuickStart').then(m => ({
 const NewOperationsCenter = lazyWithRetry(() => import('./pages/NewOperationsCenter').then(m => ({ default: m.NewOperationsCenter })), 'NewOperationsCenter');
 const BusinessesList = lazyWithRetry(() => import('./pages/BusinessesList').then(m => ({ default: m.BusinessesList })), 'BusinessesList');
 const BusinessDetail = lazyWithRetry(() => import('./pages/BusinessDetail').then(m => ({ default: m.BusinessDetail })), 'BusinessDetail');
+const PropertiesList = lazyWithRetry(() => import('./pages/PropertiesList').then(m => ({ default: m.PropertiesList })), 'PropertiesList');
+const UnitsList = lazyWithRetry(() => import('./pages/UnitsList').then(m => ({ default: m.UnitsList })), 'UnitsList');
 const Properties = lazyWithRetry(() => import('./pages/Properties').then(m => ({ default: m.Properties })), 'Properties');
 const PropertyDetail = lazyWithRetry(() => import('./pages/PropertyDetail').then(m => ({ default: m.PropertyDetail })), 'PropertyDetail');
 const UnitDetail = lazyWithRetry(() => import('./pages/UnitDetail').then(m => ({ default: m.UnitDetail })), 'UnitDetail');
@@ -314,8 +316,10 @@ function AppWithAnalytics() {
         <Route path="/businesses" element={<BusinessesList />} />
         <Route path="/business/:businessId" element={<BusinessDetail />} />
         <Route path="/business/:businessId/settings" element={<Navigate to="/settings" replace />} />
-        <Route path="/properties" element={<Properties />} />
+        <Route path="/properties" element={<PropertiesList />} />
+        <Route path="/properties-legacy" element={<Properties />} />
         <Route path="/property/:propertyId" element={<PropertyDetail />} />
+        <Route path="/units" element={<UnitsList />} />
         <Route path="/unit/:unitId" element={<UnitDetail />} />
         <Route path="/property-owners" element={<PropertyOwners />} />
         <Route path="/users" element={<BusinessUsers />} />

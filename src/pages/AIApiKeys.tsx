@@ -164,7 +164,7 @@ export function AIApiKeys() {
     <SuperAdminLayout title="AI API Keys" subtitle="Manage LLM providers and feature assignments">
       <div>
         {usageSummary && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
             <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center gap-3">
                 <DollarSign className="w-8 h-8 text-green-600" />
@@ -214,10 +214,10 @@ export function AIApiKeys() {
 
         <div className="bg-white rounded-lg shadow">
           <div className="border-b border-gray-200">
-            <div className="flex">
+            <div className="flex overflow-x-auto">
               <button
                 onClick={() => setActiveTab('keys')}
-                className={`px-6 py-4 font-semibold border-b-2 transition ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 font-semibold border-b-2 transition whitespace-nowrap ${
                   activeTab === 'keys'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -227,7 +227,7 @@ export function AIApiKeys() {
               </button>
               <button
                 onClick={() => setActiveTab('features')}
-                className={`px-6 py-4 font-semibold border-b-2 transition ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 font-semibold border-b-2 transition whitespace-nowrap ${
                   activeTab === 'features'
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-gray-600 hover:text-gray-900'

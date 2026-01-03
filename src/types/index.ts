@@ -17,6 +17,9 @@ export type PropertyType =
 
 export type OccupancyStatus = 'vacant' | 'occupied' | 'maintenance' | 'reserved';
 
+// Public page unit display mode for properties
+export type PublicUnitDisplayMode = 'all' | 'vacant' | 'custom';
+
 export type TenantType = 'primary' | 'co_tenant' | 'occupant' | 'guarantor';
 
 export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'cancelled';
@@ -190,6 +193,8 @@ export interface Business {
   public_page_contact_email?: string;
   public_page_contact_phone?: string;
   public_page_custom_content?: any;
+  // Agreement template cascade (v5.6.0+)
+  default_agreement_template_id?: string;
 }
 
 export interface Property {
@@ -217,6 +222,11 @@ export interface Property {
   created_at: string;
   updated_at: string;
   created_by?: string;
+  // Public page settings (v5.6.0+)
+  public_page_enabled?: boolean;
+  public_page_slug?: string;
+  public_unit_display_mode?: PublicUnitDisplayMode;
+  default_agreement_template_id?: string;
 }
 
 export interface Unit {
@@ -249,6 +259,9 @@ export interface Unit {
   created_at: string;
   updated_at: string;
   created_by?: string;
+  // Public page settings (v5.6.0+)
+  public_page_enabled?: boolean;
+  default_agreement_template_id?: string;
 }
 
 export interface Tenant {

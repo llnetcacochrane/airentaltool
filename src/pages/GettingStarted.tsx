@@ -240,8 +240,8 @@ export function GettingStarted() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
-          <HelpCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">No Package Selected</h2>
+          <HelpCircle className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">No Package Selected</h2>
           <p className="text-gray-600 mb-6">Please select a package to continue</p>
           <button
             onClick={() => navigate('/pricing')}
@@ -289,7 +289,7 @@ export function GettingStarted() {
               <Zap className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Setup Workflow</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Setup Workflow</h2>
               <p className="text-gray-600">Follow these steps to get started quickly</p>
             </div>
           </div>
@@ -311,7 +311,7 @@ export function GettingStarted() {
                       <item.icon className="w-6 h-6 text-blue-600" />
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{item.title}</h3>
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{item.title}</h3>
                   <p className="text-gray-600">{item.description}</p>
                 </div>
 
@@ -347,7 +347,7 @@ export function GettingStarted() {
               <HelpCircle className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="text-2xl font-bold mb-2">Need Help?</h3>
+              <h3 className="text-xl sm:text-2xl font-bold mb-2">Need Help?</h3>
               <p className="text-blue-100 mb-6">
                 Our support team is here to help you get started. Check out our documentation or reach out directly.
               </p>

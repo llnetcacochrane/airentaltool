@@ -337,7 +337,7 @@ export function Help() {
               <HelpCircle className="w-8 h-8" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">Help Center</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold">Help Center</h1>
               <p className="text-blue-100">Find answers and learn how to use AI Rental Tools</p>
             </div>
           </div>
@@ -360,7 +360,7 @@ export function Help() {
         {!selectedTopic ? (
           <>
             {/* Topic Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-12">
               {filteredTopics.map(topic => {
                 const Icon = topic.icon;
                 return (
@@ -391,7 +391,7 @@ export function Help() {
 
             {/* Quick Links */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Links</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Quick Links</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <a
                   href="#"
@@ -449,7 +449,7 @@ export function Help() {
                       <selectedTopicData.icon className="w-6 h-6 text-blue-600" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-900">{selectedTopicData.title}</h2>
+                      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{selectedTopicData.title}</h2>
                       <p className="text-gray-600">{selectedTopicData.description}</p>
                     </div>
                   </div>
@@ -505,9 +505,9 @@ export function Help() {
 
         {/* Contact Section */}
         <div className="mt-12 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-8 text-white">
-          <div className="flex flex-col md:flex-row items-center gap-6">
+          <div className="flex flex-col md:flex-row items-center gap-4 sm:gap-6">
             <div className="flex-1">
-              <h3 className="text-2xl font-bold mb-2">Still Need Help?</h3>
+              <h3 className="text-xl sm:text-2xl font-bold mb-2">Still Need Help?</h3>
               <p className="text-blue-100">
                 Our support team is here to help you get the most out of AI Rental Tools.
               </p>

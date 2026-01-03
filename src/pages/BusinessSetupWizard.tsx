@@ -287,7 +287,7 @@ export function BusinessSetupWizard() {
               Property Owner Information
             </h4>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   First Name <span className="text-red-500">*</span>
@@ -361,8 +361,8 @@ export function BusinessSetupWizard() {
           </div>
 
           {properties.map((property, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div key={index} className="border border-gray-200 rounded-lg p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
                 <h4 className="font-semibold text-gray-900">
                   Property {index + 1}
                 </h4>
@@ -493,8 +493,8 @@ export function BusinessSetupWizard() {
           </div>
 
           {units.map((unit, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
+            <div key={index} className="border border-gray-200 rounded-lg p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
                 <h4 className="font-semibold text-gray-900">
                   Unit {index + 1}
                 </h4>
@@ -508,7 +508,7 @@ export function BusinessSetupWizard() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Unit Number <span className="text-red-500">*</span>
@@ -625,8 +625,8 @@ export function BusinessSetupWizard() {
           ) : (
             <>
               {tenants.map((tenant, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
+                <div key={index} className="border border-gray-200 rounded-lg p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
                     <h4 className="font-semibold text-gray-900">
                       Tenant {index + 1}
                     </h4>
@@ -638,7 +638,7 @@ export function BusinessSetupWizard() {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         First Name
@@ -712,7 +712,7 @@ export function BusinessSetupWizard() {
       description: 'Confirm your setup',
       content: (
         <div className="space-y-6">
-          <div className="bg-gray-50 rounded-lg p-6">
+          <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Building2 className="w-5 h-5 text-blue-600" />
               Business Information
@@ -737,7 +737,7 @@ export function BusinessSetupWizard() {
             </dl>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-6">
+          <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Home className="w-5 h-5 text-blue-600" />
               Properties ({properties.filter(p => p.name.trim()).length})
@@ -756,7 +756,7 @@ export function BusinessSetupWizard() {
             </ul>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-6">
+          <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <DoorClosed className="w-5 h-5 text-blue-600" />
               Units ({units.filter(u => u.unitNumber.trim()).length})
@@ -773,7 +773,7 @@ export function BusinessSetupWizard() {
           </div>
 
           {tenants.length > 0 && (
-            <div className="bg-gray-50 rounded-lg p-6">
+            <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
               <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-600" />
                 Tenants ({tenants.length})
@@ -810,7 +810,7 @@ export function BusinessSetupWizard() {
         headerContent={
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">New Business Setup</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">New Business Setup</h1>
               <p className="text-sm text-gray-600">Add a new client business to manage</p>
             </div>
             <button

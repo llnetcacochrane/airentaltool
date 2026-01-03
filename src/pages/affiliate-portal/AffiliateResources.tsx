@@ -94,7 +94,7 @@ Try it free: ${referralUrl}`,
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Marketing Resources</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Marketing Resources</h1>
           <p className="text-gray-600 mt-1">
             Tools and content to help you promote AI Rental Tools.
           </p>
@@ -222,10 +222,10 @@ Try it free: ${referralUrl}`,
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="border border-gray-200 rounded-lg p-4">
               <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center mb-3">
-                <span className="text-2xl font-bold text-green-600">AI Rental Tools</span>
+                <span className="text-xl sm:text-2xl font-bold text-green-600">AI Rental Tools</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Logo (Light Background)</span>
@@ -238,7 +238,7 @@ Try it free: ${referralUrl}`,
 
             <div className="border border-gray-200 rounded-lg p-4">
               <div className="aspect-video bg-gray-900 rounded-lg flex items-center justify-center mb-3">
-                <span className="text-2xl font-bold text-white">AI Rental Tools</span>
+                <span className="text-xl sm:text-2xl font-bold text-white">AI Rental Tools</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Logo (Dark Background)</span>

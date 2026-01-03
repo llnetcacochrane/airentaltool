@@ -9,7 +9,8 @@ import { leaseRenewalService, LeaseRenewalOpportunity } from '../services/leaseR
 import {
   TrendingUp, DollarSign, Wrench, Calendar, Users, Home, Building2,
   AlertTriangle, CheckCircle2, ArrowRight, Zap, Bell, Clock,
-  Target, Award, Sparkles, ChevronRight, TrendingDown, BarChart3
+  Target, Award, Sparkles, ChevronRight, TrendingDown, BarChart3,
+  Briefcase, DoorClosed
 } from 'lucide-react';
 import { MetricCard, MetricCardSkeleton } from '../components/analytics/MetricCard';
 import { HealthScoreRing, ProgressRing } from '../components/analytics/ProgressRing';
@@ -452,11 +453,13 @@ export function NewOperationsCenter() {
         {/* Quick Actions Grid */}
         <div>
           <h2 className="text-xl font-bold text-gray-900 mb-6">Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
+              { icon: Briefcase, label: 'Businesses', url: '/businesses', color: 'indigo' },
               { icon: Building2, label: 'Properties', url: '/properties', color: 'blue' },
+              { icon: DoorClosed, label: 'Units', url: '/units', color: 'purple' },
               { icon: Users, label: 'Tenants', url: '/tenants', color: 'green' },
-              { icon: DollarSign, label: 'Payments', url: '/payments', color: 'purple' },
+              { icon: DollarSign, label: 'Payments', url: '/payments', color: 'emerald' },
               { icon: Wrench, label: 'Maintenance', url: '/maintenance', color: 'amber' },
             ].map((action, idx) => (
               <button

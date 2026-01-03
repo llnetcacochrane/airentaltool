@@ -146,7 +146,7 @@ export function AffiliatePayouts() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Payouts</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Payouts</h1>
           <p className="text-gray-600 mt-1">
             Request payouts and view your payout history.
           </p>
@@ -157,7 +157,7 @@ export function AffiliatePayouts() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Available Balance</h3>
-              <p className="text-3xl font-bold text-green-600 mt-2">
+              <p className="text-2xl sm:text-3xl font-bold text-green-600 mt-2">
                 {formatCurrency(pendingBalance)}
               </p>
               {settings && (
@@ -170,7 +170,7 @@ export function AffiliatePayouts() {
               <button
                 onClick={handleRequestPayout}
                 disabled={!canRequestPayout || isRequesting}
-                className="inline-flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isRequesting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

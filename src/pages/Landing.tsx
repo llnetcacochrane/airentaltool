@@ -48,18 +48,18 @@ export function Landing() {
                   Learn More
                 </Link>
               </div>
-              <div className="flex items-center gap-6 text-sm text-gray-600">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={18} className="text-green-600" />
-                  14-day free trial
+                  <CheckCircle2 size={18} className="text-green-600 flex-shrink-0" />
+                  <span>14-day free trial</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={18} className="text-green-600" />
-                  No credit card required
+                  <CheckCircle2 size={18} className="text-green-600 flex-shrink-0" />
+                  <span>No credit card required</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircle2 size={18} className="text-green-600" />
-                  Cancel anytime
+                  <CheckCircle2 size={18} className="text-green-600 flex-shrink-0" />
+                  <span>Cancel anytime</span>
                 </div>
               </div>
             </div>
@@ -399,8 +399,12 @@ function CustomerCard({
 }) {
   const [hoveredFeature, setHoveredFeature] = useState<string | null>(null);
 
+  const toggleTooltip = (featureName: string) => {
+    setHoveredFeature(hoveredFeature === featureName ? null : featureName);
+  };
+
   return (
-    <div className={`relative bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition border-2 ${
+    <div className={`relative bg-white p-6 sm:p-8 rounded-xl shadow-lg hover:shadow-xl transition border-2 ${
       featured ? 'border-blue-600' : 'border-gray-200'
     }`}>
       {featured && (
@@ -413,23 +417,29 @@ function CustomerCard({
       <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center mb-6">
         <Icon className="w-8 h-8 text-blue-600" />
       </div>
-      <h3 className="text-2xl font-bold text-gray-900 mb-3">{title}</h3>
+      <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">{title}</h3>
       <p className="text-gray-600 leading-relaxed mb-6">{description}</p>
       <ul className="space-y-3">
         {features.map((feature) => (
           <li
             key={feature.name}
-            className="relative flex items-start gap-2 group cursor-help"
-            onMouseEnter={() => setHoveredFeature(feature.name)}
-            onMouseLeave={() => setHoveredFeature(null)}
+            className="relative flex items-start gap-2 group"
           >
             <CheckCircle2 size={18} className="text-green-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <span className="text-gray-700 text-sm">{feature.name}</span>
-              <Info size={14} className="inline-block ml-1 text-gray-400 group-hover:text-blue-600 transition" />
+              <button
+                type="button"
+                onClick={() => toggleTooltip(feature.name)}
+                onMouseEnter={() => setHoveredFeature(feature.name)}
+                onMouseLeave={() => setHoveredFeature(null)}
+                className="text-left w-full"
+              >
+                <span className="text-gray-700 text-sm">{feature.name}</span>
+                <Info size={14} className="inline-block ml-1 text-gray-400 group-hover:text-blue-600 transition" />
+              </button>
             </div>
             {hoveredFeature === feature.name && (
-              <div className="absolute left-0 top-full mt-2 w-72 bg-gray-900 text-white text-xs p-3 rounded-lg shadow-xl z-10 animate-fadeIn">
+              <div className="absolute left-0 top-full mt-2 w-72 max-w-[calc(100vw-3rem)] bg-gray-900 text-white text-xs p-3 rounded-lg shadow-xl z-10 animate-fadeIn">
                 <div className="absolute -top-1 left-4 w-2 h-2 bg-gray-900 transform rotate-45"></div>
                 {feature.tooltip}
               </div>

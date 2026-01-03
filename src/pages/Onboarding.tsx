@@ -203,7 +203,7 @@ export function Onboarding() {
         <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12">
           <div className="flex items-center justify-center gap-3 mb-6">
             <Building2 className="w-10 h-10 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">AI Rental Tools</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">AI Rental Tools</h1>
           </div>
 
           {tierSlug && (
@@ -253,7 +253,7 @@ export function Onboarding() {
           {step === 1 && (
             <div className="space-y-6">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                   Welcome! Let's set up your account
                 </h2>
                 <p className="text-gray-600">Tell us about your business</p>
@@ -307,7 +307,7 @@ export function Onboarding() {
           {step === 2 && (
             <div className="space-y-6">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                   How would you like to get started?
                 </h2>
                 <p className="text-gray-600">Choose the setup method that works best for you</p>
@@ -330,7 +330,7 @@ export function Onboarding() {
                     className="sr-only"
                   />
                   <div className="flex items-start gap-4">
-                    <Zap className="w-8 h-8 text-blue-600 flex-shrink-0" />
+                    <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
                         Quick Start Wizard
@@ -358,7 +358,7 @@ export function Onboarding() {
                     className="sr-only"
                   />
                   <div className="flex items-start gap-4">
-                    <Upload className="w-8 h-8 text-blue-600 flex-shrink-0" />
+                    <Upload className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
                         Import from CSV
@@ -386,7 +386,7 @@ export function Onboarding() {
                     className="sr-only"
                   />
                   <div className="flex items-start gap-4">
-                    <FileText className="w-8 h-8 text-blue-600 flex-shrink-0" />
+                    <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-1">
                         Start from Scratch
@@ -428,7 +428,7 @@ export function Onboarding() {
           {step === 3 && setupMethod === 'import' && (
             <div className="space-y-6">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                   Import Your Data
                 </h2>
                 <p className="text-gray-600">Download templates and upload your CSV files</p>
@@ -523,7 +523,7 @@ export function Onboarding() {
           {step === 3 && setupMethod === 'quick' && (
             <div className="space-y-6">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                   Add Your First Property
                 </h2>
                 <p className="text-gray-600">Start by adding a property and its units</p>
@@ -635,7 +635,7 @@ export function Onboarding() {
           {step === 4 && setupMethod === 'quick' && (
             <div className="space-y-6">
               <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
                   Add Your First Tenant (Optional)
                 </h2>
                 <p className="text-gray-600">You can skip this and add tenants later</p>

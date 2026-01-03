@@ -187,18 +187,18 @@ export function SystemConfiguration() {
     >
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="border-b border-gray-200">
-            <div className="flex">
+            <div className="flex overflow-x-auto">
               <button
                 onClick={() => setActiveTab('gateways')}
-                className={`px-6 py-4 font-semibold transition ${
+                className={`px-4 sm:px-6 py-3 sm:py-4 font-semibold transition whitespace-nowrap ${
                   activeTab === 'gateways'
                     ? 'border-b-2 border-blue-600 text-blue-600'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <CreditCard size={18} />
-                  Payment Gateways
+                  <CreditCard size={18} className="hidden sm:block" />
+                  <span className="text-sm sm:text-base">Payment Gateways</span>
                 </div>
               </button>
               <button

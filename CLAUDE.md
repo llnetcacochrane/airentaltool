@@ -16,6 +16,17 @@ npm run lint       # ESLint
 npm run preview    # Preview production build
 ```
 
+## Deployment
+
+**IMPORTANT:** Nginx serves from `/opt/airentaltools/` - NOT `/var/www/`
+
+```bash
+# Build and deploy to production
+npm run build
+sudo cp -r dist/* /opt/airentaltools/
+sudo chown -R www-data:www-data /opt/airentaltools/
+```
+
 ## Architecture
 
 ### Tech Stack
@@ -122,3 +133,52 @@ Update version in `src/lib/version.ts`. Footer displays version across all pages
 - Production builds: no source maps, console/debugger statements dropped
 - Rate limiting utilities in `src/utils/rateLimiter.ts`
 - Form validation in `src/utils/formValidation.ts`
+
+## Responsive Design Requirements (MANDATORY)
+
+**All UI code MUST be mobile-responsive.** See `docs/RESPONSIVE_DESIGN_GUIDE.md` for complete patterns.
+
+### Quick Reference - Required Patterns
+
+**Page Headers:**
+```tsx
+<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+  <h1 className="text-2xl sm:text-3xl font-bold">Title</h1>
+  <div className="flex items-center gap-2 sm:gap-3">{/* buttons */}</div>
+</div>
+```
+
+**Container Padding:**
+```tsx
+<div className="px-4 sm:px-6 py-4 sm:py-6">
+```
+
+**Grids:**
+```tsx
+// 3-column: grid-cols-1 sm:grid-cols-2 lg:grid-cols-3
+// 4-column: grid-cols-1 sm:grid-cols-2 lg:grid-cols-4
+```
+
+**Buttons with Mobile Text:**
+```tsx
+<button className="w-full sm:w-auto">
+  <span className="hidden sm:inline">Add Property</span>
+  <span className="sm:hidden">Add</span>
+</button>
+```
+
+**Typography:**
+```tsx
+// Headings: text-2xl sm:text-3xl
+// Body: text-sm sm:text-base
+// Small: text-xs sm:text-sm
+```
+
+### Pre-Commit Checklist
+
+Before any UI changes:
+- [ ] Headers stack on mobile (`flex-col sm:flex-row`)
+- [ ] Padding is responsive (`px-4 sm:px-6`)
+- [ ] No horizontal scroll at 320px width
+- [ ] Touch targets are 44x44px minimum
+- [ ] Text sizes scale appropriately

@@ -8,7 +8,7 @@ import autoTable from 'jspdf-autotable';
 
 export type ExportFormat = 'csv' | 'pdf' | 'excel-csv' | 'json';
 
-interface ExportOptions {
+export interface ExportOptions {
   filename?: string;
   format?: ExportFormat;
   includeHeaders?: boolean;

@@ -122,21 +122,8 @@ export const packageTierService = {
     const tier = await this.getPackageTierBySlug(tierSlug);
 
     if (!tier) {
-      // Return defaults for free tier
-      return {
-        tier: null,
-        effective: {
-          monthly_price_cents: 0,
-          annual_price_cents: 0,
-          max_businesses: 1,
-          max_properties: 5,
-          max_units: 10,
-          max_tenants: 10,
-          max_users: 1,
-          max_payment_methods: 1,
-          features: {},
-        },
-      };
+      // Throw error instead of using fallback - tier must exist in database
+      throw new Error(`Package tier "${tierSlug}" not found. Please ensure the tier exists in package_tiers table.`);
     }
 
     return {
@@ -178,10 +165,13 @@ export const packageTierService = {
   },
 
   async getPackageTierBySlug(slug: string): Promise<PackageTier | null> {
+    // Normalize to lowercase for case-insensitive matching
+    const normalizedSlug = slug.toLowerCase();
+
     const { data, error } = await supabase
       .from('package_tiers')
       .select('*')
-      .eq('tier_slug', slug)
+      .eq('tier_slug', normalizedSlug)
       .eq('is_active', true)
       .maybeSingle();
 
@@ -409,21 +399,8 @@ export const packageTierService = {
     const settings = await this.getOrganizationPackageSettings(organizationId);
 
     if (!settings || !settings.package_tier_id) {
-      return {
-        tier: null,
-        settings: null,
-        effective: {
-          monthly_price_cents: 0,
-          annual_price_cents: 0,
-          max_businesses: 1,
-          max_properties: 0,
-          max_units: 0,
-          max_tenants: 0,
-          max_users: 1,
-          max_payment_methods: 0,
-          features: {},
-        },
-      };
+      // Throw error instead of using fallback - organization must have package settings
+      throw new Error(`No package settings found for organization "${organizationId}". Please configure a package tier.`);
     }
 
     const tier = await this.getPackageTier(settings.package_tier_id);

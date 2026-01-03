@@ -25,11 +25,15 @@ import {
   UserCheck,
   Sparkles,
   Globe,
+  Crown,
+  Lock,
+  DoorClosed,
 } from 'lucide-react';
 import { Footer } from './Footer';
 import BusinessSelector from './BusinessSelector';
 import { GodModeBanner } from './GodModeBanner';
 import { EmailVerificationReminder } from './EmailVerificationReminder';
+import { FeaturePreviewModal, FEATURE_CATALOG } from './upsell/FeatureGate';
 
 interface NavItem {
   name: string;
@@ -37,12 +41,15 @@ interface NavItem {
   icon: React.ElementType;
   tier?: string[];
   packageType?: PackageType | PackageType[]; // Show only for specific package types
+  requiresFeature?: string; // Feature required to access (for upselling)
 }
 
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Property Wizard', href: '/welcome', icon: Sparkles },
   { name: 'Businesses', href: '/businesses', icon: Briefcase },
+  { name: 'Properties', href: '/properties', icon: Building2 },
+  { name: 'Units', href: '/units', icon: DoorClosed },
   { name: 'Clients', href: '/property-owners', icon: UserCheck, packageType: 'management_company' }, // Property Managers manage clients
   { name: 'Users', href: '/users', icon: Users },
   { name: 'Applications', href: '/applications', icon: ClipboardList },
@@ -51,11 +58,11 @@ const navigation: NavItem[] = [
   { name: 'Payments', href: '/payments', icon: CreditCard },
   { name: 'Expenses', href: '/expenses', icon: DollarSign },
   { name: 'Maintenance', href: '/maintenance', icon: Wrench },
-  { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'Reports', href: '/reports', icon: BarChart3, requiresFeature: 'advanced_reporting' },
 ];
 
 const secondaryNavigation: NavItem[] = [
-  { name: 'Rent Optimization', href: '/rent-optimization', icon: TrendingUp },
+  { name: 'Rent Optimization', href: '/rent-optimization', icon: TrendingUp, requiresFeature: 'rent_optimization' },
   { name: 'Help Center', href: '/help', icon: HelpCircle },
 ];
 
@@ -69,12 +76,26 @@ export function Layout() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [businessDropdownOpen, setBusinessDropdownOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showFeatureModal, setShowFeatureModal] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const { supabaseUser, currentBusiness, businesses, switchBusiness, logout, userProfile, isSuperAdmin, packageType } = useAuth();
+  const { supabaseUser, currentBusiness, businesses, switchBusiness, logout, userProfile, isSuperAdmin, packageType, hasFeature } = useAuth();
   const { branding } = useBranding();
 
   const userTier = userProfile?.selected_tier || 'free';
+
+  // Check if a nav item is locked (feature required but not available)
+  const isNavLocked = (item: NavItem) => {
+    return item.requiresFeature && !hasFeature(item.requiresFeature);
+  };
+
+  // Handle nav click - show upsell modal if locked, otherwise navigate
+  const handleNavClick = (item: NavItem, e: React.MouseEvent) => {
+    if (isNavLocked(item) && item.requiresFeature) {
+      e.preventDefault();
+      setShowFeatureModal(item.requiresFeature);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -135,18 +156,29 @@ export function Layout() {
               {filteredNavigation.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
+                const locked = isNavLocked(item);
                 return (
                   <Link
                     key={item.name}
-                    to={item.href}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                      active
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-700 hover:bg-gray-100'
+                    to={locked ? '#' : item.href}
+                    onClick={(e) => handleNavClick(item, e)}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                      locked
+                        ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 hover:from-amber-100 hover:to-orange-100 border border-amber-200'
+                        : active
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    <Icon className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
-                    {item.name}
+                    <div className="flex items-center gap-3">
+                      <Icon className={`w-5 h-5 ${locked ? 'text-amber-500' : active ? 'text-blue-600' : 'text-gray-400'}`} />
+                      {item.name}
+                    </div>
+                    {locked && (
+                      <div className="flex items-center gap-1 text-xs bg-amber-100 px-1.5 py-0.5 rounded">
+                        <Crown size={10} />
+                      </div>
+                    )}
                   </Link>
                 );
               })}
@@ -159,18 +191,29 @@ export function Layout() {
               {secondaryNavigation.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
+                const locked = isNavLocked(item);
                 return (
                   <Link
                     key={item.name}
-                    to={item.href}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                      active
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-700 hover:bg-gray-100'
+                    to={locked ? '#' : item.href}
+                    onClick={(e) => handleNavClick(item, e)}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                      locked
+                        ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 hover:from-amber-100 hover:to-orange-100 border border-amber-200'
+                        : active
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    <Icon className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
-                    {item.name}
+                    <div className="flex items-center gap-3">
+                      <Icon className={`w-5 h-5 ${locked ? 'text-amber-500' : active ? 'text-blue-600' : 'text-gray-400'}`} />
+                      {item.name}
+                    </div>
+                    {locked && (
+                      <div className="flex items-center gap-1 text-xs bg-amber-100 px-1.5 py-0.5 rounded">
+                        <Crown size={10} />
+                      </div>
+                    )}
                   </Link>
                 );
               })}
@@ -219,19 +262,38 @@ export function Layout() {
               {filteredNavigation.map((item) => {
                 const Icon = item.icon;
                 const active = isActive(item.href);
+                const locked = isNavLocked(item);
                 return (
                   <Link
                     key={item.name}
-                    to={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                      active
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-700 hover:bg-gray-100'
+                    to={locked ? '#' : item.href}
+                    onClick={(e) => {
+                      if (locked && item.requiresFeature) {
+                        e.preventDefault();
+                        setSidebarOpen(false);
+                        setShowFeatureModal(item.requiresFeature);
+                      } else {
+                        setSidebarOpen(false);
+                      }
+                    }}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                      locked
+                        ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200'
+                        : active
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    <Icon className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
-                    {item.name}
+                    <div className="flex items-center gap-3">
+                      <Icon className={`w-5 h-5 ${locked ? 'text-amber-500' : active ? 'text-blue-600' : 'text-gray-400'}`} />
+                      {item.name}
+                    </div>
+                    {locked && (
+                      <div className="flex items-center gap-1 text-xs bg-amber-100 px-2 py-0.5 rounded-full">
+                        <Crown size={10} />
+                        <span>Upgrade</span>
+                      </div>
+                    )}
                   </Link>
                 );
               })}
@@ -243,19 +305,38 @@ export function Layout() {
                 {secondaryNavigation.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item.href);
+                  const locked = isNavLocked(item);
                   return (
                     <Link
                       key={item.name}
-                      to={item.href}
-                      onClick={() => setSidebarOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                        active
-                          ? 'bg-blue-50 text-blue-700'
-                          : 'text-gray-700 hover:bg-gray-100'
+                      to={locked ? '#' : item.href}
+                      onClick={(e) => {
+                        if (locked && item.requiresFeature) {
+                          e.preventDefault();
+                          setSidebarOpen(false);
+                          setShowFeatureModal(item.requiresFeature);
+                        } else {
+                          setSidebarOpen(false);
+                        }
+                      }}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                        locked
+                          ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200'
+                          : active
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-gray-700 hover:bg-gray-100'
                       }`}
                     >
-                      <Icon className={`w-5 h-5 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
-                      {item.name}
+                      <div className="flex items-center gap-3">
+                        <Icon className={`w-5 h-5 ${locked ? 'text-amber-500' : active ? 'text-blue-600' : 'text-gray-400'}`} />
+                        {item.name}
+                      </div>
+                      {locked && (
+                        <div className="flex items-center gap-1 text-xs bg-amber-100 px-2 py-0.5 rounded-full">
+                          <Crown size={10} />
+                          <span>Upgrade</span>
+                        </div>
+                      )}
                     </Link>
                   );
                 })}
@@ -432,6 +513,15 @@ export function Layout() {
 
         <Footer />
       </div>
+
+      {/* Feature Upgrade Modal */}
+      {showFeatureModal && (
+        <FeaturePreviewModal
+          isOpen={true}
+          onClose={() => setShowFeatureModal(null)}
+          featureKey={showFeatureModal}
+        />
+      )}
     </div>
   );
 }

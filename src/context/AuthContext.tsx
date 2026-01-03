@@ -49,6 +49,15 @@ interface AuthContextType {
   canManageBusinesses: () => boolean;
   refetch: () => Promise<void>;
   isImpersonating: boolean;
+  // Package feature checks
+  hasFeature: (featureKey: string) => boolean;
+  getPackageLimits: () => {
+    max_businesses: number;
+    max_properties: number;
+    max_units: number;
+    max_tenants: number;
+    max_users: number;
+  };
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -159,6 +168,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSupabaseUser(user || null);
 
         if (user) {
+          // CRITICAL: Reset activity timestamp to prevent immediate timeout on page refresh
+          setLastActivity(Date.now());
           // Check if impersonating (god mode)
           const impersonatingUserId = sessionStorage.getItem('impersonating_user_id');
           const adminUserId = sessionStorage.getItem('admin_user_id');
@@ -225,6 +236,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = authService.onAuthStateChange((event, session) => {
       (async () => {
         if (event === 'SIGNED_IN' && session?.user) {
+          // CRITICAL: Reset activity timestamp on login to prevent immediate timeout
+          setLastActivity(Date.now());
           setSupabaseUser(session.user);
           const profile = await authService.getUserProfile(session.user.id);
           setUserProfile(profile);
@@ -409,6 +422,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return hasPermission(['manage_properties', 'all']);
   };
 
+  // Check if user's package includes a specific feature
+  const hasFeature = (featureKey: string): boolean => {
+    // Super admins have all features
+    if (isSuperAdmin) return true;
+
+    // Check package tier features
+    if (!packageTier?.features) return false;
+    return packageTier.features[featureKey] === true;
+  };
+
+  // Get package limits for the current user
+  const getPackageLimits = () => {
+    if (!packageTier) {
+      // No package tier loaded, return zeros (will cause errors if accessed before load)
+      return {
+        max_businesses: 0,
+        max_properties: 0,
+        max_units: 0,
+        max_tenants: 0,
+        max_users: 0,
+      };
+    }
+    return {
+      max_businesses: packageTier.max_businesses,
+      max_properties: packageTier.max_properties,
+      max_units: packageTier.max_units,
+      max_tenants: packageTier.max_tenants,
+      max_users: packageTier.max_users,
+    };
+  };
+
   // Current role - business owners are always 'owner'
   const currentRole: UserRole = currentBusiness ? 'owner' : 'viewer';
 
@@ -444,6 +488,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         canManageBusinesses,
         refetch,
         isImpersonating,
+        // Package feature checks
+        hasFeature,
+        getPackageLimits,
       }}
     >
       {children}

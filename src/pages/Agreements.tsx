@@ -150,42 +150,42 @@ export default function Agreements() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-6">
           <div className="flex items-center gap-3">
-            <FileText className="w-8 h-8 text-blue-600" />
+            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Lease Agreements</h1>
-              <p className="text-gray-600">Create templates and manage tenant agreements</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Lease Agreements</h1>
+              <p className="text-sm sm:text-base text-gray-600">Create templates and manage tenant agreements</p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             {viewMode === 'templates' && templates.length > 0 && (
               <button
                 onClick={() => handleIssueAgreement()}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 flex items-center gap-2"
+                className="bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
               >
-                <Send className="w-5 h-5" />
-                Issue Agreement
+                <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Issue Agreement</span>
               </button>
             )}
             {viewMode === 'templates' && (
               <button
                 onClick={handleCreateNew}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                className="bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
               >
-                <Plus className="w-5 h-5" />
-                Create Template
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Create Template</span>
               </button>
             )}
           </div>
         </div>
 
-        <div className="flex gap-4 border-b border-gray-200">
+        <div className="flex gap-2 sm:gap-4 border-b border-gray-200 overflow-x-auto">
           <button
             onClick={() => setViewMode('templates')}
-            className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+            className={`px-3 sm:px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap text-sm sm:text-base ${
               viewMode === 'templates'
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-600 hover:text-gray-800'
@@ -195,7 +195,7 @@ export default function Agreements() {
           </button>
           <button
             onClick={() => setViewMode('pending')}
-            className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+            className={`px-3 sm:px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap text-sm sm:text-base ${
               viewMode === 'pending'
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-600 hover:text-gray-800'
@@ -205,7 +205,7 @@ export default function Agreements() {
           </button>
           <button
             onClick={() => setViewMode('issued')}
-            className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+            className={`px-3 sm:px-4 py-2 font-medium border-b-2 transition-colors whitespace-nowrap text-sm sm:text-base ${
               viewMode === 'issued'
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-600 hover:text-gray-800'
@@ -223,7 +223,7 @@ export default function Agreements() {
       ) : (
         <>
           {viewMode === 'templates' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {templates.length === 0 ? (
                 <div className="col-span-full">
                   {EmptyStatePresets.Agreements()}
@@ -232,7 +232,7 @@ export default function Agreements() {
                 templates.map((template) => (
                   <div
                     key={template.id}
-                    className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow"
+                    className="bg-white shadow rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
@@ -296,23 +296,23 @@ export default function Agreements() {
           {viewMode === 'pending' && (
             <div className="space-y-4">
               {pendingAgreements.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-lg shadow">
-                  <Clock className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No pending signatures</h3>
-                  <p className="text-gray-600">All agreements are signed or no agreements have been sent yet</p>
+                <div className="text-center py-8 sm:py-12 bg-white rounded-lg shadow">
+                  <Clock className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No pending signatures</h3>
+                  <p className="text-sm sm:text-base text-gray-600 px-4">All agreements are signed or no agreements have been sent yet</p>
                 </div>
               ) : (
                 pendingAgreements.map((agreement) => (
                   <div
                     key={agreement.id}
-                    className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow"
+                    className="bg-white shadow rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow"
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
                           {agreement.agreement_title}
                         </h3>
-                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mb-4">
                           <div>
                             <span className="font-medium">Tenant:</span> {agreement.tenant_name}
                           </div>
@@ -333,7 +333,7 @@ export default function Agreements() {
                             </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-gray-500">
                           {agreement.sent_at && (
                             <div>Sent: {formatDate(agreement.sent_at)}</div>
                           )}
@@ -346,13 +346,13 @@ export default function Agreements() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <button className="bg-blue-50 text-blue-600 px-4 py-2 rounded hover:bg-blue-100 flex items-center gap-2">
+                        <button className="bg-blue-50 text-blue-600 px-3 sm:px-4 py-2 rounded hover:bg-blue-100 flex items-center gap-2">
                           <Eye className="w-4 h-4" />
-                          View
+                          <span className="hidden sm:inline">View</span>
                         </button>
                         <button
                           onClick={() => handleDownloadPDF(agreement)}
-                          className="bg-gray-50 text-gray-600 px-4 py-2 rounded hover:bg-gray-100"
+                          className="bg-gray-50 text-gray-600 px-3 sm:px-4 py-2 rounded hover:bg-gray-100"
                         >
                           <Download className="w-4 h-4" />
                         </button>
@@ -367,23 +367,23 @@ export default function Agreements() {
           {viewMode === 'issued' && (
             <div className="space-y-4">
               {issuedAgreements.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-lg shadow">
-                  <CheckCircle className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No signed agreements yet</h3>
-                  <p className="text-gray-600">Signed agreements will appear here</p>
+                <div className="text-center py-8 sm:py-12 bg-white rounded-lg shadow">
+                  <CheckCircle className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No signed agreements yet</h3>
+                  <p className="text-sm sm:text-base text-gray-600 px-4">Signed agreements will appear here</p>
                 </div>
               ) : (
                 issuedAgreements.map((agreement) => (
                   <div
                     key={agreement.id}
-                    className="bg-white shadow rounded-lg p-6 hover:shadow-md transition-shadow"
+                    className="bg-white shadow rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow"
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                       <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
                           {agreement.agreement_title}
                         </h3>
-                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 mb-4">
                           <div>
                             <span className="font-medium">Tenant:</span> {agreement.tenant_name}
                           </div>
@@ -397,29 +397,29 @@ export default function Agreements() {
                             <span className="font-medium">Term:</span> {formatDate(agreement.start_date)} - {formatDate(agreement.end_date)}
                           </div>
                         </div>
-                        <div className="flex items-center gap-6 text-xs">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 text-xs">
                           {agreement.landlord_signed && (
                             <div className="flex items-center gap-1 text-green-600">
                               <CheckCircle className="w-4 h-4" />
-                              Landlord Signed {formatDate(agreement.landlord_signed_at!)}
+                              <span>Landlord Signed {formatDate(agreement.landlord_signed_at!)}</span>
                             </div>
                           )}
                           {agreement.tenant_signed && (
                             <div className="flex items-center gap-1 text-green-600">
                               <CheckCircle className="w-4 h-4" />
-                              Tenant Signed {formatDate(agreement.tenant_signed_at!)}
+                              <span>Tenant Signed {formatDate(agreement.tenant_signed_at!)}</span>
                             </div>
                           )}
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <button className="bg-blue-50 text-blue-600 px-4 py-2 rounded hover:bg-blue-100 flex items-center gap-2">
+                        <button className="bg-blue-50 text-blue-600 px-3 sm:px-4 py-2 rounded hover:bg-blue-100 flex items-center gap-2">
                           <Eye className="w-4 h-4" />
-                          View
+                          <span className="hidden sm:inline">View</span>
                         </button>
                         <button
                           onClick={() => handleDownloadPDF(agreement)}
-                          className="bg-gray-50 text-gray-600 px-4 py-2 rounded hover:bg-gray-100"
+                          className="bg-gray-50 text-gray-600 px-3 sm:px-4 py-2 rounded hover:bg-gray-100"
                         >
                           <Download className="w-4 h-4" />
                         </button>

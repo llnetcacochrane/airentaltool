@@ -125,7 +125,7 @@ export function OwnerDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+        <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 animate-spin" />
       </div>
     );
   }
@@ -138,7 +138,7 @@ export function OwnerDashboard() {
     <div className="p-6 lg:p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">
+        <h1 className="text-2xl lg:text-2xl sm:text-3xl font-bold text-gray-900">
           Welcome back, {userProfile?.first_name}!
         </h1>
         <p className="text-gray-600 mt-1">
@@ -147,12 +147,12 @@ export function OwnerDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Properties</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.totalProperties || 0}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{stats?.totalProperties || 0}</p>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
               <Building2 className="w-6 h-6 text-purple-600" />
@@ -165,7 +165,7 @@ export function OwnerDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Occupancy Rate</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{occupancyRate}%</p>
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{occupancyRate}%</p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
               <Home className="w-6 h-6 text-green-600" />
@@ -180,7 +180,7 @@ export function OwnerDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Monthly Income</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
                 ${(stats?.monthlyIncome || 0).toLocaleString()}
               </p>
             </div>
@@ -198,7 +198,7 @@ export function OwnerDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Pending Payments</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats?.pendingPayments || 0}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">{stats?.pendingPayments || 0}</p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
               <Calendar className="w-6 h-6 text-yellow-600" />
@@ -209,12 +209,12 @@ export function OwnerDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
         <Link
           to="/owner-portal/properties"
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition group"
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition">
               <Building2 className="w-6 h-6 text-purple-600" />
             </div>
@@ -230,7 +230,7 @@ export function OwnerDashboard() {
           to="/owner-portal/reports"
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition group"
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition">
               <FileText className="w-6 h-6 text-blue-600" />
             </div>
@@ -246,7 +246,7 @@ export function OwnerDashboard() {
           to="/owner-portal/messages"
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition group"
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-4">
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition">
               <MessageSquare className="w-6 h-6 text-green-600" />
             </div>
