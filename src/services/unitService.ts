@@ -133,24 +133,38 @@ export const unitService = {
    * Update a unit
    */
   async updateUnit(id: string, updates: Partial<Unit>): Promise<Unit> {
+    // Build update object with only defined values
+    const updateData: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    // Core unit fields
+    if (updates.unit_number !== undefined) updateData.unit_number = updates.unit_number;
+    if (updates.unit_name !== undefined) updateData.unit_name = updates.unit_name;
+    if (updates.bedrooms !== undefined) updateData.bedrooms = updates.bedrooms;
+    if (updates.bathrooms !== undefined) updateData.bathrooms = updates.bathrooms;
+    if (updates.square_feet !== undefined) updateData.square_feet = updates.square_feet;
+    if (updates.floor_number !== undefined) updateData.floor_number = updates.floor_number;
+    if (updates.monthly_rent_cents !== undefined) updateData.monthly_rent_cents = updates.monthly_rent_cents;
+    if (updates.security_deposit_cents !== undefined) updateData.security_deposit_cents = updates.security_deposit_cents;
+    if (updates.utilities_included !== undefined) updateData.utilities_included = updates.utilities_included;
+    if (updates.amenities !== undefined) updateData.amenities = updates.amenities;
+    if (updates.occupancy_status !== undefined) updateData.occupancy_status = updates.occupancy_status;
+    if (updates.available_date !== undefined) updateData.available_date = updates.available_date;
+    if (updates.notes !== undefined) updateData.notes = updates.notes;
+
+    // Public page and template settings
+    if (updates.public_page_enabled !== undefined) updateData.public_page_enabled = updates.public_page_enabled;
+    if (updates.default_agreement_template_id !== undefined) updateData.default_agreement_template_id = updates.default_agreement_template_id;
+    if (updates.default_application_template_id !== undefined) updateData.default_application_template_id = updates.default_application_template_id;
+
+    // 3-tier public page visibility and online applications settings (v5.7.0+)
+    if (updates.public_page_visibility_override !== undefined) updateData.public_page_visibility_override = updates.public_page_visibility_override;
+    if (updates.accept_online_applications !== undefined) updateData.accept_online_applications = updates.accept_online_applications;
+
     const { data, error } = await supabase
       .from('units')
-      .update({
-        unit_number: updates.unit_number,
-        unit_name: updates.unit_name,
-        bedrooms: updates.bedrooms,
-        bathrooms: updates.bathrooms,
-        square_feet: updates.square_feet,
-        floor_number: updates.floor_number,
-        monthly_rent_cents: updates.monthly_rent_cents,
-        security_deposit_cents: updates.security_deposit_cents,
-        utilities_included: updates.utilities_included,
-        amenities: updates.amenities,
-        occupancy_status: updates.occupancy_status,
-        available_date: updates.available_date,
-        notes: updates.notes,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();

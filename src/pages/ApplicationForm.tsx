@@ -121,6 +121,9 @@ export function ApplicationForm() {
 
     for (const section of formTemplate.form_schema.sections) {
       for (const field of section.fields) {
+        // Skip validation for excluded fields
+        if (field.included === false) continue;
+
         if (field.required && !formData[field.id]) {
           setError(`Please fill in: ${field.label}`);
           return false;
@@ -306,15 +309,17 @@ export function ApplicationForm() {
               <div key={sectionIdx} className="border-b border-gray-200 pb-8 last:border-0">
                 <h2 className="text-xl font-semibold text-gray-900 mb-6">{section.title}</h2>
                 <div className="grid gap-6">
-                  {section.fields.map((field) => (
-                    <div key={field.id}>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {field.label}
-                        {field.required && <span className="text-red-500 ml-1">*</span>}
-                      </label>
-                      {renderField(field)}
-                    </div>
-                  ))}
+                  {section.fields
+                    .filter((field) => field.included !== false)
+                    .map((field) => (
+                      <div key={field.id}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          {field.label}
+                          {field.required && <span className="text-red-500 ml-1">*</span>}
+                        </label>
+                        {renderField(field)}
+                      </div>
+                    ))}
                 </div>
               </div>
             ))}

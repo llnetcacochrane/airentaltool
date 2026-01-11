@@ -57,10 +57,15 @@ export function IssueAgreement({ onComplete, onCancel, preselectedTemplateId, pr
 
   useEffect(() => {
     if (selectedTemplate) {
+      // Convert from cents to dollars for display
       setAgreementDetails(prev => ({
         ...prev,
-        rentAmount: selectedTemplate.default_rent_amount?.toString() || '',
-        securityDeposit: selectedTemplate.default_security_deposit?.toString() || '',
+        rentAmount: selectedTemplate.default_rent_amount
+          ? (selectedTemplate.default_rent_amount / 100).toFixed(2)
+          : '',
+        securityDeposit: selectedTemplate.default_security_deposit
+          ? (selectedTemplate.default_security_deposit / 100).toFixed(2)
+          : '',
       }));
     }
   }, [selectedTemplate]);

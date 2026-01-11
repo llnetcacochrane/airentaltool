@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { propertyOwnerService } from '../../services/propertyOwnerService';
 import { supabase } from '../../lib/supabase';
+import { getPropertyTypeLabel } from '../../types';
 import {
   Building2,
   Home,
@@ -115,18 +116,7 @@ export function OwnerProperties() {
     }
   };
 
-  const getPropertyTypeLabel = (type: string) => {
-    const labels: Record<string, string> = {
-      single_family: 'Single Family',
-      multi_family: 'Multi-Family',
-      apartment: 'Apartment',
-      condo: 'Condo',
-      townhouse: 'Townhouse',
-      commercial: 'Commercial',
-      land: 'Land',
-    };
-    return labels[type] || type;
-  };
+  // Using standardized getPropertyTypeLabel from types/index.ts
 
   if (loading) {
     return (

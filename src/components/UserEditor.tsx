@@ -154,7 +154,7 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
         organization_id,
         role,
         is_active,
-        organizations!inner(
+        organization:organizations(
           id,
           name,
           organization_package_settings(
@@ -167,13 +167,13 @@ export function UserEditor({ userId, onClose, onSave }: UserEditorProps) {
 
     if (error) throw error;
 
-    const orgs: Organization[] = (data || []).map((item: any) => ({
-      id: item.organizations.id,
-      name: item.organizations.name,
+    const orgs: Organization[] = (data || []).filter((item: any) => item.organization).map((item: any) => ({
+      id: item.organization.id,
+      name: item.organization.name,
       role: item.role,
       is_active: item.is_active,
-      package_tier_id: item.organizations.organization_package_settings?.package_tier_id || null,
-      package_tier_name: item.organizations.organization_package_settings?.package_tiers?.tier_name || null,
+      package_tier_id: item.organization.organization_package_settings?.package_tier_id || null,
+      package_tier_name: item.organization.organization_package_settings?.package_tiers?.tier_name || null,
     }));
 
     setOrganizations(orgs);

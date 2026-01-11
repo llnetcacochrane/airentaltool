@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { CheckCircle, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
+import { CheckCircle, AlertCircle, Loader2, ArrowRight, FileText, Home } from 'lucide-react';
 
 export function VerifyEmail() {
   const [searchParams] = useSearchParams();
@@ -9,6 +9,8 @@ export function VerifyEmail() {
   const [status, setStatus] = useState<'verifying' | 'success' | 'error' | 'already-verified'>('verifying');
   const [message, setMessage] = useState('');
   const [countdown, setCountdown] = useState(5);
+  const [isApplicant, setIsApplicant] = useState(false);
+  const [redirectPath, setRedirectPath] = useState('/login');
 
   useEffect(() => {
     verifyEmail();
@@ -21,9 +23,9 @@ export function VerifyEmail() {
       }, 1000);
       return () => clearTimeout(timer);
     } else if (status === 'success' && countdown === 0) {
-      navigate('/login');
+      navigate(redirectPath);
     }
-  }, [status, countdown, navigate]);
+  }, [status, countdown, navigate, redirectPath]);
 
   const verifyEmail = async () => {
     try {
@@ -40,14 +42,45 @@ export function VerifyEmail() {
       if (type === 'signup') {
         // This is handled automatically by Supabase Auth
         // The token in the URL confirms the email
-        const { error } = await supabase.auth.getUser();
+        const { data: userData, error } = await supabase.auth.getUser();
 
         if (error) {
           setStatus('error');
           setMessage('Email verification failed. The link may have expired.');
         } else {
+          // Check if user is an applicant (has business_users records with applicant role)
+          if (userData?.user) {
+            const { data: businessUserRecords } = await supabase
+              .from('business_users')
+              .select('id, role')
+              .eq('auth_user_id', userData.user.id)
+              .eq('role', 'applicant')
+              .limit(1);
+
+            if (businessUserRecords && businessUserRecords.length > 0) {
+              // User is an applicant - redirect to applications portal
+              setIsApplicant(true);
+              setRedirectPath('/my-applications');
+              setMessage('Your email has been verified! You can now view your applications.');
+            } else {
+              // Check if they're a business owner
+              const { data: ownedBusinesses } = await supabase
+                .from('businesses')
+                .select('id')
+                .eq('owner_user_id', userData.user.id)
+                .limit(1);
+
+              if (ownedBusinesses && ownedBusinesses.length > 0) {
+                setRedirectPath('/dashboard');
+                setMessage('Your email has been verified! You can now access your dashboard.');
+              } else {
+                setMessage('Your email has been verified successfully!');
+              }
+            }
+          } else {
+            setMessage('Your email has been verified successfully!');
+          }
           setStatus('success');
-          setMessage('Your email has been verified successfully!');
         }
       } else {
         setStatus('success');
@@ -126,16 +159,36 @@ export function VerifyEmail() {
             <div className="space-y-4">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                 <p className="text-sm text-green-800">
-                  Redirecting to login in {countdown} seconds...
+                  Redirecting in {countdown} seconds...
                 </p>
               </div>
-              <button
-                onClick={() => navigate('/login')}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-              >
-                Continue to Login
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              {isApplicant ? (
+                <button
+                  onClick={() => navigate('/my-applications')}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+                >
+                  <FileText className="w-4 h-4" />
+                  View My Applications
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : redirectPath === '/dashboard' ? (
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+                >
+                  <Home className="w-4 h-4" />
+                  Go to Dashboard
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate('/login')}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+                >
+                  Continue to Login
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           )}
 

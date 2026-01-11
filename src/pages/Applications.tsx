@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { rentalApplicationService } from '../services/rentalApplicationService';
 import { fileStorageService } from '../services/fileStorageService';
 import { propertyService } from '../services/propertyService';
 import { unitService } from '../services/unitService';
-import { RentalApplication, Property, Unit } from '../types';
+import { businessUserService } from '../services/businessUserService';
+import { emailService } from '../services/emailService';
+import { agreementService, AgreementTemplate } from '../services/agreementService';
+import { RentalApplication, Property, Unit, BusinessUserMessage } from '../types';
 import { EmptyStatePresets } from '../components/EmptyState';
 import { SlidePanel } from '../components/SlidePanel';
 import {
@@ -18,11 +20,12 @@ import {
   AlertCircle,
   Loader,
   CheckCircle,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
 
 export function Applications() {
-  const { currentBusiness } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { currentBusiness, supabaseUser } = useAuth();
   const [applications, setApplications] = useState<RentalApplication[]>([]);
   const [properties, setProperties] = useState<Record<string, Property>>({});
   const [units, setUnits] = useState<Record<string, Unit>>({});
@@ -37,64 +40,65 @@ export function Applications() {
     move_in_date: '',
   });
 
-  // Create listing state
-  const [showCreateListing, setShowCreateListing] = useState(false);
-  const [allProperties, setAllProperties] = useState<Property[]>([]);
-  const [allUnits, setAllUnits] = useState<Unit[]>([]);
-  const [loadingProperties, setLoadingProperties] = useState(false);
-  const [creatingListing, setCreatingListing] = useState(false);
-  const [listingForm, setListingForm] = useState({
-    property_id: '',
-    unit_id: '',
-    title: '',
-    description: '',
-    monthly_rent_cents: 0,
-    security_deposit_cents: 0,
-    available_date: '',
-    lease_term_months: 12,
-    amenities: [] as string[],
-    pet_policy: '',
-    parking_included: false,
-    utilities_included: [] as string[],
-    accept_applications: true,
-    application_fee_cents: 0,
-  });
+  // Messaging state
+  const [showMessages, setShowMessages] = useState(false);
+  const [messageApp, setMessageApp] = useState<RentalApplication | null>(null);
+  const [messages, setMessages] = useState<BusinessUserMessage[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Agreement template state for approval modal
+  const [agreementTemplates, setAgreementTemplates] = useState<AgreementTemplate[]>([]);
+  const [selectedAgreementTemplateId, setSelectedAgreementTemplateId] = useState<string>('');
+  const [sendAgreementOnApproval, setSendAgreementOnApproval] = useState(false);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   useEffect(() => {
     if (currentBusiness?.id) {
       loadApplications();
+      loadUnreadCounts();
     }
   }, [currentBusiness]);
 
-  // Handle create-listing action from query params
+  // Scroll to bottom when messages update
   useEffect(() => {
-    const action = searchParams.get('action');
-    if (action === 'create-listing') {
-      setShowCreateListing(true);
-      loadPropertiesAndUnits();
-      // Remove the query param
-      searchParams.delete('action');
-      setSearchParams(searchParams, { replace: true });
+    if (showMessages) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [searchParams]);
+  }, [messages, showMessages]);
 
-  const loadPropertiesAndUnits = async () => {
+  const loadUnreadCounts = async () => {
     if (!currentBusiness?.id) return;
-
     try {
-      setLoadingProperties(true);
-      const [propsData, unitsData] = await Promise.all([
-        propertyService.getPropertiesByBusiness(currentBusiness.id),
-        unitService.getUnitsByBusiness(currentBusiness.id),
-      ]);
-      setAllProperties(propsData);
-      setAllUnits(unitsData);
-    } catch (error) {
-      console.error('Failed to load properties/units:', error);
-    } finally {
-      setLoadingProperties(false);
+      const counts = await businessUserService.getApplicationsWithMessageCounts(currentBusiness.id);
+      setUnreadCounts(counts);
+    } catch (err) {
+      console.error('Failed to load unread counts:', err);
     }
   };
+
+  // Load agreement templates for the approval modal
+  useEffect(() => {
+    async function loadAgreementTemplates() {
+      if (!currentBusiness?.id) return;
+      setLoadingTemplates(true);
+      try {
+        const templates = await agreementService.getTemplates({
+          business_id: currentBusiness.id,
+          is_active: true,
+        });
+        setAgreementTemplates(templates);
+      } catch (err) {
+        console.error('Failed to load agreement templates:', err);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    }
+    loadAgreementTemplates();
+  }, [currentBusiness?.id]);
 
   const loadApplications = async () => {
     if (!currentBusiness?.id) return;
@@ -190,7 +194,7 @@ export function Applications() {
     alert(detailsText);
   };
 
-  const handleApprove = (app: RentalApplication) => {
+  const handleApprove = async (app: RentalApplication) => {
     setSelectedApp(app);
     // Pre-fill lease details based on application data
     const desiredMoveIn = app.responses.move_in_date || '';
@@ -200,6 +204,25 @@ export function Applications() {
       monthly_rent_cents: 0, // Will need to get from listing
       move_in_date: desiredMoveIn, // Default to same as lease start
     });
+
+    // Pre-select the unit's or property's default agreement template (cascade)
+    const unit = units[app.unit_id];
+    const property = properties[app.property_id];
+    let defaultTemplateId = '';
+
+    if (unit?.default_agreement_template_id) {
+      defaultTemplateId = unit.default_agreement_template_id;
+    } else if (property?.default_agreement_template_id) {
+      defaultTemplateId = property.default_agreement_template_id;
+    } else if (currentBusiness?.default_agreement_template_id) {
+      defaultTemplateId = currentBusiness.default_agreement_template_id;
+    }
+
+    // Validate that the template still exists before selecting it
+    const templateExists = defaultTemplateId && agreementTemplates.some(t => t.id === defaultTemplateId);
+    setSelectedAgreementTemplateId(templateExists ? defaultTemplateId : '');
+
+    setSendAgreementOnApproval(false);
     setShowModal(true);
   };
 
@@ -208,13 +231,27 @@ export function Applications() {
 
     setConverting(true);
     try {
-      const result = await rentalApplicationService.approveAndConvertToTenant(selectedApp.id, leaseDetails);
-
-      alert(
-        `Success!\n\nTenant created: ${result.tenantId}\nInvitation Code: ${result.invitationCode}\n\nSend this code to the tenant to complete their portal signup!`
+      const result = await rentalApplicationService.approveAndConvertToTenant(
+        selectedApp.id,
+        leaseDetails,
+        // Pass agreement options if a template is selected
+        selectedAgreementTemplateId ? {
+          sendAgreement: sendAgreementOnApproval,
+          templateId: selectedAgreementTemplateId,
+        } : undefined
       );
 
+      let successMessage = `Success!\n\nTenant created: ${result.tenantId}\nInvitation Code: ${result.invitationCode}`;
+      if (result.agreementId) {
+        successMessage += `\n\nLease Agreement ${sendAgreementOnApproval ? 'sent' : 'created as draft'}: ${result.agreementId}`;
+      }
+      successMessage += '\n\nSend the invitation code to the tenant to complete their portal signup!';
+
+      alert(successMessage);
+
       setShowModal(false);
+      setSelectedAgreementTemplateId('');
+      setSendAgreementOnApproval(false);
       loadApplications();
     } catch (error) {
       alert('Failed to convert application: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -242,49 +279,74 @@ export function Applications() {
     }
   };
 
-  const handleCreateListing = async () => {
-    if (!currentBusiness?.id) return;
-
-    if (!listingForm.property_id || !listingForm.unit_id) {
-      alert('Please select a property and unit');
-      return;
-    }
-
-    if (!listingForm.title || listingForm.monthly_rent_cents === 0) {
-      alert('Please fill in the required fields (Title and Monthly Rent)');
-      return;
-    }
-
+  const handleOpenMessages = async (app: RentalApplication) => {
+    setMessageApp(app);
+    setShowMessages(true);
+    setLoadingMessages(true);
     try {
-      setCreatingListing(true);
-      await rentalApplicationService.createListing(currentBusiness.id, {
-        ...listingForm,
-        status: 'active',
-      });
-      alert('Listing created successfully!');
-      setShowCreateListing(false);
-      setListingForm({
-        property_id: '',
-        unit_id: '',
-        title: '',
-        description: '',
-        monthly_rent_cents: 0,
-        security_deposit_cents: 0,
-        available_date: '',
-        lease_term_months: 12,
-        amenities: [],
-        pet_policy: '',
-        parking_included: false,
-        utilities_included: [],
-        accept_applications: true,
-        application_fee_cents: 0,
-      });
-      loadApplications();
-    } catch (error: any) {
-      console.error('Failed to create listing:', error);
-      alert(`Failed to create listing: ${error.message || 'Unknown error'}`);
+      const msgs = await businessUserService.getMessagesByApplication(app.id);
+      setMessages(msgs);
+      // Mark user messages as read
+      await businessUserService.markApplicationMessagesRead(app.id, 'user');
+      loadUnreadCounts();
+    } catch (err) {
+      console.error('Failed to load messages:', err);
     } finally {
-      setCreatingListing(false);
+      setLoadingMessages(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageApp || !newMessage.trim() || !currentBusiness?.id || !supabaseUser?.id) return;
+
+    setSendingMessage(true);
+    try {
+      await businessUserService.sendApplicationMessage(
+        currentBusiness.id,
+        null, // No business_user_id for applicants without accounts
+        messageApp.id,
+        'manager',
+        supabaseUser.id,
+        newMessage.trim()
+      );
+
+      // Send email notification to applicant (fire and forget)
+      const property = properties[messageApp.property_id];
+      emailService.sendApplicantMessageNotification(
+        messageApp.applicant_email,
+        {
+          applicantName: `${messageApp.applicant_first_name} ${messageApp.applicant_last_name}`,
+          businessName: currentBusiness.business_name || 'Property Manager',
+          propertyName: property?.name || 'your applied property',
+          messagePreview: newMessage.trim(),
+        }
+      ).catch(err => console.error('Failed to send email notification:', err));
+
+      setNewMessage('');
+      // Reload messages
+      const msgs = await businessUserService.getMessagesByApplication(messageApp.id);
+      setMessages(msgs);
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      alert('Failed to send message. Please try again.');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const formatMessageTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } else if (diffDays === 1) {
+      return 'Yesterday ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } else if (diffDays < 7) {
+      return date.toLocaleDateString([], { weekday: 'short' }) + ' ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } else {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     }
   };
 
@@ -338,12 +400,15 @@ export function Applications() {
             <TrendingUp className="w-5 h-5 text-blue-600" />
           </div>
           <p className="text-2xl sm:text-3xl font-bold text-gray-900">
-            {applications.length > 0
-              ? Math.round(
-                  applications.filter((a) => a.ai_score).reduce((sum, a) => sum + (a.ai_score || 0), 0) /
-                    applications.filter((a) => a.ai_score).length
-                )
-              : 0}
+            {(() => {
+              const appsWithScores = applications.filter((a) => a.ai_score);
+              return appsWithScores.length > 0
+                ? Math.round(
+                    appsWithScores.reduce((sum, a) => sum + (a.ai_score || 0), 0) /
+                      appsWithScores.length
+                  )
+                : 0;
+            })()}
           </p>
         </div>
       </div>
@@ -440,6 +505,19 @@ export function Applications() {
                     </button>
 
                     <button
+                      onClick={() => handleOpenMessages(app)}
+                      className="relative flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      <MessageSquare size={16} />
+                      Message
+                      {unreadCounts[app.id] > 0 && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                          {unreadCounts[app.id]}
+                        </span>
+                      )}
+                    </button>
+
+                    <button
                       onClick={() => handleApprove(app)}
                       className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                     >
@@ -465,12 +543,20 @@ export function Applications() {
       {/* Conversion SlidePanel */}
       <SlidePanel
         isOpen={showModal && !!selectedApp}
-        onClose={() => setShowModal(false)}
+        onClose={() => {
+          setShowModal(false);
+          setSelectedAgreementTemplateId('');
+          setSendAgreementOnApproval(false);
+        }}
         title="Convert to Tenant"
         footer={
           <div className="flex gap-3">
             <button
-              onClick={() => setShowModal(false)}
+              onClick={() => {
+                setShowModal(false);
+                setSelectedAgreementTemplateId('');
+                setSendAgreementOnApproval(false);
+              }}
               disabled={converting}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
             >
@@ -547,10 +633,61 @@ export function Applications() {
               </div>
             </div>
 
+            {/* Agreement Template Selection */}
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Lease Agreement</h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Agreement Template
+                  </label>
+                  <select
+                    value={selectedAgreementTemplateId}
+                    onChange={(e) => setSelectedAgreementTemplateId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    disabled={loadingTemplates}
+                  >
+                    <option value="">
+                      {loadingTemplates ? 'Loading templates...' : 'No agreement (create manually later)'}
+                    </option>
+                    {agreementTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.template_name} ({template.agreement_type})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select a template to auto-generate a lease agreement
+                  </p>
+                </div>
+
+                {selectedAgreementTemplateId && (
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="send-agreement"
+                      checked={sendAgreementOnApproval}
+                      onChange={(e) => setSendAgreementOnApproval(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="send-agreement" className="text-sm text-gray-700">
+                      Send agreement to tenant immediately for signing
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
                 This will create a tenant record and generate a portal invitation code. The applicant will receive an
                 email with instructions to complete their signup.
+                {selectedAgreementTemplateId && (
+                  <span className="block mt-2">
+                    A lease agreement will be {sendAgreementOnApproval ? 'sent for signing' : 'created as a draft'} using the selected template.
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -569,231 +706,113 @@ export function Applications() {
         </div>
       )}
 
-      {/* Create Listing Modal */}
+      {/* Messages SlidePanel */}
       <SlidePanel
-        isOpen={showCreateListing}
-        onClose={() => setShowCreateListing(false)}
-        title="Create Rental Listing"
+        isOpen={showMessages && !!messageApp}
+        onClose={() => {
+          setShowMessages(false);
+          setMessageApp(null);
+          setMessages([]);
+          setNewMessage('');
+        }}
+        title={`Messages - ${messageApp?.applicant_first_name} ${messageApp?.applicant_last_name}`}
       >
-        <div className="space-y-6">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-900">
-              Create a listing to accept online applications for your vacant units. You'll receive a unique link to share with prospective tenants.
-            </p>
-          </div>
-
-          {/* Property and Unit Selection */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Property *
-              </label>
-              <select
-                value={listingForm.property_id}
-                onChange={(e) => {
-                  setListingForm({ ...listingForm, property_id: e.target.value, unit_id: '' });
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                disabled={loadingProperties}
-              >
-                <option value="">Select property...</option>
-                {allProperties.map((prop) => (
-                  <option key={prop.id} value={prop.id}>
-                    {prop.name} - {prop.address_line1}, {prop.city}
-                  </option>
-                ))}
-              </select>
+        {messageApp && (
+          <div className="flex flex-col h-full">
+            {/* Applicant Info */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Email:</span> {messageApp.applicant_email}
+              </p>
+              {messageApp.applicant_phone && (
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Phone:</span> {messageApp.applicant_phone}
+                </p>
+              )}
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Property:</span> {properties[messageApp.property_id]?.name} - Unit {units[messageApp.unit_id]?.unit_number}
+              </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Unit *
-              </label>
-              <select
-                value={listingForm.unit_id}
-                onChange={(e) => setListingForm({ ...listingForm, unit_id: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                disabled={!listingForm.property_id || loadingProperties}
-              >
-                <option value="">Select unit...</option>
-                {allUnits
-                  .filter((unit) => unit.property_id === listingForm.property_id)
-                  .map((unit) => (
-                    <option key={unit.id} value={unit.id}>
-                      {unit.unit_number}
-                    </option>
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto mb-4 min-h-[300px] max-h-[400px] border border-gray-200 rounded-lg p-4">
+              {loadingMessages ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader className="w-6 h-6 text-blue-600 animate-spin" />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                  <MessageSquare className="w-12 h-12 text-gray-300 mb-2" />
+                  <p className="text-sm">No messages yet</p>
+                  <p className="text-xs">Send a message to the applicant</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.sender_type === 'manager' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
+                          msg.sender_type === 'manager'
+                            ? 'bg-blue-600 text-white rounded-br-sm'
+                            : 'bg-gray-100 text-gray-900 rounded-bl-sm'
+                        }`}
+                      >
+                        {msg.subject && (
+                          <p className={`text-xs font-medium mb-1 ${msg.sender_type === 'manager' ? 'text-blue-100' : 'text-gray-500'}`}>
+                            {msg.subject}
+                          </p>
+                        )}
+                        <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                        <p className={`text-xs mt-1 ${msg.sender_type === 'manager' ? 'text-blue-200' : 'text-gray-400'}`}>
+                          {formatMessageTime(msg.created_at)}
+                        </p>
+                      </div>
+                    </div>
                   ))}
-              </select>
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Listing Details */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Listing Title *
-            </label>
-            <input
-              type="text"
-              value={listingForm.title}
-              onChange={(e) => setListingForm({ ...listingForm, title: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., Spacious 2BR Downtown Apartment"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
-            </label>
-            <textarea
-              value={listingForm.description}
-              onChange={(e) => setListingForm({ ...listingForm, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              rows={4}
-              placeholder="Describe the property, amenities, and features..."
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Monthly Rent *
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-gray-500">$</span>
-                <input
-                  type="number"
-                  value={listingForm.monthly_rent_cents / 100}
-                  onChange={(e) =>
-                    setListingForm({
-                      ...listingForm,
-                      monthly_rent_cents: Math.round(parseFloat(e.target.value || '0') * 100),
-                    })
-                  }
-                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="0.00"
-                  step="0.01"
-                />
+            {/* Message Input */}
+            <div className="border-t border-gray-200 pt-4">
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <textarea
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    placeholder="Type your message..."
+                    rows={2}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  />
+                </div>
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() || sendingMessage}
+                  className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                >
+                  {sendingMessage ? (
+                    <Loader className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                </button>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Security Deposit
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-gray-500">$</span>
-                <input
-                  type="number"
-                  value={listingForm.security_deposit_cents / 100}
-                  onChange={(e) =>
-                    setListingForm({
-                      ...listingForm,
-                      security_deposit_cents: Math.round(parseFloat(e.target.value || '0') * 100),
-                    })
-                  }
-                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="0.00"
-                  step="0.01"
-                />
-              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Press Enter to send, Shift+Enter for new line
+              </p>
             </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Available Date
-              </label>
-              <input
-                type="date"
-                value={listingForm.available_date}
-                onChange={(e) => setListingForm({ ...listingForm, available_date: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Lease Term (months)
-              </label>
-              <input
-                type="number"
-                value={listingForm.lease_term_months}
-                onChange={(e) =>
-                  setListingForm({ ...listingForm, lease_term_months: parseInt(e.target.value) || 12 })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                min="1"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Pet Policy
-            </label>
-            <select
-              value={listingForm.pet_policy}
-              onChange={(e) => setListingForm({ ...listingForm, pet_policy: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select policy...</option>
-              <option value="no_pets">No Pets</option>
-              <option value="cats_only">Cats Only</option>
-              <option value="dogs_only">Dogs Only</option>
-              <option value="cats_and_dogs">Cats and Dogs</option>
-              <option value="negotiable">Negotiable</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="parking"
-              checked={listingForm.parking_included}
-              onChange={(e) =>
-                setListingForm({ ...listingForm, parking_included: e.target.checked })
-              }
-              className="rounded"
-            />
-            <label htmlFor="parking" className="text-sm font-medium text-gray-700">
-              Parking Included
-            </label>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="accept-applications"
-              checked={listingForm.accept_applications}
-              onChange={(e) =>
-                setListingForm({ ...listingForm, accept_applications: e.target.checked })
-              }
-              className="rounded"
-            />
-            <label htmlFor="accept-applications" className="text-sm font-medium text-gray-700">
-              Accept Applications Immediately
-            </label>
-          </div>
-
-          <div className="flex gap-3 pt-4 border-t">
-            <button
-              onClick={() => setShowCreateListing(false)}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-              disabled={creatingListing}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleCreateListing}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
-              disabled={creatingListing}
-            >
-              {creatingListing ? 'Creating...' : 'Create Listing'}
-            </button>
-          </div>
-        </div>
+        )}
       </SlidePanel>
     </div>
   );

@@ -10,7 +10,7 @@ import {
   TrendingUp, DollarSign, Wrench, Calendar, Users, Home, Building2,
   AlertTriangle, CheckCircle2, ArrowRight, Zap, Bell, Clock,
   Target, Award, Sparkles, ChevronRight, TrendingDown, BarChart3,
-  Briefcase, DoorClosed
+  Briefcase, DoorClosed, FileText, ClipboardList
 } from 'lucide-react';
 import { MetricCard, MetricCardSkeleton } from '../components/analytics/MetricCard';
 import { HealthScoreRing, ProgressRing } from '../components/analytics/ProgressRing';
@@ -43,6 +43,7 @@ export function NewOperationsCenter() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [financialSummary, setFinancialSummary] = useState<any>(null);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [newApplicationsCount, setNewApplicationsCount] = useState(0);
 
   const userTier = userProfile?.selected_tier || 'free';
   const isFree = userTier === 'free';
@@ -61,17 +62,32 @@ export function NewOperationsCenter() {
 
     setIsLoading(true);
     try {
-      const [healthData, riskData, renewalData, summaryData] = await Promise.all([
+      // Get date from 7 days ago for "new" applications
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const [healthData, riskData, renewalData, summaryData, applicationsData] = await Promise.all([
         portfolioHealthService.calculateHealthScore(orgId),
         paymentPredictionService.calculateTenantRiskScores(orgId),
         leaseRenewalService.getExpiringLeases(orgId, 90),
         financialService.getPortfolioSummary(orgId),
+        supabase
+          .from('rental_applications')
+          .select('id, status, applicant_first_name, applicant_last_name, created_at, property:properties(name), unit:units(unit_number)')
+          .eq('organization_id', orgId)
+          .eq('status', 'submitted')
+          .gte('created_at', sevenDaysAgo.toISOString())
+          .order('created_at', { ascending: false }),
       ]);
 
       setPortfolioHealth(healthData);
       setRiskScores(riskData.filter(r => r.risk_level !== 'low'));
       setRenewalOpportunities(renewalData);
       setFinancialSummary(summaryData);
+
+      // Handle applications data
+      const recentApplications = applicationsData.data || [];
+      setNewApplicationsCount(recentApplications.length);
 
       // Generate comprehensive alerts
       const generatedAlerts: Alert[] = [];
@@ -115,6 +131,21 @@ export function NewOperationsCenter() {
           actionUrl: '/rent-optimization',
           actionText: 'Analyze Rates',
           value: 'Potential: +15% revenue'
+        });
+      }
+
+      // New application alerts
+      if (recentApplications.length > 0) {
+        generatedAlerts.push({
+          id: 'new-applications',
+          type: recentApplications.length >= 3 ? 'warning' : 'info',
+          category: 'opportunity',
+          title: `${recentApplications.length} New Application${recentApplications.length > 1 ? 's' : ''} to Review`,
+          description: recentApplications.length === 1
+            ? `${recentApplications[0].applicant_first_name} ${recentApplications[0].applicant_last_name} has applied for a unit`
+            : `You have ${recentApplications.length} pending applications waiting for review`,
+          actionUrl: '/applications',
+          actionText: 'Review Applications',
         });
       }
 
@@ -275,6 +306,32 @@ export function NewOperationsCenter() {
               }}
             />
           </div>
+
+          {/* New Applications Row */}
+          {newApplicationsCount > 0 && (
+            <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <ClipboardList className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {newApplicationsCount} New Application{newApplicationsCount > 1 ? 's' : ''}
+                    </h3>
+                    <p className="text-sm text-gray-600">Pending review from the past 7 days</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate('/applications')}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm"
+                >
+                  <FileText className="w-4 h-4" />
+                  Review Applications
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Portfolio Health Score - Prominent Display */}
@@ -453,26 +510,33 @@ export function NewOperationsCenter() {
         {/* Quick Actions Grid */}
         <div>
           <h2 className="text-xl font-bold text-gray-900 mb-6">Quick Actions</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
             {[
               { icon: Briefcase, label: 'Businesses', url: '/businesses', color: 'indigo' },
               { icon: Building2, label: 'Properties', url: '/properties', color: 'blue' },
               { icon: DoorClosed, label: 'Units', url: '/units', color: 'purple' },
+              { icon: ClipboardList, label: 'Applications', url: '/applications', color: 'cyan', badge: newApplicationsCount > 0 ? newApplicationsCount : undefined },
               { icon: Users, label: 'Tenants', url: '/tenants', color: 'green' },
               { icon: DollarSign, label: 'Payments', url: '/payments', color: 'emerald' },
               { icon: Wrench, label: 'Maintenance', url: '/maintenance', color: 'amber' },
+              { icon: FileText, label: 'Templates', url: '/application-templates', color: 'slate' },
             ].map((action, idx) => (
               <button
                 key={idx}
                 onClick={() => navigate(action.url)}
-                className="group bg-white rounded-xl shadow-sm hover:shadow-lg transition p-6 text-left border border-gray-100"
+                className="group relative bg-white rounded-xl shadow-sm hover:shadow-lg transition p-4 sm:p-6 text-left border border-gray-100"
               >
-                <div className={`w-12 h-12 bg-${action.color}-100 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition`}>
-                  <action.icon className={`w-6 h-6 text-${action.color}-600`} />
+                {action.badge && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                    {action.badge > 99 ? '99+' : action.badge}
+                  </span>
+                )}
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-${action.color}-100 rounded-lg flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition`}>
+                  <action.icon className={`w-5 h-5 sm:w-6 sm:h-6 text-${action.color}-600`} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-gray-900">{action.label}</h3>
-                  <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition" />
+                  <h3 className="text-sm sm:text-base font-bold text-gray-900">{action.label}</h3>
+                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition" />
                 </div>
               </button>
             ))}

@@ -304,18 +304,18 @@ export const EmptyStatePresets = {
     <EmptyState
       icon={<FileText className="w-16 h-16 text-indigo-200" />}
       title="No Applications Yet"
-      description="Create a listing for your vacant units to start receiving rental applications online. You can customize your application form and screen applicants."
+      description="Rental applications will appear here once you create listings for your vacant units. Create listings from the Properties or Units pages to start receiving applications."
       actions={[
         {
-          label: 'Create Listing',
-          href: '/applications?action=create-listing',
+          label: 'View Properties',
+          href: '/properties',
           primary: true,
         },
       ]}
       tips={[
         {
-          title: 'Customize Forms',
-          description: 'Add custom questions to your application form.',
+          title: 'Create Listings from Units',
+          description: 'Go to a property, select a vacant unit, and create a listing.',
         },
         {
           title: 'Screen Applicants',

@@ -24,10 +24,8 @@ import {
   HelpCircle,
   UserCheck,
   Sparkles,
-  Globe,
   Crown,
   Lock,
-  DoorClosed,
 } from 'lucide-react';
 import { Footer } from './Footer';
 import BusinessSelector from './BusinessSelector';
@@ -46,14 +44,14 @@ interface NavItem {
 
 const navigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
+  { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Property Wizard', href: '/welcome', icon: Sparkles },
   { name: 'Businesses', href: '/businesses', icon: Briefcase },
   { name: 'Properties', href: '/properties', icon: Building2 },
-  { name: 'Units', href: '/units', icon: DoorClosed },
   { name: 'Clients', href: '/property-owners', icon: UserCheck, packageType: 'management_company' }, // Property Managers manage clients
   { name: 'Users', href: '/users', icon: Users },
   { name: 'Applications', href: '/applications', icon: ClipboardList },
-  { name: 'Public Page', href: '/public-page', icon: Globe },
+  { name: 'Application Forms', href: '/application-templates', icon: ClipboardList },
   { name: 'Agreements', href: '/agreements', icon: FileText },
   { name: 'Payments', href: '/payments', icon: CreditCard },
   { name: 'Expenses', href: '/expenses', icon: DollarSign },
@@ -67,7 +65,6 @@ const secondaryNavigation: NavItem[] = [
 ];
 
 const accountNavigation: NavItem[] = [
-  { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Packages', href: '/packages', icon: Package },
   { name: 'Add-ons', href: '/addons', icon: Package },
 ];
@@ -138,9 +135,9 @@ export function Layout() {
     <div className="flex min-h-screen bg-gray-50">
       {/* Desktop Sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
+        <div className="flex flex-col h-full bg-white border-r border-gray-200">
           {/* Logo */}
-          <div className="flex items-center gap-3 h-16 px-6 border-b border-gray-200">
+          <div className="flex-shrink-0 flex items-center gap-3 h-16 px-6 border-b border-gray-200">
             <button
               onClick={() => navigate('/dashboard')}
               className="flex items-center gap-3 hover:opacity-80 transition"
@@ -150,8 +147,8 @@ export function Layout() {
             </button>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+          {/* Navigation - scrollable */}
+          <nav className="flex-1 min-h-0 px-4 py-4 space-y-1 overflow-y-auto">
             <div className="space-y-1">
               {filteredNavigation.map((item) => {
                 const Icon = item.icon;
@@ -220,20 +217,6 @@ export function Layout() {
             </div>
           </nav>
 
-          {/* Settings link at bottom */}
-          <div className="border-t border-gray-200 p-4">
-            <Link
-              to="/settings"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                location.pathname === '/settings'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <Settings className="w-5 h-5 text-gray-400" />
-              Settings
-            </Link>
-          </div>
         </div>
       </div>
 

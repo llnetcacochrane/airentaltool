@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Property, PropertyType, Business } from '../types';
+import { Property, PropertyType, Business, PROPERTY_TYPE_OPTIONS } from '../types';
 import { businessService } from '../services/businessService';
 import { useAuth } from '../context/AuthContext';
 import { validators, validate, getFieldError, getInputClassName, ValidationError } from '../utils/formValidation';
@@ -14,18 +14,8 @@ interface PropertyFormProps {
   isSubmitting?: boolean;
 }
 
-const propertyTypes: { value: PropertyType; label: string }[] = [
-  { value: 'single_family', label: 'Single Family Home' },
-  { value: 'multi_family', label: 'Multi-Family' },
-  { value: 'apartment_building', label: 'Apartment Building' },
-  { value: 'condo', label: 'Condo' },
-  { value: 'townhouse', label: 'Townhouse' },
-  { value: 'commercial', label: 'Commercial' },
-  { value: 'mixed_use', label: 'Mixed Use' },
-  { value: 'land', label: 'Land' },
-  { value: 'vacant_land', label: 'Vacant Land' },
-  { value: 'other', label: 'Other' },
-];
+// Use standardized property type options from types/index.ts
+const propertyTypes = PROPERTY_TYPE_OPTIONS;
 
 export function PropertyForm({ property, onSubmit, onCancel, isSubmitting }: PropertyFormProps) {
   const { currentBusiness } = useAuth();

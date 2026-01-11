@@ -57,10 +57,10 @@ export function UnitsList() {
           occupancy_status,
           is_active,
           property_id,
-          properties!inner (
-            property_name,
+          property:properties (
+            name,
             business_id,
-            businesses!inner (
+            business:businesses (
               business_name
             )
           )
@@ -81,9 +81,9 @@ export function UnitsList() {
         occupancy_status: u.occupancy_status,
         is_active: u.is_active,
         property_id: u.property_id,
-        property_name: u.properties?.property_name || 'Unknown Property',
-        business_id: u.properties?.business_id || '',
-        business_name: u.properties?.businesses?.business_name || 'Unknown Business',
+        property_name: u.property?.name || 'Unknown Property',
+        business_id: u.property?.business_id || '',
+        business_name: u.property?.business?.business_name || 'Unknown Business',
       }));
 
       setUnits(unitsWithProperty);

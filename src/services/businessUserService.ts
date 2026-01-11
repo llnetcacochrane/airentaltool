@@ -378,4 +378,103 @@ export const businessUserService = {
     if (error || !data) return false;
     return data.public_page_enabled === true && data.is_active === true;
   },
+
+  /**
+   * Get messages for a specific application
+   */
+  async getMessagesByApplication(applicationId: string): Promise<BusinessUserMessage[]> {
+    const { data, error } = await supabase
+      .from('business_user_messages')
+      .select('*')
+      .eq('application_id', applicationId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
+   * Send a message tied to an application
+   */
+  async sendApplicationMessage(
+    businessId: string,
+    businessUserId: string | null,
+    applicationId: string,
+    senderType: 'user' | 'manager',
+    senderId: string,
+    message: string,
+    subject?: string
+  ): Promise<BusinessUserMessage> {
+    const { data, error } = await supabase
+      .from('business_user_messages')
+      .insert({
+        business_id: businessId,
+        business_user_id: businessUserId,
+        application_id: applicationId,
+        sender_type: senderType,
+        sender_id: senderId,
+        subject,
+        message,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * Get unread message count for an application (from user perspective - manager messages)
+   */
+  async getUnreadCountForApplication(applicationId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('business_user_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('application_id', applicationId)
+      .eq('is_read', false)
+      .eq('sender_type', 'user');
+
+    if (error) throw error;
+    return count || 0;
+  },
+
+  /**
+   * Get all applications with their message counts for a business
+   */
+  async getApplicationsWithMessageCounts(businessId: string): Promise<Record<string, number>> {
+    const { data, error } = await supabase
+      .from('business_user_messages')
+      .select('application_id')
+      .eq('business_id', businessId)
+      .eq('is_read', false)
+      .eq('sender_type', 'user')
+      .not('application_id', 'is', null);
+
+    if (error) throw error;
+
+    const counts: Record<string, number> = {};
+    (data || []).forEach((msg) => {
+      if (msg.application_id) {
+        counts[msg.application_id] = (counts[msg.application_id] || 0) + 1;
+      }
+    });
+    return counts;
+  },
+
+  /**
+   * Mark all messages for an application as read
+   */
+  async markApplicationMessagesRead(applicationId: string, senderType: 'user' | 'manager'): Promise<void> {
+    const { error } = await supabase
+      .from('business_user_messages')
+      .update({
+        is_read: true,
+        read_at: new Date().toISOString(),
+      })
+      .eq('application_id', applicationId)
+      .eq('sender_type', senderType)
+      .eq('is_read', false);
+
+    if (error) throw error;
+  },
 };

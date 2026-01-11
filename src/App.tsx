@@ -52,9 +52,10 @@ const Settings = lazyWithRetry(() => import('./pages/Settings').then(m => ({ def
 const Maintenance = lazyWithRetry(() => import('./pages/Maintenance').then(m => ({ default: m.Maintenance })), 'Maintenance');
 const RentOptimization = lazyWithRetry(() => import('./pages/RentOptimization').then(m => ({ default: m.RentOptimization })), 'RentOptimization');
 const Applications = lazyWithRetry(() => import('./pages/Applications').then(m => ({ default: m.Applications })), 'Applications');
-const PublicPageSettings = lazyWithRetry(() => import('./pages/PublicPageSettings').then(m => ({ default: m.PublicPageSettings })), 'PublicPageSettings');
+// PublicPageSettings removed - functionality moved to Business/Property/Unit detail pages
 const Addons = lazyWithRetry(() => import('./pages/Addons').then(m => ({ default: m.Addons })), 'Addons');
 const Agreements = lazyWithRetry(() => import('./pages/Agreements'), 'Agreements');
+const ApplicationTemplates = lazyWithRetry(() => import('./pages/ApplicationTemplates'), 'ApplicationTemplates');
 const Help = lazyWithRetry(() => import('./pages/Help').then(m => ({ default: m.Help })), 'Help');
 
 // Lazy load: Super admin pages (rarely accessed)
@@ -86,6 +87,13 @@ const OwnerDashboard = lazyWithRetry(() => import('./pages/owner-portal/OwnerDas
 const OwnerProperties = lazyWithRetry(() => import('./pages/owner-portal/OwnerProperties').then(m => ({ default: m.OwnerProperties })), 'OwnerProperties');
 const OwnerReports = lazyWithRetry(() => import('./pages/owner-portal/OwnerReports').then(m => ({ default: m.OwnerReports })), 'OwnerReports');
 const OwnerMessages = lazyWithRetry(() => import('./pages/owner-portal/OwnerMessages').then(m => ({ default: m.OwnerMessages })), 'OwnerMessages');
+
+// Lazy load: Applicant portal pages
+const ApplicantLayout = lazyWithRetry(() => import('./components/ApplicantLayout').then(m => ({ default: m.ApplicantLayout })), 'ApplicantLayout');
+const ApplicantDashboard = lazyWithRetry(() => import('./pages/applicant').then(m => ({ default: m.ApplicantDashboard })), 'ApplicantDashboard');
+const ApplicantMessages = lazyWithRetry(() => import('./pages/applicant').then(m => ({ default: m.ApplicantMessages })), 'ApplicantMessages');
+const ApplicantProfile = lazyWithRetry(() => import('./pages/applicant').then(m => ({ default: m.ApplicantProfile })), 'ApplicantProfile');
+const ApplicantApplicationDetail = lazyWithRetry(() => import('./pages/applicant').then(m => ({ default: m.ApplicantApplicationDetail })), 'ApplicantApplicationDetail');
 
 // Lazy load: Affiliate portal pages
 const AffiliateApplication = lazyWithRetry(() => import('./pages/AffiliateApplication').then(m => ({ default: m.AffiliateApplication })), 'AffiliateApplication');
@@ -325,8 +333,8 @@ function AppWithAnalytics() {
         <Route path="/users" element={<BusinessUsers />} />
         <Route path="/tenants" element={<Tenants />} />
         <Route path="/applications" element={<Applications />} />
-        <Route path="/public-page" element={<PublicPageSettings />} />
         <Route path="/agreements" element={<Agreements />} />
+        <Route path="/application-templates" element={<ApplicationTemplates />} />
         <Route path="/payments" element={<Payments />} />
         <Route path="/expenses" element={<Expenses />} />
         <Route path="/maintenance" element={<Maintenance />} />
@@ -363,6 +371,19 @@ function AppWithAnalytics() {
         <Route path="/owner-portal/properties" element={<OwnerProperties />} />
         <Route path="/owner-portal/reports" element={<OwnerReports />} />
         <Route path="/owner-portal/messages" element={<OwnerMessages />} />
+      </Route>
+      {/* Applicant Portal Routes */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <ApplicantLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/my-applications" element={<ApplicantDashboard />} />
+        <Route path="/my-applications/:applicationId" element={<ApplicantApplicationDetail />} />
+        <Route path="/my-applications/messages" element={<ApplicantMessages />} />
+        <Route path="/my-applications/profile" element={<ApplicantProfile />} />
       </Route>
     </Routes>
   );

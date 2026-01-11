@@ -5,6 +5,7 @@
 
 import { dataExportService, ExportFormat, ExportOptions } from '../services/dataExportService';
 import type { Property, Tenant, Payment, Expense, MaintenanceRequest } from '../types';
+import { getPropertyTypeLabel } from '../types';
 import type { MaintenanceRequest as ServiceMaintenanceRequest } from '../services/maintenanceService';
 
 /**
@@ -21,7 +22,7 @@ export function exportProperties(
     { key: 'city', label: 'City' },
     { key: 'state', label: 'State/Province' },
     { key: 'postal_code', label: 'Postal Code' },
-    { key: 'property_type', label: 'Type', format: (v: string) => v?.toUpperCase() || 'N/A' },
+    { key: 'property_type', label: 'Type', format: (v: string) => v ? getPropertyTypeLabel(v) : 'N/A' },
     { key: 'bedrooms', label: 'Bedrooms' },
     { key: 'bathrooms', label: 'Bathrooms' },
     { key: 'square_feet', label: 'Square Feet' },

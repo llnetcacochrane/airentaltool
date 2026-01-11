@@ -23,6 +23,8 @@ import {
   Home,
   ChevronDown,
   Send,
+  Edit,
+  Trash2,
 } from 'lucide-react';
 
 interface PromotionData {
@@ -45,6 +47,7 @@ export function BusinessUsers() {
 
   // Panel states
   const [showAddUser, setShowAddUser] = useState(false);
+  const [showEditUser, setShowEditUser] = useState(false);
   const [showPromotePanel, setShowPromotePanel] = useState(false);
   const [showMessagePanel, setShowMessagePanel] = useState(false);
   const [selectedUser, setSelectedUser] = useState<BusinessUserWithStats | null>(null);
@@ -55,6 +58,12 @@ export function BusinessUsers() {
     first_name: '',
     last_name: '',
     phone: '',
+  });
+  const [editUserForm, setEditUserForm] = useState({
+    first_name: '',
+    last_name: '',
+    phone: '',
+    notes: '',
   });
   const [promotionData, setPromotionData] = useState<PromotionData | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState('');
@@ -142,6 +151,50 @@ export function BusinessUsers() {
       setError(err instanceof Error ? err.message : 'Failed to add user');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenEdit = (user: BusinessUserWithStats) => {
+    setSelectedUser(user);
+    setEditUserForm({
+      first_name: user.first_name,
+      last_name: user.last_name,
+      phone: user.phone || '',
+      notes: user.notes || '',
+    });
+    setShowEditUser(true);
+  };
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      await businessUserService.updateBusinessUser(selectedUser.id, editUserForm);
+      setSuccess('User updated successfully');
+      setShowEditUser(false);
+      setSelectedUser(null);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update user');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteUser = async (user: BusinessUserWithStats) => {
+    if (!confirm(`Are you sure you want to delete ${user.first_name} ${user.last_name}? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await businessUserService.deleteBusinessUser(user.id);
+      setSuccess('User deleted successfully');
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete user');
     }
   };
 
@@ -437,12 +490,12 @@ export function BusinessUsers() {
                 ? 'No users have signed up yet. Enable your public page to allow signups.'
                 : 'No users match your search criteria.'}
             </p>
-            {users.length === 0 && (
+            {users.length === 0 && currentBusiness && (
               <a
-                href="/public-page"
+                href={`/business/${currentBusiness.id}`}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
               >
-                Configure Public Page
+                Configure Business Settings
               </a>
             )}
           </div>
@@ -541,6 +594,13 @@ export function BusinessUsers() {
                             </button>
                           )}
                           <button
+                            onClick={() => handleOpenEdit(user)}
+                            className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition"
+                            title="Edit User"
+                          >
+                            <Edit className="w-5 h-5" />
+                          </button>
+                          <button
                             onClick={() => handleOpenMessage(user)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                             title="Send Message"
@@ -550,12 +610,19 @@ export function BusinessUsers() {
                           {user.status === 'active' && (
                             <button
                               onClick={() => handleUpdateStatus(user.id, 'suspended')}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                              className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition"
                               title="Suspend"
                             >
                               <X className="w-5 h-5" />
                             </button>
                           )}
+                          <button
+                            onClick={() => handleDeleteUser(user)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Delete User"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -641,6 +708,95 @@ export function BusinessUsers() {
             />
           </div>
         </form>
+      </SlidePanel>
+
+      {/* Edit User Panel */}
+      <SlidePanel
+        isOpen={showEditUser}
+        onClose={() => {
+          setShowEditUser(false);
+          setSelectedUser(null);
+        }}
+        title="Edit User"
+        footer={
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setShowEditUser(false);
+                setSelectedUser(null);
+              }}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleEditUser}
+              disabled={isSubmitting || !editUserForm.first_name || !editUserForm.last_name}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+            >
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        }
+      >
+        {selectedUser && (
+          <form onSubmit={handleEditUser} className="space-y-4">
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-700">
+                Editing <strong>{selectedUser.email}</strong>
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  First Name *
+                </label>
+                <input
+                  type="text"
+                  value={editUserForm.first_name}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, first_name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  value={editUserForm.last_name}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, last_name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone
+              </label>
+              <input
+                type="tel"
+                value={editUserForm.phone}
+                onChange={(e) => setEditUserForm({ ...editUserForm, phone: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Notes
+              </label>
+              <textarea
+                value={editUserForm.notes}
+                onChange={(e) => setEditUserForm({ ...editUserForm, notes: e.target.value })}
+                rows={4}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Add any notes about this user..."
+              />
+            </div>
+          </form>
+        )}
       </SlidePanel>
 
       {/* Promote to Tenant Panel */}

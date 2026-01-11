@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Home, MapPin, DoorClosed, CheckCircle, Building2 } from 'lucide-react';
 import { FullPageWizard } from '../components/FullPageWizard';
 import { propertyService } from '../services/propertyService';
+import { PROPERTY_TYPE_OPTIONS } from '../types';
 
 /**
  * Property Setup Wizard - Full Page
@@ -28,15 +29,8 @@ const CANADIAN_PROVINCES = [
   { code: 'YT', name: 'Yukon' },
 ];
 
-const PROPERTY_TYPES = [
-  { value: 'single_family', label: 'Single Family Home' },
-  { value: 'multi_family', label: 'Multi-Family' },
-  { value: 'apartment_building', label: 'Apartment Building' },
-  { value: 'condo', label: 'Condo' },
-  { value: 'townhouse', label: 'Townhouse' },
-  { value: 'commercial', label: 'Commercial' },
-  { value: 'mixed_use', label: 'Mixed Use' },
-];
+// Use standardized property type options from types/index.ts
+const PROPERTY_TYPES = PROPERTY_TYPE_OPTIONS;
 
 interface PropertyInfo {
   name: string;

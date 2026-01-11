@@ -112,28 +112,43 @@ export const propertyService = {
    * Update a property
    */
   async updateProperty(id: string, updates: Partial<Property>): Promise<Property> {
+    // Build update object with only defined values
+    const updateData: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    // Core property fields
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.property_type !== undefined) updateData.property_type = updates.property_type;
+    if (updates.address_line1 !== undefined) updateData.address_line1 = updates.address_line1;
+    if (updates.address_line2 !== undefined) updateData.address_line2 = updates.address_line2;
+    if (updates.city !== undefined) updateData.city = updates.city;
+    if (updates.state !== undefined) updateData.state = updates.state;
+    if (updates.postal_code !== undefined) updateData.postal_code = updates.postal_code;
+    if (updates.country !== undefined) updateData.country = updates.country;
+    if (updates.year_built !== undefined) updateData.year_built = updates.year_built;
+    if (updates.square_feet !== undefined) updateData.square_feet = updates.square_feet;
+    if (updates.lot_size !== undefined) updateData.lot_size = updates.lot_size;
+    if (updates.bedrooms !== undefined) updateData.bedrooms = updates.bedrooms;
+    if (updates.bathrooms !== undefined) updateData.bathrooms = updates.bathrooms;
+    if (updates.purchase_price_cents !== undefined) updateData.purchase_price_cents = updates.purchase_price_cents;
+    if (updates.purchase_date !== undefined) updateData.purchase_date = updates.purchase_date;
+    if (updates.current_value_cents !== undefined) updateData.current_value_cents = updates.current_value_cents;
+    if (updates.notes !== undefined) updateData.notes = updates.notes;
+
+    // Public page settings
+    if (updates.public_page_enabled !== undefined) updateData.public_page_enabled = updates.public_page_enabled;
+    if (updates.public_page_slug !== undefined) updateData.public_page_slug = updates.public_page_slug;
+    if (updates.public_unit_display_mode !== undefined) updateData.public_unit_display_mode = updates.public_unit_display_mode;
+    if (updates.default_agreement_template_id !== undefined) updateData.default_agreement_template_id = updates.default_agreement_template_id;
+    if (updates.default_application_template_id !== undefined) updateData.default_application_template_id = updates.default_application_template_id;
+
+    // 3-tier online applications settings (v5.7.0+)
+    if (updates.accept_online_applications !== undefined) updateData.accept_online_applications = updates.accept_online_applications;
+
     const { data, error } = await supabase
       .from('properties')
-      .update({
-        name: updates.name,
-        property_type: updates.property_type,
-        address_line1: updates.address_line1,
-        address_line2: updates.address_line2,
-        city: updates.city,
-        state: updates.state,
-        postal_code: updates.postal_code,
-        country: updates.country,
-        year_built: updates.year_built,
-        square_feet: updates.square_feet,
-        lot_size: updates.lot_size,
-        bedrooms: updates.bedrooms,
-        bathrooms: updates.bathrooms,
-        purchase_price_cents: updates.purchase_price_cents,
-        purchase_date: updates.purchase_date,
-        current_value_cents: updates.current_value_cents,
-        notes: updates.notes,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();

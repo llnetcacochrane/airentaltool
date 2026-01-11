@@ -47,35 +47,35 @@ export function PropertiesList() {
         .from('properties')
         .select(`
           id,
-          property_name,
+          name,
           address_line1,
           city,
           state,
-          zip_code,
+          postal_code,
           property_type,
           is_active,
           business_id,
           public_page_slug,
-          businesses!inner (
+          business:businesses (
             business_name
           )
         `)
         .eq('is_active', true)
-        .order('property_name');
+        .order('name');
 
       if (queryError) throw queryError;
 
       const propertiesWithBusiness: PropertyWithBusiness[] = (data || []).map((p: any) => ({
         id: p.id,
-        property_name: p.property_name,
+        property_name: p.name,
         address_line1: p.address_line1,
         city: p.city,
         state: p.state,
-        zip_code: p.zip_code,
+        zip_code: p.postal_code,
         property_type: p.property_type,
         is_active: p.is_active,
         business_id: p.business_id,
-        business_name: p.businesses?.business_name || 'Unknown Business',
+        business_name: p.business?.business_name || 'Unknown Business',
         public_page_slug: p.public_page_slug,
       }));
 

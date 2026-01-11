@@ -3,6 +3,7 @@ import {
   agreementPlaceholderService,
   PlaceholderContext,
 } from './agreementPlaceholderService';
+import { emailService } from './emailService';
 
 export interface AgreementTemplate {
   id: string;
@@ -200,6 +201,38 @@ class AgreementService {
     if (error) throw error;
   }
 
+  async duplicateTemplate(id: string, newName?: string): Promise<AgreementTemplate> {
+    const original = await this.getTemplate(id);
+    if (!original) throw new Error('Template not found');
+
+    const duplicate: Partial<AgreementTemplate> = {
+      business_id: original.business_id,
+      portfolio_id: original.portfolio_id,
+      template_name: newName || `${original.template_name} (Copy)`,
+      description: original.description,
+      agreement_type: original.agreement_type,
+      agreement_title: original.agreement_title,
+      template_content: original.template_content,
+      default_lease_term_months: original.default_lease_term_months,
+      default_rent_amount: original.default_rent_amount,
+      default_security_deposit: original.default_security_deposit,
+      payment_frequency: original.payment_frequency,
+      pet_policy: original.pet_policy,
+      house_rules: original.house_rules,
+      cancellation_policy: original.cancellation_policy,
+      damage_policy: original.damage_policy,
+      refund_policy: original.refund_policy,
+      utilities_included: original.utilities_included,
+      amenities: original.amenities,
+      parking_details: original.parking_details,
+      max_occupants: original.max_occupants,
+      is_active: true,
+      is_default: false,
+    };
+
+    return this.createTemplate(duplicate);
+  }
+
   async setDefaultTemplate(id: string, portfolioId: string): Promise<void> {
     await supabase
       .from('agreement_templates')
@@ -323,18 +356,18 @@ class AgreementService {
   }
 
   /**
-   * Get agreement for public signing (uses signing token, not auth)
+   * Get agreement for public signing/viewing (uses signing token, not auth)
    * SECURITY: This endpoint should be rate-limited and the signing token should expire
    */
   async getAgreementForSigning(id: string, _signingToken?: string): Promise<LeaseAgreement> {
     // TODO: Implement proper signing token validation using _signingToken
     // For now, this allows unauthenticated access for signing purposes
-    // In production, implement a separate signed URL mechanism
+    // In production, implement a separate signed URL mechanism with expiry
     const { data, error } = await supabase
       .from('lease_agreements')
       .select('*')
       .eq('id', id)
-      .in('status', ['sent', 'viewed']) // Only allow access to pending agreements
+      .in('status', ['sent', 'viewed', 'signed', 'executed']) // Allow access to agreements in signing flow
       .single();
 
     if (error) throw error;
@@ -610,18 +643,47 @@ class AgreementService {
   }
 
   /**
-   * Send an agreement to the tenant (updates status to 'sent')
+   * Send an agreement to the tenant (updates status to 'sent' and sends email)
    */
   async sendAgreementToTenant(agreementId: string): Promise<void> {
+    // First get the agreement details for the email
+    const { data: agreement, error: fetchError } = await supabase
+      .from('lease_agreements')
+      .select('id, tenant_name, tenant_email, landlord_name, property_address, agreement_title, signature_deadline')
+      .eq('id', agreementId)
+      .single();
+
+    if (fetchError) throw fetchError;
+    if (!agreement) throw new Error('Agreement not found');
+
+    // Update the status to 'sent'
     const { error } = await supabase.rpc('send_agreement_to_tenant', {
       p_agreement_id: agreementId,
     });
 
     if (error) throw error;
 
-    // TODO: Send actual email notification to tenant
-    // This would integrate with an email service like SendGrid
-    console.log(`Agreement ${agreementId} marked as sent. Email notification not yet implemented.`);
+    // Send email notification to tenant
+    try {
+      const emailResult = await emailService.sendAgreementSigningEmail(
+        agreement.tenant_email,
+        {
+          tenantName: agreement.tenant_name,
+          landlordName: agreement.landlord_name,
+          propertyAddress: agreement.property_address,
+          agreementTitle: agreement.agreement_title,
+          agreementId: agreementId,
+          signatureDeadline: agreement.signature_deadline,
+        }
+      );
+
+      if (!emailResult.success) {
+        console.warn(`Agreement ${agreementId} status updated to sent, but email failed: ${emailResult.message}`);
+      }
+    } catch (emailError) {
+      // Log but don't fail the operation if email fails
+      console.error(`Failed to send agreement email for ${agreementId}:`, emailError);
+    }
   }
 
   /**

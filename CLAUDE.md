@@ -18,13 +18,15 @@ npm run preview    # Preview production build
 
 ## Deployment
 
-**IMPORTANT:** Nginx serves from `/opt/airentaltools/` - NOT `/var/www/`
+**IMPORTANT:** Nginx serves from `/opt/airentaltools/dist/` - NOT `/var/www/`
 
 ```bash
 # Build and deploy to production
+cd ~/airentaltools-dev
 npm run build
-sudo cp -r dist/* /opt/airentaltools/
-sudo chown -R www-data:www-data /opt/airentaltools/
+sudo rm -rf /opt/airentaltools/dist
+sudo cp -r dist /opt/airentaltools/dist
+sudo chown -R www-data:www-data /opt/airentaltools/dist
 ```
 
 ## Architecture

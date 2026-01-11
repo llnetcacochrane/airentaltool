@@ -103,10 +103,10 @@ export const rentalApplicationService = {
       responses: Record<string, any>;
     }
   ): Promise<RentalApplication> {
-    // Get listing details
+    // Get listing details - use business_id (organization_id is legacy)
     const { data: listing, error: listingError } = await supabase
       .from('rental_listings')
-      .select('organization_id, property_id, unit_id')
+      .select('business_id, organization_id, property_id, unit_id')
       .eq('id', listingId)
       .single();
 
@@ -116,7 +116,8 @@ export const rentalApplicationService = {
       .from('rental_applications')
       .insert({
         listing_id: listingId,
-        organization_id: listing.organization_id,
+        business_id: listing.business_id, // Use business_id as primary
+        organization_id: listing.organization_id, // Keep for backward compatibility
         property_id: listing.property_id,
         unit_id: listing.unit_id,
         ...applicationData,
@@ -126,8 +127,13 @@ export const rentalApplicationService = {
 
     if (error) throw error;
 
-    // Calculate AI score
-    await this.calculateScore(data.id);
+    // Calculate AI score (wrapped in try-catch to not fail submission)
+    try {
+      await this.calculateScore(data.id);
+    } catch (scoreError) {
+      console.error('Failed to calculate AI score for application:', scoreError);
+      // Continue without score - don't fail the submission
+    }
 
     return data;
   },
@@ -160,6 +166,20 @@ export const rentalApplicationService = {
       .from('rental_applications')
       .select('*')
       .eq('organization_id', organizationId)
+      .order('submitted_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
+   * Get applications by business ID (preferred over organization_id)
+   */
+  async getApplicationsByBusiness(businessId: string): Promise<RentalApplication[]> {
+    const { data, error } = await supabase
+      .from('rental_applications')
+      .select('*')
+      .eq('business_id', businessId)
       .order('submitted_at', { ascending: false });
 
     if (error) throw error;
@@ -264,9 +284,9 @@ export const rentalApplicationService = {
     // Get application details for invitation
     const application = await this.getApplication(applicationId);
 
-    // Create tenant portal invitation
+    // Create tenant portal invitation (use business_id, fallback to organization_id)
     const invitation = await tenantInvitationService.createInvitation(
-      application.organization_id,
+      application.business_id || application.organization_id,
       application.property_id,
       application.unit_id,
       {
@@ -289,14 +309,16 @@ export const rentalApplicationService = {
         }
 
         if (templateId) {
-          // Get business ID from the listing
-          const { data: listing } = await supabase
-            .from('rental_listings')
-            .select('business_id')
-            .eq('id', application.listing_id)
-            .single();
-
-          const businessId = listing?.business_id || application.organization_id;
+          // Get business ID from application or listing
+          let businessId = application.business_id;
+          if (!businessId) {
+            const { data: listing } = await supabase
+              .from('rental_listings')
+              .select('business_id')
+              .eq('id', application.listing_id)
+              .single();
+            businessId = listing?.business_id;
+          }
 
           // Build context for placeholder substitution
           const context = await agreementService.buildContextForAgreement(

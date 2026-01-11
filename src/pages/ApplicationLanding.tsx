@@ -109,7 +109,7 @@ export function ApplicationLanding() {
                         <p className="text-sm text-gray-600">{property.address_line2}</p>
                       )}
                       <p className="text-sm text-gray-600">
-                        {property.city}, {property.state} {property.zip_code}
+                        {property.city}, {property.state} {property.postal_code}
                       </p>
                     </div>
                   </div>

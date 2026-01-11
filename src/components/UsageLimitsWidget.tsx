@@ -119,6 +119,13 @@ export function UsageLimitsWidget({ compact = false }: UsageLimitsWidgetProps) {
 
   const usageItems = [
     {
+      key: 'businesses',
+      label: 'Businesses',
+      icon: Briefcase,
+      current: usageData.current_usage.businesses,
+      max: usageData.limits.max_businesses
+    },
+    {
       key: 'properties',
       label: 'Properties',
       icon: Building2,
@@ -140,17 +147,6 @@ export function UsageLimitsWidget({ compact = false }: UsageLimitsWidgetProps) {
       max: usageData.limits.max_tenants
     },
   ];
-
-  // Add businesses for management company tier
-  if (usageData.tier?.package_type === 'management_company') {
-    usageItems.unshift({
-      key: 'businesses',
-      label: 'Businesses',
-      icon: Briefcase,
-      current: usageData.current_usage.businesses,
-      max: usageData.limits.max_businesses
-    });
-  }
 
   if (compact) {
     return (
@@ -210,38 +206,24 @@ export function UsageLimitsWidget({ compact = false }: UsageLimitsWidgetProps) {
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Plan Usage</h3>
-              {usageData.tier && (
-                <p className="text-sm text-gray-600">
-                  {usageData.tier.display_name}
-                  {isFreeTier && <span className="text-gray-400"> - Free tier</span>}
-                </p>
-              )}
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <TrendingUp className="w-5 h-5 text-blue-600" />
           </div>
-          {hasLimitsReached && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-red-50 text-red-600 rounded-full text-sm font-medium">
-              <AlertTriangle className="w-4 h-4" />
-              Limit reached
-            </div>
-          )}
-          {!hasLimitsReached && hasLimitsApproaching && (
-            <div className="flex items-center gap-2 px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-sm font-medium">
-              <AlertTriangle className="w-4 h-4" />
-              Approaching limit
-            </div>
-          )}
+          <div>
+            <h3 className="font-semibold text-gray-900">Plan Usage</h3>
+            {usageData.tier && (
+              <p className="text-sm text-gray-600">
+                {usageData.tier.display_name}
+                {isFreeTier && <span className="text-gray-400"> - Free tier</span>}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {usageItems.map((item) => {
             const percentage = getUsagePercentage(item.current, item.max);
             const Icon = item.icon;
@@ -257,7 +239,7 @@ export function UsageLimitsWidget({ compact = false }: UsageLimitsWidgetProps) {
                   'border-gray-100 bg-gray-50'
                 }`}
               >
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-3 mb-2">
                   <div className={`p-2 rounded-lg ${
                     isAtLimit ? 'bg-red-100' :
                     isApproaching ? 'bg-orange-100' :
@@ -287,6 +269,20 @@ export function UsageLimitsWidget({ compact = false }: UsageLimitsWidgetProps) {
                 )}
                 {item.max === 999999 && (
                   <div className="text-xs text-green-600 font-medium">Unlimited</div>
+                )}
+
+                {/* Per-item limit indicator */}
+                {isAtLimit && (
+                  <div className="mt-2 flex items-center gap-1 text-xs text-red-600 font-medium">
+                    <AlertTriangle className="w-3 h-3" />
+                    Limit reached
+                  </div>
+                )}
+                {isApproaching && !isAtLimit && (
+                  <div className="mt-2 flex items-center gap-1 text-xs text-orange-600 font-medium">
+                    <AlertTriangle className="w-3 h-3" />
+                    Approaching limit
+                  </div>
                 )}
               </div>
             );

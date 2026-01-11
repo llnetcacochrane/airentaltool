@@ -14,7 +14,9 @@ export type NotificationType =
   | 'tenant_invitation'
   | 'agreement_ready'
   | 'agreement_signed'
-  | 'announcement';
+  | 'announcement'
+  | 'application_submitted'
+  | 'new_applicant';
 
 export interface NotificationTemplate {
   id: string;
@@ -297,6 +299,54 @@ This link will expire on {{expiry_date}}.
 
 Thank you,
 {{organization_name}}`,
+        is_active: true,
+      },
+      {
+        type: 'application_submitted',
+        name: 'New Rental Application',
+        subject_template: 'New Application Received for {{property_name}} - {{unit_number}}',
+        body_template: `Hello,
+
+A new rental application has been submitted for your property.
+
+**Applicant Details:**
+Name: {{applicant_name}}
+Email: {{applicant_email}}
+Phone: {{applicant_phone}}
+
+**Property Details:**
+Property: {{property_name}}
+Unit: {{unit_number}}
+
+**Application Info:**
+Submitted: {{submitted_date}}
+
+Please log in to your dashboard to review this application.
+
+{{dashboard_url}}
+
+Thank you,
+AI Rental Tools`,
+        is_active: true,
+      },
+      {
+        type: 'new_applicant',
+        name: 'New Applicant Registered',
+        subject_template: 'New Applicant Account Created - {{applicant_name}}',
+        body_template: `Hello,
+
+A new applicant has created an account and is interested in your properties.
+
+**Applicant Details:**
+Name: {{applicant_name}}
+Email: {{applicant_email}}
+Phone: {{applicant_phone}}
+Registered: {{registration_date}}
+
+They may be browsing your listings or preparing to submit an application.
+
+Thank you,
+AI Rental Tools`,
         is_active: true,
       },
     ];
@@ -654,6 +704,55 @@ Thank you,
         invitation_url: invitationUrl,
         expiry_date: expiryDate.toLocaleDateString(),
         organization_name: 'Your Property Management',
+      }
+    );
+  },
+
+  // Send notification when a new rental application is submitted
+  async sendApplicationSubmittedNotification(
+    businessId: string,
+    managerEmail: string,
+    applicantName: string,
+    applicantEmail: string,
+    applicantPhone: string,
+    propertyName: string,
+    unitNumber: string
+  ): Promise<void> {
+    await this.scheduleNotification(
+      businessId,
+      'application_submitted',
+      managerEmail,
+      'Property Manager',
+      {
+        applicant_name: applicantName,
+        applicant_email: applicantEmail,
+        applicant_phone: applicantPhone || 'Not provided',
+        property_name: propertyName,
+        unit_number: unitNumber,
+        submitted_date: new Date().toLocaleDateString(),
+        dashboard_url: 'https://app.airentaltool.com/applications',
+      }
+    );
+  },
+
+  // Send notification when a new applicant registers
+  async sendNewApplicantNotification(
+    businessId: string,
+    managerEmail: string,
+    applicantName: string,
+    applicantEmail: string,
+    applicantPhone: string
+  ): Promise<void> {
+    await this.scheduleNotification(
+      businessId,
+      'new_applicant',
+      managerEmail,
+      'Property Manager',
+      {
+        applicant_name: applicantName,
+        applicant_email: applicantEmail,
+        applicant_phone: applicantPhone || 'Not provided',
+        registration_date: new Date().toLocaleDateString(),
       }
     );
   },

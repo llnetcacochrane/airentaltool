@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { FileText, Plus, Send, CheckCircle, Clock, Eye, Edit, Trash2, Download } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { FileText, Plus, Send, CheckCircle, Clock, Eye, Edit, Trash2, Download, Copy } from 'lucide-react';
 import { agreementService, AgreementTemplate, LeaseAgreement } from '../services/agreementService';
 import { AgreementBuilder } from '../components/AgreementBuilder';
 import { IssueAgreement } from '../components/IssueAgreement';
@@ -11,6 +11,7 @@ type ViewMode = 'templates' | 'issued' | 'pending' | 'builder' | 'issue';
 
 export default function Agreements() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<ViewMode>('templates');
   const [templates, setTemplates] = useState<AgreementTemplate[]>([]);
   const [issuedAgreements, setIssuedAgreements] = useState<LeaseAgreement[]>([]);
@@ -101,6 +102,20 @@ export default function Agreements() {
       console.error('Error deleting template:', error);
       alert('Failed to delete template');
     }
+  };
+
+  const handleDuplicateTemplate = async (id: string) => {
+    try {
+      await agreementService.duplicateTemplate(id);
+      loadData();
+    } catch (error) {
+      console.error('Error duplicating template:', error);
+      alert('Failed to duplicate template');
+    }
+  };
+
+  const handleViewAgreement = (agreementId: string) => {
+    navigate(`/agreement/${agreementId}`);
   };
 
   const handleDownloadPDF = async (agreement: LeaseAgreement) => {
@@ -280,6 +295,13 @@ export default function Agreements() {
                           Edit
                         </button>
                         <button
+                          onClick={() => handleDuplicateTemplate(template.id)}
+                          className="bg-gray-50 text-gray-600 px-4 py-2 rounded hover:bg-gray-100"
+                          title="Duplicate"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleDeleteTemplate(template.id)}
                           className="bg-red-50 text-red-600 px-4 py-2 rounded hover:bg-red-100"
                         >
@@ -346,7 +368,10 @@ export default function Agreements() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <button className="bg-blue-50 text-blue-600 px-3 sm:px-4 py-2 rounded hover:bg-blue-100 flex items-center gap-2">
+                        <button
+                          onClick={() => handleViewAgreement(agreement.id)}
+                          className="bg-blue-50 text-blue-600 px-3 sm:px-4 py-2 rounded hover:bg-blue-100 flex items-center gap-2"
+                        >
                           <Eye className="w-4 h-4" />
                           <span className="hidden sm:inline">View</span>
                         </button>
@@ -413,7 +438,10 @@ export default function Agreements() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <button className="bg-blue-50 text-blue-600 px-3 sm:px-4 py-2 rounded hover:bg-blue-100 flex items-center gap-2">
+                        <button
+                          onClick={() => handleViewAgreement(agreement.id)}
+                          className="bg-blue-50 text-blue-600 px-3 sm:px-4 py-2 rounded hover:bg-blue-100 flex items-center gap-2"
+                        >
                           <Eye className="w-4 h-4" />
                           <span className="hidden sm:inline">View</span>
                         </button>

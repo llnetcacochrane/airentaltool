@@ -1,11 +1,36 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { PREDEFINED_AMENITIES } from '../services/listingService';
 import {
   MapPin, Phone, Mail, ArrowRight, ArrowLeft, DoorClosed,
   Bed, Bath, Maximize, DollarSign, Calendar, CheckCircle,
-  Globe, Home
+  Globe, Home, LucideIcon,
+  Zap, Droplets, Flame, Wifi, Wind, Thermometer, Waves, Shield,
+  Car, Mountain, Trees, Flower2, Package, Key, Camera, Tv, Plug,
+  Dumbbell, Baby, Dog, Bike, Ship, Truck, Anchor, Building2, TreePine,
+  Footprints, Container, Trash2, WashingMachine, Sparkles, Refrigerator,
+  CookingPot, Microwave, Fan, DoorOpen, Grid3x3, Square, LayoutGrid,
+  Sun, Sofa, ArrowUpFromLine, Warehouse, ParkingSquare, Accessibility,
+  ArrowUpDown, UserCheck, Video, Lock, AlertCircle
 } from 'lucide-react';
+
+// Icon mapping for amenities
+const AMENITY_ICONS: Record<string, LucideIcon> = {
+  Zap, Droplets, Flame, Wifi, Wind, Thermometer, Waves, Shield,
+  Car, Mountain, Trees, Flower2, Package, Key, Camera, Tv, Plug,
+  Dumbbell, Baby, Dog, Bike, Ship, Truck, Anchor, Building2, TreePine,
+  Footprints, Container, Trash2, WashingMachine, Sparkles, Refrigerator,
+  CookingPot, Microwave, Fan, DoorOpen, Grid3x3, Square, LayoutGrid,
+  Sun, Sofa, ArrowUpFromLine, Warehouse, ParkingSquare, Accessibility,
+  ArrowUpDown, UserCheck, Video, Bath, Home, Lock, AlertCircle, AlertTriangle: AlertCircle
+};
+
+interface AmenityConfig {
+  id: string;
+  included: boolean;
+  isKeyFeature?: boolean;
+}
 
 interface PublicProperty {
   id: string;
@@ -35,6 +60,7 @@ interface PublicListing {
   id: string;
   unit_id: string;
   title: string;
+  display_title: string | null;
   description: string;
   monthly_rent_cents: number;
   deposit_cents: number;
@@ -44,6 +70,7 @@ interface PublicListing {
   square_feet: number;
   photos: string[];
   amenities: string[];
+  amenities_config: AmenityConfig[] | null;
   pets_allowed: boolean;
   unit: {
     unit_number: string;
@@ -74,7 +101,7 @@ export function PublicPropertyPage() {
         .from('properties')
         .select(`
           *,
-          business:businesses!inner(
+          business:businesses(
             business_name,
             public_page_slug,
             public_page_contact_email,
@@ -84,11 +111,10 @@ export function PublicPropertyPage() {
         .eq('public_page_slug', propertySlug)
         .eq('public_page_enabled', true)
         .eq('is_active', true)
-        .eq('business.public_page_slug', businessSlug)
         .maybeSingle();
 
       if (propertyError) throw propertyError;
-      if (!propertyData) {
+      if (!propertyData || propertyData.business?.public_page_slug !== businessSlug) {
         setError('Property not found or not publicly available');
         setIsLoading(false);
         return;
@@ -101,7 +127,7 @@ export function PublicPropertyPage() {
         .from('listings')
         .select(`
           *,
-          unit:units!inner(unit_number, occupancy_status, public_page_enabled)
+          unit:units(unit_number, occupancy_status, show_on_public_page)
         `)
         .eq('property_id', propertyData.id)
         .eq('status', 'active')
@@ -119,9 +145,9 @@ export function PublicPropertyPage() {
           listing => listing.unit?.occupancy_status === 'vacant'
         );
       } else if (displayMode === 'custom') {
-        // Only show listings for units with public_page_enabled
+        // Only show listings for units with show_on_public_page enabled
         filteredListings = filteredListings.filter(
-          listing => listing.unit?.public_page_enabled === true
+          listing => listing.unit?.show_on_public_page === true
         );
       }
       // 'all' mode shows all active listings
@@ -311,79 +337,123 @@ export function PublicPropertyPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {listings.map((listing) => (
-              <button
-                key={listing.id}
-                onClick={() => navigate(`/browse/${businessSlug}/${propertySlug}/${listing.unit_id}`)}
-                className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all border border-gray-100 hover:border-blue-200 overflow-hidden text-left"
-              >
-                {/* Unit Image */}
-                {listing.photos && listing.photos.length > 0 ? (
-                  <div className="relative h-56 bg-gray-200 overflow-hidden">
-                    <img
-                      src={listing.photos[0]}
-                      alt={listing.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                ) : (
-                  <div className="relative h-56 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                    <DoorClosed className="w-12 h-12 sm:w-16 sm:h-16 text-white/50" />
-                  </div>
-                )}
+            {listings.map((listing) => {
+              // Get key features from amenities_config
+              const keyFeatures = listing.amenities_config
+                ? listing.amenities_config
+                    .filter(a => a.isKeyFeature)
+                    .map(a => {
+                      const predefined = PREDEFINED_AMENITIES.find(p => p.id === a.id);
+                      return predefined ? { label: predefined.label, icon: predefined.icon } : null;
+                    })
+                    .filter(Boolean) as { label: string; icon: string }[]
+                : [];
 
-                {/* Unit Info */}
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h3 className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-blue-600 transition">
-                        {listing.title}
-                      </h3>
-                      <p className="text-sm text-gray-600">Unit {listing.unit.unit_number}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xl sm:text-2xl font-bold text-blue-600">
-                        ${(listing.monthly_rent_cents / 100).toLocaleString()}
-                      </p>
-                      <p className="text-sm text-gray-600">per month</p>
-                    </div>
-                  </div>
+              // Build standard features (only non-zero values)
+              const standardFeatures = [];
+              if (listing.bedrooms > 0) {
+                standardFeatures.push({ icon: Bed, label: `${listing.bedrooms} bed` });
+              }
+              if (listing.bathrooms > 0) {
+                standardFeatures.push({ icon: Bath, label: `${listing.bathrooms} bath` });
+              }
+              if (listing.square_feet) {
+                standardFeatures.push({ icon: Maximize, label: `${listing.square_feet} ft²` });
+              }
 
-                  {listing.description && (
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                      {listing.description}
-                    </p>
+              return (
+                <button
+                  key={listing.id}
+                  onClick={() => navigate(`/browse/${businessSlug}/${propertySlug}/${listing.unit_id}`)}
+                  className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all border border-gray-100 hover:border-blue-200 overflow-hidden text-left"
+                >
+                  {/* Unit Image */}
+                  {listing.photos && listing.photos.length > 0 ? (
+                    <div className="relative h-56 bg-gray-200 overflow-hidden">
+                      <img
+                        src={listing.photos[0]}
+                        alt={listing.display_title || listing.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                  ) : (
+                    <div className="relative h-56 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                      <DoorClosed className="w-12 h-12 sm:w-16 sm:h-16 text-white/50" />
+                    </div>
                   )}
 
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div className="flex items-center gap-2 text-gray-700">
-                      <Bed className="w-5 h-5" />
-                      <span className="text-sm">{listing.bedrooms} bed</span>
+                  {/* Unit Info */}
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <h3 className="text-lg sm:text-xl font-bold text-gray-900 group-hover:text-blue-600 transition">
+                          {listing.display_title || listing.title}
+                        </h3>
+                        <p className="text-sm text-gray-600">Unit {listing.unit.unit_number}</p>
+                      </div>
+                      <div className="text-right">
+                        {listing.monthly_rent_cents > 0 ? (
+                          <>
+                            <p className="text-xl sm:text-2xl font-bold text-blue-600">
+                              ${(listing.monthly_rent_cents / 100).toLocaleString()}
+                            </p>
+                            <p className="text-sm text-gray-600">per month</p>
+                          </>
+                        ) : (
+                          <p className="text-lg font-semibold text-gray-600">Contact for pricing</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-700">
-                      <Bath className="w-5 h-5" />
-                      <span className="text-sm">{listing.bathrooms} bath</span>
-                    </div>
-                    {listing.square_feet && (
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <Maximize className="w-5 h-5" />
-                        <span className="text-sm">{listing.square_feet} ft²</span>
+
+                    {listing.description && (
+                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                        {listing.description}
+                      </p>
+                    )}
+
+                    {/* Standard Features (beds, baths, sqft) - only if any exist */}
+                    {standardFeatures.length > 0 && (
+                      <div className={`grid grid-cols-${Math.min(standardFeatures.length, 3)} gap-4 mb-4`}>
+                        {standardFeatures.map((feature, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-gray-700">
+                            <feature.icon className="w-5 h-5" />
+                            <span className="text-sm">{feature.label}</span>
+                          </div>
+                        ))}
                       </div>
                     )}
-                  </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Calendar className="w-4 h-4" />
-                      <span>
-                        Available {listing.available_date ? new Date(listing.available_date).toLocaleDateString() : 'Now'}
-                      </span>
+                    {/* Key Features from amenities */}
+                    {keyFeatures.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {keyFeatures.slice(0, 3).map((feature, idx) => {
+                          const IconComponent = AMENITY_ICONS[feature.icon] || CheckCircle;
+                          return (
+                            <div key={idx} className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 border border-amber-200 rounded-lg text-xs">
+                              <IconComponent className="w-3.5 h-3.5 text-amber-600" />
+                              <span className="text-amber-700 font-medium">{feature.label}</span>
+                            </div>
+                          );
+                        })}
+                        {keyFeatures.length > 3 && (
+                          <span className="text-xs text-gray-500 self-center">+{keyFeatures.length - 3} more</span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Calendar className="w-4 h-4" />
+                        <span>
+                          Available {listing.available_date ? new Date(listing.available_date).toLocaleDateString() : 'Now'}
+                        </span>
+                      </div>
+                      <ArrowRight className="w-5 h-5 text-blue-600 group-hover:translate-x-1 transition-transform" />
                     </div>
-                    <ArrowRight className="w-5 h-5 text-blue-600 group-hover:translate-x-1 transition-transform" />
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -428,13 +498,17 @@ export function PublicPropertyPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">
-                © {new Date().getFullYear()} {property.business.business_name}. All rights reserved.
+                <a href="https://app.airentaltool.com" className="hover:text-blue-600 transition">
+                  © {new Date().getFullYear()} {property.business.business_name}
+                </a>. All rights reserved.
               </p>
             </div>
             <div className="flex items-center gap-2 text-gray-400 text-sm">
               <span>Powered by</span>
-              <Globe className="w-4 h-4" />
-              <span className="font-semibold">AI Rental Tools</span>
+              <a href="https://app.airentaltool.com" className="flex items-center gap-2 hover:text-blue-600 transition">
+                <Globe className="w-4 h-4" />
+                <span className="font-semibold">AI Rental Tools</span>
+              </a>
             </div>
           </div>
         </div>

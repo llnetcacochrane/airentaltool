@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { businessService } from '../services/businessService';
 import { propertyService } from '../services/propertyService';
+import { agreementService, AgreementTemplate } from '../services/agreementService';
+import { applicationTemplateService, ApplicationTemplate } from '../services/applicationTemplateService';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { PropertyForm } from '../components/PropertyForm';
 import { Business, Property } from '../types';
 import {
   ArrowLeft, Home, FileText, Wrench, DollarSign, ChevronRight,
-  Users, Calendar, TrendingUp, Settings, AlertCircle, Plus, Globe, ExternalLink
+  Users, Calendar, TrendingUp, Settings, AlertCircle, Plus, Globe, ExternalLink, ClipboardList
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -30,9 +32,43 @@ export function BusinessDetail() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Template state
+  const [agreementTemplates, setAgreementTemplates] = useState<AgreementTemplate[]>([]);
+  const [applicationTemplates, setApplicationTemplates] = useState<ApplicationTemplate[]>([]);
+  const [selectedAgreementTemplateId, setSelectedAgreementTemplateId] = useState<string>('');
+  const [selectedAppTemplateId, setSelectedAppTemplateId] = useState<string>('');
+  const [isSavingAgreementTemplate, setIsSavingAgreementTemplate] = useState(false);
+  const [isSavingAppTemplate, setIsSavingAppTemplate] = useState(false);
+
   useEffect(() => {
     loadBusinessData();
   }, [businessId]);
+
+  // Load templates when business changes
+  useEffect(() => {
+    async function loadTemplates() {
+      if (!businessId) return;
+      try {
+        const [agreementData, appData] = await Promise.all([
+          agreementService.getTemplates({ business_id: businessId, is_active: true }),
+          applicationTemplateService.getTemplates({ business_id: businessId, is_active: true }),
+        ]);
+        setAgreementTemplates(agreementData);
+        setApplicationTemplates(appData);
+      } catch (err) {
+        console.error('Failed to load templates:', err);
+      }
+    }
+    loadTemplates();
+  }, [businessId]);
+
+  // Sync template selections when business loads
+  useEffect(() => {
+    if (business) {
+      setSelectedAgreementTemplateId(business.default_agreement_template_id || '');
+      setSelectedAppTemplateId(business.default_application_template_id || '');
+    }
+  }, [business]);
 
   const loadBusinessData = async () => {
     if (!businessId) return;
@@ -94,6 +130,61 @@ export function BusinessDetail() {
       setBusiness({ ...business, public_page_enabled: newEnabled });
     } catch (err) {
       console.error('Failed to toggle public page:', err);
+    }
+  };
+
+  const toggleOnlineApplications = async () => {
+    if (!business || !businessId) return;
+    try {
+      const newEnabled = !business.accept_online_applications;
+      const { error } = await supabase
+        .from('businesses')
+        .update({ accept_online_applications: newEnabled })
+        .eq('id', businessId);
+
+      if (error) throw error;
+
+      setBusiness({ ...business, accept_online_applications: newEnabled });
+    } catch (err) {
+      console.error('Failed to toggle online applications:', err);
+    }
+  };
+
+  const handleSaveAgreementTemplate = async () => {
+    if (!businessId) return;
+    setIsSavingAgreementTemplate(true);
+    try {
+      const { error } = await supabase
+        .from('businesses')
+        .update({ default_agreement_template_id: selectedAgreementTemplateId || null })
+        .eq('id', businessId);
+
+      if (error) throw error;
+
+      setBusiness(prev => prev ? { ...prev, default_agreement_template_id: selectedAgreementTemplateId || undefined } : null);
+    } catch (err) {
+      console.error('Failed to save agreement template:', err);
+    } finally {
+      setIsSavingAgreementTemplate(false);
+    }
+  };
+
+  const handleSaveApplicationTemplate = async () => {
+    if (!businessId) return;
+    setIsSavingAppTemplate(true);
+    try {
+      const { error } = await supabase
+        .from('businesses')
+        .update({ default_application_template_id: selectedAppTemplateId || null })
+        .eq('id', businessId);
+
+      if (error) throw error;
+
+      setBusiness(prev => prev ? { ...prev, default_application_template_id: selectedAppTemplateId || undefined } : null);
+    } catch (err) {
+      console.error('Failed to save application template:', err);
+    } finally {
+      setIsSavingAppTemplate(false);
     }
   };
 
@@ -249,6 +340,122 @@ export function BusinessDetail() {
                   </p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Online Applications Toggle */}
+        <div className={`rounded-xl p-6 border ${business?.accept_online_applications !== false ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+          <div className="flex items-start gap-4">
+            <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${business?.accept_online_applications !== false ? 'bg-green-100' : 'bg-gray-200'}`}>
+              <ClipboardList className={`w-6 h-6 ${business?.accept_online_applications !== false ? 'text-green-600' : 'text-gray-500'}`} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900">Accept Online Applications</h3>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={business?.accept_online_applications !== false}
+                    onChange={toggleOnlineApplications}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                </label>
+              </div>
+              <p className="text-sm text-gray-600">
+                {business?.accept_online_applications !== false
+                  ? 'Online rental applications are enabled. Prospects can apply for your units through the public page.'
+                  : 'Online applications are disabled. Enable to allow prospects to submit rental applications online.'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Default Agreement Template */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+              <FileText className="w-6 h-6 text-purple-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Default Agreement Template</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Select a default lease agreement template for this business. Properties and units can override with their own template.
+              </p>
+              <div className="space-y-4">
+                <select
+                  value={selectedAgreementTemplateId}
+                  onChange={(e) => setSelectedAgreementTemplateId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                >
+                  <option value="">No default template</option>
+                  {agreementTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.template_name} ({template.agreement_type})
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSaveAgreementTemplate}
+                    disabled={isSavingAgreementTemplate}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-medium disabled:opacity-50"
+                  >
+                    {isSavingAgreementTemplate ? 'Saving...' : 'Save Template'}
+                  </button>
+                  <button
+                    onClick={() => navigate('/agreements?action=create')}
+                    className="px-4 py-2 text-purple-600 hover:text-purple-700 text-sm font-medium"
+                  >
+                    Create New Template
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Default Application Template */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <ClipboardList className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Default Application Template</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Select a default rental application template for this business. Properties and units can override with their own template.
+              </p>
+              <div className="space-y-4">
+                <select
+                  value={selectedAppTemplateId}
+                  onChange={(e) => setSelectedAppTemplateId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                >
+                  <option value="">No default template</option>
+                  {applicationTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.template_name}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSaveApplicationTemplate}
+                    disabled={isSavingAppTemplate}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium disabled:opacity-50"
+                  >
+                    {isSavingAppTemplate ? 'Saving...' : 'Save Template'}
+                  </button>
+                  <button
+                    onClick={() => navigate('/application-templates')}
+                    className="px-4 py-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    Create New Template
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

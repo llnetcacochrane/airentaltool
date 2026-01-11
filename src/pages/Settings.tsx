@@ -9,7 +9,23 @@ import { UsageLimitsWidget } from '../components/UsageLimitsWidget';
 import { AddressInput } from '../components/AddressInput';
 import { supabase } from '../lib/supabase';
 import { FeaturePreviewModal, FEATURE_CATALOG } from '../components/upsell/FeatureGate';
-import { User, Building2, Users as UsersIcon, Bell, Lock, CreditCard, Palette, ArrowLeft, Globe, ExternalLink, Copy, Check, Trash2, AlertTriangle, Crown, Sparkles } from 'lucide-react';
+import { User, Building2, Users as UsersIcon, Bell, Lock, CreditCard, Palette, ArrowLeft, Globe, ExternalLink, Copy, Check, Trash2, AlertTriangle, Crown, Sparkles, Home, DoorClosed, ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
+
+interface PropertyVisibility {
+  id: string;
+  name: string;
+  public_page_enabled: boolean;
+  public_page_slug: string;
+  public_unit_display_mode: string;
+}
+
+interface UnitVisibility {
+  id: string;
+  unit_number: string;
+  property_id: string;
+  show_on_public_page: boolean;
+  occupancy_status: string;
+}
 
 export function Settings() {
   const { userProfile, supabaseUser, currentBusiness, currentRole, refreshBusinesses, hasFeature } = useAuth();
@@ -69,6 +85,13 @@ export function Settings() {
     public_page_contact_phone: '',
   });
 
+  // Property and unit visibility state
+  const [properties, setProperties] = useState<PropertyVisibility[]>([]);
+  const [units, setUnits] = useState<UnitVisibility[]>([]);
+  const [expandedProperties, setExpandedProperties] = useState<Set<string>>(new Set());
+  const [savingPropertyId, setSavingPropertyId] = useState<string | null>(null);
+  const [savingUnitId, setSavingUnitId] = useState<string | null>(null);
+
   useEffect(() => {
     if (userProfile) {
       setProfileData({
@@ -124,6 +147,118 @@ export function Settings() {
   useEffect(() => {
     loadBrandingData();
   }, [currentBusiness?.id]);
+
+  // Load properties and units for public page settings
+  useEffect(() => {
+    if (currentBusiness?.id && activeTab === 'public-page') {
+      loadPropertiesAndUnits();
+    }
+  }, [currentBusiness?.id, activeTab]);
+
+  const loadPropertiesAndUnits = async () => {
+    if (!currentBusiness?.id) return;
+    try {
+      // Load properties
+      const { data: propsData } = await supabase
+        .from('properties')
+        .select('id, name, public_page_enabled, public_page_slug, public_unit_display_mode')
+        .eq('business_id', currentBusiness.id)
+        .eq('is_active', true)
+        .order('name');
+
+      setProperties(propsData || []);
+
+      // Load units for all properties
+      if (propsData && propsData.length > 0) {
+        const { data: unitsData } = await supabase
+          .from('units')
+          .select('id, unit_number, property_id, show_on_public_page, occupancy_status')
+          .in('property_id', propsData.map(p => p.id))
+          .eq('is_active', true)
+          .order('unit_number');
+
+        setUnits(unitsData || []);
+      }
+    } catch (err) {
+      console.error('Failed to load properties/units:', err);
+    }
+  };
+
+  const togglePropertyExpanded = (propertyId: string) => {
+    setExpandedProperties(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(propertyId)) {
+        newSet.delete(propertyId);
+      } else {
+        newSet.add(propertyId);
+      }
+      return newSet;
+    });
+  };
+
+  const updatePropertyVisibility = async (propertyId: string, updates: Partial<PropertyVisibility>) => {
+    setSavingPropertyId(propertyId);
+    try {
+      // Generate slug if enabling and no slug exists
+      let slug = updates.public_page_slug;
+      if (updates.public_page_enabled && !slug) {
+        const prop = properties.find(p => p.id === propertyId);
+        if (prop) {
+          slug = prop.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        }
+      }
+
+      const { error } = await supabase
+        .from('properties')
+        .update({
+          ...updates,
+          public_page_slug: slug || updates.public_page_slug,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', propertyId);
+
+      if (error) throw error;
+
+      // Update local state
+      setProperties(prev => prev.map(p =>
+        p.id === propertyId ? { ...p, ...updates, public_page_slug: slug || updates.public_page_slug || p.public_page_slug } : p
+      ));
+    } catch (err) {
+      console.error('Failed to update property:', err);
+      alert('Failed to save property settings');
+    } finally {
+      setSavingPropertyId(null);
+    }
+  };
+
+  const updateUnitVisibility = async (unitId: string, showOnPublicPage: boolean) => {
+    setSavingUnitId(unitId);
+    try {
+      const { error } = await supabase
+        .from('units')
+        .update({
+          show_on_public_page: showOnPublicPage,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', unitId);
+
+      if (error) throw error;
+
+      // Update local state
+      setUnits(prev => prev.map(u =>
+        u.id === unitId ? { ...u, show_on_public_page: showOnPublicPage } : u
+      ));
+    } catch (err) {
+      console.error('Failed to update unit:', err);
+      alert('Failed to save unit settings');
+    } finally {
+      setSavingUnitId(null);
+    }
+  };
+
+  const getUnitsForProperty = (propertyId: string) => {
+    return units.filter(u => u.property_id === propertyId);
+  };
 
   const loadBrandingData = async () => {
     // Branding is now tied to business, not organization
@@ -833,196 +968,259 @@ export function Settings() {
             )}
 
             {activeTab === 'public-page' && (
-              <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">Public Business Page</h2>
-                <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">Configure your public-facing business page where prospects can browse available properties and apply for rentals.</p>
-
-                {message && (
-                  <div className={`mb-4 p-3 sm:p-4 rounded-lg text-sm sm:text-base ${
-                    message.includes('success') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-                  }`}>
-                    {message}
-                  </div>
-                )}
-
-                <div className="space-y-4 sm:space-y-6">
-                  {/* Enable Public Page Toggle */}
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-semibold text-gray-900">Enable Public Business Page</p>
-                      <p className="text-sm text-gray-600 mt-1">Allow prospects to view your properties and submit applications online</p>
+              <div className="space-y-6">
+                {/* Business Public Page Settings */}
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                      <Building2 className="w-5 h-5 text-blue-600" />
                     </div>
-                    <button
-                      onClick={() => setPublicPageData({ ...publicPageData, public_page_enabled: !publicPageData.public_page_enabled })}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
-                        publicPageData.public_page_enabled ? 'bg-blue-600' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
-                          publicPageData.public_page_enabled ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Business Public Page</h2>
+                      <p className="text-sm text-gray-600">Your main public-facing business page</p>
+                    </div>
                   </div>
 
-                  {publicPageData.public_page_enabled && (
-                    <>
-                      {/* Public Page URL */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Page URL Slug *
-                        </label>
-                        <div className="flex gap-2">
-                          <div className="flex-1 flex items-center">
-                            <span className="px-4 py-2 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-500 text-sm">
-                              {window.location.origin}/browse/
-                            </span>
-                            <input
-                              type="text"
-                              value={publicPageData.public_page_slug}
-                              onChange={(e) => setPublicPageData({ ...publicPageData, public_page_slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
-                              placeholder="my-business"
-                              className="flex-1 px-4 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={generateSlug}
-                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
-                          >
-                            Auto-generate
-                          </button>
-                          {publicPageData.public_page_slug && (
-                            <button
-                              type="button"
-                              onClick={copyPublicUrl}
-                              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
-                            >
-                              {copiedSlug ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
-                            </button>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">URL-friendly identifier for your public page (letters, numbers, and hyphens only)</p>
-                      </div>
-
-                      {/* View Public Page Link */}
-                      {publicPageData.public_page_slug && (
-                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium text-blue-900">Your Public Page</p>
-                              <p className="text-sm text-blue-700">{window.location.origin}/browse/{publicPageData.public_page_slug}</p>
-                            </div>
-                            <a
-                              href={`/browse/${publicPageData.public_page_slug}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-                            >
-                              <ExternalLink size={16} />
-                              Preview Page
-                            </a>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Page Title */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Page Title
-                        </label>
-                        <input
-                          type="text"
-                          value={publicPageData.public_page_title}
-                          onChange={(e) => setPublicPageData({ ...publicPageData, public_page_title: e.target.value })}
-                          placeholder={businessData.business_name || 'Your Business Name'}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Leave empty to use your business name</p>
-                      </div>
-
-                      {/* Page Description */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          Page Description
-                        </label>
-                        <textarea
-                          value={publicPageData.public_page_description}
-                          onChange={(e) => setPublicPageData({ ...publicPageData, public_page_description: e.target.value })}
-                          rows={3}
-                          placeholder="Welcome to our rental properties. Browse available units and apply online..."
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
-
-                      {/* Contact Information */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Contact Email (Public)
-                          </label>
-                          <input
-                            type="email"
-                            value={publicPageData.public_page_contact_email}
-                            onChange={(e) => setPublicPageData({ ...publicPageData, public_page_contact_email: e.target.value })}
-                            placeholder="contact@yourbusiness.com"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Contact Phone (Public)
-                          </label>
-                          <input
-                            type="tel"
-                            value={publicPageData.public_page_contact_phone}
-                            onChange={(e) => setPublicPageData({ ...publicPageData, public_page_contact_phone: e.target.value })}
-                            placeholder="(555) 123-4567"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Branding */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Logo URL
-                          </label>
-                          <input
-                            type="url"
-                            value={publicPageData.public_page_logo_url}
-                            onChange={(e) => setPublicPageData({ ...publicPageData, public_page_logo_url: e.target.value })}
-                            placeholder="https://example.com/logo.png"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            Header Image URL
-                          </label>
-                          <input
-                            type="url"
-                            value={publicPageData.public_page_header_image_url}
-                            onChange={(e) => setPublicPageData({ ...publicPageData, public_page_header_image_url: e.target.value })}
-                            placeholder="https://example.com/header.jpg"
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-                    </>
+                  {message && (
+                    <div className={`mb-4 p-3 rounded-lg text-sm ${
+                      message.includes('success') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+                    }`}>
+                      {message}
+                    </div>
                   )}
 
-                  <div className="flex items-center justify-end pt-4 border-t border-gray-200">
-                    <button
-                      onClick={handleSavePublicPage}
-                      disabled={isSaving}
-                      className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-                    >
-                      {isSaving ? 'Saving...' : 'Save Public Page Settings'}
-                    </button>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                      <div>
+                        <p className="font-semibold text-gray-900">Enable Public Business Page</p>
+                        <p className="text-sm text-gray-600 mt-1">Allow prospects to view your properties online</p>
+                      </div>
+                      <button
+                        onClick={() => setPublicPageData({ ...publicPageData, public_page_enabled: !publicPageData.public_page_enabled })}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                          publicPageData.public_page_enabled ? 'bg-blue-600' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                          publicPageData.public_page_enabled ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
+                      </button>
+                    </div>
+
+                    {publicPageData.public_page_enabled && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Page URL</label>
+                          <div className="flex gap-2">
+                            <div className="flex-1 flex items-center">
+                              <span className="px-3 py-2 bg-gray-100 border border-r-0 border-gray-300 rounded-l-lg text-gray-500 text-sm whitespace-nowrap">
+                                /browse/
+                              </span>
+                              <input
+                                type="text"
+                                value={publicPageData.public_page_slug}
+                                onChange={(e) => setPublicPageData({ ...publicPageData, public_page_slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                                placeholder="my-business"
+                                className="flex-1 px-3 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-0"
+                              />
+                            </div>
+                            <button type="button" onClick={generateSlug} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm">
+                              Generate
+                            </button>
+                            {publicPageData.public_page_slug && (
+                              <button type="button" onClick={copyPublicUrl} className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
+                                {copiedSlug ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {publicPageData.public_page_slug && (
+                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                            <p className="text-sm text-blue-700">{window.location.origin}/browse/{publicPageData.public_page_slug}</p>
+                            <a href={`/browse/${publicPageData.public_page_slug}`} target="_blank" rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                              <ExternalLink size={14} /> Preview
+                            </a>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Page Title</label>
+                            <input type="text" value={publicPageData.public_page_title}
+                              onChange={(e) => setPublicPageData({ ...publicPageData, public_page_title: e.target.value })}
+                              placeholder={businessData.business_name || 'Your Business Name'}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Contact Email</label>
+                            <input type="email" value={publicPageData.public_page_contact_email}
+                              onChange={(e) => setPublicPageData({ ...publicPageData, public_page_contact_email: e.target.value })}
+                              placeholder="contact@example.com"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                          <textarea value={publicPageData.public_page_description}
+                            onChange={(e) => setPublicPageData({ ...publicPageData, public_page_description: e.target.value })}
+                            rows={2} placeholder="Browse our available rental properties..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="flex justify-end pt-3 border-t border-gray-200">
+                      <button onClick={handleSavePublicPage} disabled={isSaving}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 text-sm font-medium">
+                        {isSaving ? 'Saving...' : 'Save Business Settings'}
+                      </button>
+                    </div>
                   </div>
+                </div>
+
+                {/* Property Visibility Settings */}
+                <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <Home className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Property Visibility</h2>
+                      <p className="text-sm text-gray-600">Control which properties appear on your public page</p>
+                    </div>
+                  </div>
+
+                  {!publicPageData.public_page_enabled && (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+                      Enable your business public page above to manage property visibility.
+                    </div>
+                  )}
+
+                  {publicPageData.public_page_enabled && properties.length === 0 && (
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-gray-600 text-sm text-center">
+                      No properties found. Add properties to your business first.
+                    </div>
+                  )}
+
+                  {publicPageData.public_page_enabled && properties.length > 0 && (
+                    <div className="space-y-3">
+                      {properties.map((property) => {
+                        const propertyUnits = getUnitsForProperty(property.id);
+                        const isExpanded = expandedProperties.has(property.id);
+                        const isSaving = savingPropertyId === property.id;
+
+                        return (
+                          <div key={property.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                            <div className="p-4 bg-gray-50">
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                  <button onClick={() => togglePropertyExpanded(property.id)} className="p-1 hover:bg-gray-200 rounded transition">
+                                    {isExpanded ? <ChevronDown size={18} className="text-gray-500" /> : <ChevronRight size={18} className="text-gray-500" />}
+                                  </button>
+                                  <Home className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                                  <span className="font-medium text-gray-900 truncate">{property.name}</span>
+                                  <span className="text-xs text-gray-500">({propertyUnits.length} units)</span>
+                                </div>
+
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                  {property.public_page_enabled && (
+                                    <span className="hidden sm:flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                      <Eye size={12} /> Visible
+                                    </span>
+                                  )}
+                                  <button
+                                    onClick={() => updatePropertyVisibility(property.id, { public_page_enabled: !property.public_page_enabled })}
+                                    disabled={isSaving}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                                      property.public_page_enabled ? 'bg-green-600' : 'bg-gray-300'
+                                    } ${isSaving ? 'opacity-50' : ''}`}
+                                  >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                                      property.public_page_enabled ? 'translate-x-6' : 'translate-x-1'
+                                    }`} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            {isExpanded && (
+                              <div className="p-4 border-t border-gray-200 space-y-4">
+                                {property.public_page_enabled && (
+                                  <>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Property URL Slug</label>
+                                        <input type="text" value={property.public_page_slug || ''}
+                                          onChange={(e) => {
+                                            const newSlug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                                            setProperties(prev => prev.map(p => p.id === property.id ? { ...p, public_page_slug: newSlug } : p));
+                                          }}
+                                          onBlur={() => updatePropertyVisibility(property.id, { public_page_slug: property.public_page_slug })}
+                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                          placeholder="property-name" />
+                                      </div>
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Show Units</label>
+                                        <select value={property.public_unit_display_mode || 'all'}
+                                          onChange={(e) => updatePropertyVisibility(property.id, { public_unit_display_mode: e.target.value })}
+                                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                          <option value="all">All Units</option>
+                                          <option value="vacant">Vacant Only</option>
+                                          <option value="custom">Custom Selection</option>
+                                        </select>
+                                      </div>
+                                    </div>
+
+                                    {property.public_page_slug && publicPageData.public_page_slug && (
+                                      <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                                        Preview: /browse/{publicPageData.public_page_slug}/{property.public_page_slug}
+                                      </div>
+                                    )}
+                                  </>
+                                )}
+
+                                {/* Unit visibility - only show for custom mode */}
+                                {property.public_page_enabled && property.public_unit_display_mode === 'custom' && propertyUnits.length > 0 && (
+                                  <div className="pt-3 border-t border-gray-200">
+                                    <p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                                      <DoorClosed size={14} /> Select Units to Display
+                                    </p>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                      {propertyUnits.map((unit) => {
+                                        const isUnitSaving = savingUnitId === unit.id;
+                                        return (
+                                          <button
+                                            key={unit.id}
+                                            onClick={() => updateUnitVisibility(unit.id, !unit.show_on_public_page)}
+                                            disabled={isUnitSaving}
+                                            className={`p-2 rounded-lg border text-sm transition flex items-center justify-between ${
+                                              unit.show_on_public_page
+                                                ? 'bg-green-50 border-green-300 text-green-800'
+                                                : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                                            } ${isUnitSaving ? 'opacity-50' : ''}`}
+                                          >
+                                            <span className="truncate">Unit {unit.unit_number}</span>
+                                            {unit.show_on_public_page ? <Eye size={14} /> : <EyeOff size={14} />}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {propertyUnits.length === 0 && (
+                                  <p className="text-sm text-gray-500 italic">No units in this property yet.</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

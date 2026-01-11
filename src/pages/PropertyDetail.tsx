@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { propertyService } from '../services/propertyService';
 import { unitService } from '../services/unitService';
 import { agreementService, AgreementTemplate } from '../services/agreementService';
+import { applicationTemplateService, ApplicationTemplate } from '../services/applicationTemplateService';
 import { supabase } from '../lib/supabase';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { PropertyForm } from '../components/PropertyForm';
@@ -11,9 +12,8 @@ import { Property, Unit } from '../types';
 import {
   ArrowLeft, DoorClosed, ChevronRight, AlertCircle, Plus,
   Users, Calendar, DollarSign, Edit2, Wrench, FileText,
-  TrendingUp, CheckCircle, XCircle, Trash2, Globe, Eye
+  TrendingUp, CheckCircle, XCircle, Trash2, ClipboardList
 } from 'lucide-react';
-import { PublicUnitDisplayMode } from '../types';
 
 interface PropertyStats {
   totalUnits: number;
@@ -46,30 +46,22 @@ export function PropertyDetail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [unitError, setUnitError] = useState('');
-  const [publicPageSettings, setPublicPageSettings] = useState({
-    public_page_enabled: false,
-    public_page_slug: '',
-    public_unit_display_mode: 'all' as PublicUnitDisplayMode,
-  });
-  const [isSavingPublicSettings, setIsSavingPublicSettings] = useState(false);
   const [agreementTemplates, setAgreementTemplates] = useState<AgreementTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
-  const [businessSlug, setBusinessSlug] = useState<string>('');
+  const [applicationTemplates, setApplicationTemplates] = useState<ApplicationTemplate[]>([]);
+  const [selectedAppTemplateId, setSelectedAppTemplateId] = useState<string>('');
+  const [isSavingAppTemplate, setIsSavingAppTemplate] = useState(false);
 
   useEffect(() => {
     loadPropertyData();
   }, [propertyId]);
 
-  // Sync public page settings when property loads
+  // Sync templates when property loads
   useEffect(() => {
     if (property) {
-      setPublicPageSettings({
-        public_page_enabled: property.public_page_enabled || false,
-        public_page_slug: property.public_page_slug || '',
-        public_unit_display_mode: property.public_unit_display_mode || 'all',
-      });
       setSelectedTemplateId(property.default_agreement_template_id || '');
+      setSelectedAppTemplateId(property.default_application_template_id || '');
     }
   }, [property]);
 
@@ -86,6 +78,23 @@ export function PropertyDetail() {
     loadTemplates();
   }, []);
 
+  // Load application templates based on property's business
+  useEffect(() => {
+    async function loadAppTemplates() {
+      if (!property?.business_id) return;
+      try {
+        const templates = await applicationTemplateService.getTemplates({
+          business_id: property.business_id,
+          is_active: true
+        });
+        setApplicationTemplates(templates);
+      } catch (err) {
+        console.error('Failed to load application templates:', err);
+      }
+    }
+    loadAppTemplates();
+  }, [property?.business_id]);
+
   const loadPropertyData = async () => {
     if (!propertyId) return;
     setIsLoading(true);
@@ -94,18 +103,6 @@ export function PropertyDetail() {
       setProperty(propertyData);
 
       if (propertyData) {
-        // Fetch business public_page_slug for preview link
-        if (propertyData.business_id) {
-          const { data: businessData } = await supabase
-            .from('businesses')
-            .select('public_page_slug')
-            .eq('id', propertyData.business_id)
-            .single();
-          if (businessData?.public_page_slug) {
-            setBusinessSlug(businessData.public_page_slug);
-          }
-        }
-
         const unitsData = await propertyService.getPropertyUnits(propertyId);
         setUnits(unitsData);
 
@@ -196,32 +193,6 @@ export function PropertyDetail() {
     }
   };
 
-  const handleSavePublicSettings = async () => {
-    if (!propertyId) return;
-    setIsSavingPublicSettings(true);
-    try {
-      // Generate slug from property name if not set
-      let slug = publicPageSettings.public_page_slug;
-      if (publicPageSettings.public_page_enabled && !slug && property) {
-        slug = property.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      }
-
-      await propertyService.updateProperty(propertyId, {
-        public_page_enabled: publicPageSettings.public_page_enabled,
-        public_page_slug: slug,
-        public_unit_display_mode: publicPageSettings.public_unit_display_mode,
-      });
-
-      setPublicPageSettings({ ...publicPageSettings, public_page_slug: slug });
-      await loadPropertyData();
-    } catch (err) {
-      console.error('Failed to save public page settings:', err);
-      alert('Failed to save settings. Please try again.');
-    } finally {
-      setIsSavingPublicSettings(false);
-    }
-  };
-
   const handleSaveAgreementTemplate = async () => {
     if (!propertyId) return;
     setIsSavingTemplate(true);
@@ -235,6 +206,37 @@ export function PropertyDetail() {
       alert('Failed to save template. Please try again.');
     } finally {
       setIsSavingTemplate(false);
+    }
+  };
+
+  const handleSaveApplicationTemplate = async () => {
+    if (!propertyId) return;
+    setIsSavingAppTemplate(true);
+    try {
+      await propertyService.updateProperty(propertyId, {
+        default_application_template_id: selectedAppTemplateId || null,
+      });
+      await loadPropertyData();
+    } catch (err) {
+      console.error('Failed to save application template:', err);
+      alert('Failed to save template. Please try again.');
+    } finally {
+      setIsSavingAppTemplate(false);
+    }
+  };
+
+  const toggleOnlineApplications = async () => {
+    if (!property || !propertyId) return;
+    try {
+      // null means inherit from business, true/false are explicit overrides
+      const currentValue = property.accept_online_applications;
+      const newValue = currentValue === null ? false : (currentValue ? null : true);
+      await propertyService.updateProperty(propertyId, {
+        accept_online_applications: newValue,
+      });
+      setProperty({ ...property, accept_online_applications: newValue });
+    } catch (err) {
+      console.error('Failed to toggle online applications:', err);
     }
   };
 
@@ -503,114 +505,6 @@ export function PropertyDetail() {
           </button>
         </div>
 
-        {/* Public Page Settings */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-start gap-4 mb-6">
-            <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
-              publicPageSettings.public_page_enabled ? 'bg-blue-100' : 'bg-gray-100'
-            }`}>
-              <Globe className={`w-6 h-6 ${
-                publicPageSettings.public_page_enabled ? 'text-blue-600' : 'text-gray-500'
-              }`} />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between gap-4 mb-2">
-                <h2 className="text-lg font-semibold text-gray-900">Public Page Settings</h2>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={publicPageSettings.public_page_enabled}
-                    onChange={(e) => setPublicPageSettings({
-                      ...publicPageSettings,
-                      public_page_enabled: e.target.checked
-                    })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-              <p className="text-sm text-gray-600">
-                {publicPageSettings.public_page_enabled
-                  ? 'This property is visible on your public business page'
-                  : 'Enable to show this property on your public business page'}
-              </p>
-            </div>
-          </div>
-
-          {publicPageSettings.public_page_enabled && (
-            <div className="space-y-4 pt-4 border-t border-gray-200">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Public Page URL Slug
-                </label>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">/property/</span>
-                  <input
-                    type="text"
-                    value={publicPageSettings.public_page_slug}
-                    onChange={(e) => setPublicPageSettings({
-                      ...publicPageSettings,
-                      public_page_slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
-                    })}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    placeholder="auto-generated-from-name"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Leave blank to auto-generate from property name</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Unit Display Mode
-                </label>
-                <select
-                  value={publicPageSettings.public_unit_display_mode}
-                  onChange={(e) => setPublicPageSettings({
-                    ...publicPageSettings,
-                    public_unit_display_mode: e.target.value as PublicUnitDisplayMode
-                  })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                >
-                  <option value="all">Show All Units</option>
-                  <option value="vacant">Show Vacant Units Only</option>
-                  <option value="custom">Custom (Select Individual Units)</option>
-                </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  {publicPageSettings.public_unit_display_mode === 'all' && 'All active units will be displayed on the public page'}
-                  {publicPageSettings.public_unit_display_mode === 'vacant' && 'Only vacant units will be shown to prospects'}
-                  {publicPageSettings.public_unit_display_mode === 'custom' && 'Enable visibility for individual units in their settings'}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  onClick={handleSavePublicSettings}
-                  disabled={isSavingPublicSettings}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium disabled:opacity-50"
-                >
-                  {isSavingPublicSettings ? 'Saving...' : 'Save Settings'}
-                </button>
-                {publicPageSettings.public_page_slug && businessSlug && (
-                  <a
-                    href={`/browse/${businessSlug}/${publicPageSettings.public_page_slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
-                  >
-                    <Eye size={16} />
-                    Preview Public Page
-                  </a>
-                )}
-                {publicPageSettings.public_page_slug && !businessSlug && (
-                  <span className="text-xs text-amber-600">
-                    Enable public page on your business first to preview
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Agreement Template Settings */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-start gap-4">
@@ -651,6 +545,100 @@ export function PropertyDetail() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Application Template Settings */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <Users className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Default Application Template</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Select a default rental application template for this property. Units can override with their own template.
+              </p>
+              <div className="space-y-4">
+                <select
+                  value={selectedAppTemplateId}
+                  onChange={(e) => setSelectedAppTemplateId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                >
+                  <option value="">No default template (inherit from business)</option>
+                  {applicationTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.template_name}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSaveApplicationTemplate}
+                    disabled={isSavingAppTemplate}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium disabled:opacity-50"
+                  >
+                    {isSavingAppTemplate ? 'Saving...' : 'Save Template'}
+                  </button>
+                  <button
+                    onClick={() => navigate('/applications?action=create')}
+                    className="px-4 py-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    Create New Template
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Online Applications Toggle */}
+        <div className={`rounded-xl p-6 border ${
+          property?.accept_online_applications === true ? 'bg-green-50 border-green-200' :
+          property?.accept_online_applications === false ? 'bg-gray-50 border-gray-200' :
+          'bg-blue-50 border-blue-200'
+        }`}>
+          <div className="flex items-start gap-4">
+            <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+              property?.accept_online_applications === true ? 'bg-green-100' :
+              property?.accept_online_applications === false ? 'bg-gray-200' :
+              'bg-blue-100'
+            }`}>
+              <ClipboardList className={`w-6 h-6 ${
+                property?.accept_online_applications === true ? 'text-green-600' :
+                property?.accept_online_applications === false ? 'text-gray-500' :
+                'text-blue-600'
+              }`} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900">Accept Online Applications</h3>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={property?.accept_online_applications === null ? 'inherit' : (property?.accept_online_applications ? 'enabled' : 'disabled')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const newValue = val === 'inherit' ? null : val === 'enabled';
+                      propertyService.updateProperty(propertyId!, { accept_online_applications: newValue })
+                        .then(() => setProperty(prev => prev ? { ...prev, accept_online_applications: newValue } : null))
+                        .catch(err => console.error('Failed to update:', err));
+                    }}
+                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="inherit">Inherit from Business</option>
+                    <option value="enabled">Enabled</option>
+                    <option value="disabled">Disabled</option>
+                  </select>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                {property?.accept_online_applications === true
+                  ? 'Online applications are enabled for this property.'
+                  : property?.accept_online_applications === false
+                  ? 'Online applications are disabled for this property.'
+                  : 'Inheriting online application setting from business level.'}
+              </p>
             </div>
           </div>
         </div>

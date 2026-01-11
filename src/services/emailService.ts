@@ -493,4 +493,162 @@ export const emailService = {
       action_text: 'Review Application',
     });
   },
+
+  // ============================================
+  // Application & Messaging Email Notifications
+  // ============================================
+
+  /**
+   * Send new message notification to applicant
+   */
+  async sendApplicantMessageNotification(
+    to: string,
+    data: {
+      applicantName: string;
+      businessName: string;
+      propertyName: string;
+      messagePreview: string;
+      messagesUrl?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'notification', {
+      subject: `New message from ${data.businessName}`,
+      name: data.applicantName,
+      message: `You have a new message regarding your application at ${data.propertyName}.\n\nMessage preview: "${data.messagePreview.substring(0, 100)}${data.messagePreview.length > 100 ? '...' : ''}"\n\nLog in to view and respond to this message.`,
+      action_url: data.messagesUrl || `${window.location.origin}/my-applications/messages`,
+      action_text: 'View Messages',
+    });
+  },
+
+  /**
+   * Send new message notification to manager
+   */
+  async sendManagerMessageNotification(
+    to: string,
+    data: {
+      managerName: string;
+      applicantName: string;
+      propertyName: string;
+      messagePreview: string;
+      applicationsUrl?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'notification', {
+      subject: `New message from applicant: ${data.applicantName}`,
+      name: data.managerName,
+      message: `You have a new message from ${data.applicantName} regarding their application at ${data.propertyName}.\n\nMessage preview: "${data.messagePreview.substring(0, 100)}${data.messagePreview.length > 100 ? '...' : ''}"\n\nLog in to view and respond.`,
+      action_url: data.applicationsUrl || `${window.location.origin}/applications`,
+      action_text: 'View Applications',
+    });
+  },
+
+  /**
+   * Send application status update notification
+   */
+  async sendApplicationStatusEmail(
+    to: string,
+    data: {
+      applicantName: string;
+      propertyName: string;
+      status: 'approved' | 'denied' | 'under_review';
+      message?: string;
+      dashboardUrl?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    const statusMessages = {
+      approved: 'Congratulations! Your application has been approved.',
+      denied: 'We regret to inform you that your application was not approved.',
+      under_review: 'Your application is now under review by the property manager.',
+    };
+
+    const subject = data.status === 'approved'
+      ? 'Application Approved!'
+      : data.status === 'denied'
+        ? 'Application Update'
+        : 'Application Status Update';
+
+    return this.sendEmail(to, 'notification', {
+      subject: `${subject} - ${data.propertyName}`,
+      name: data.applicantName,
+      message: `${statusMessages[data.status]}${data.message ? `\n\n${data.message}` : ''}\n\nProperty: ${data.propertyName}`,
+      action_url: data.dashboardUrl || `${window.location.origin}/my-applications`,
+      action_text: 'View Application',
+    });
+  },
+
+  // ============================================
+  // Agreement Email Notifications
+  // ============================================
+
+  /**
+   * Send agreement signing link to tenant
+   */
+  async sendAgreementSigningEmail(
+    to: string,
+    data: {
+      tenantName: string;
+      landlordName: string;
+      propertyAddress: string;
+      agreementTitle: string;
+      agreementId: string;
+      signatureDeadline?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    const signingUrl = `${window.location.origin}/agreement/${data.agreementId}`;
+    const deadlineText = data.signatureDeadline
+      ? `\n\nPlease sign by: ${data.signatureDeadline}`
+      : '';
+
+    return this.sendEmail(to, 'notification', {
+      subject: `Action Required: Please Sign Your Rental Agreement - ${data.propertyAddress}`,
+      name: data.tenantName,
+      message: `${data.landlordName} has sent you a rental agreement for review and signature.\n\nAgreement: ${data.agreementTitle}\nProperty: ${data.propertyAddress}${deadlineText}\n\nPlease review and sign the agreement using the link below.`,
+      action_url: signingUrl,
+      action_text: 'Review & Sign Agreement',
+    });
+  },
+
+  /**
+   * Send agreement signed confirmation to tenant
+   */
+  async sendAgreementSignedConfirmation(
+    to: string,
+    data: {
+      tenantName: string;
+      propertyAddress: string;
+      agreementTitle: string;
+      signedDate: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'notification', {
+      subject: `Agreement Signed Successfully - ${data.propertyAddress}`,
+      name: data.tenantName,
+      message: `Thank you for signing your rental agreement.\n\nAgreement: ${data.agreementTitle}\nProperty: ${data.propertyAddress}\nSigned on: ${data.signedDate}\n\nA copy of the signed agreement is available in your tenant portal.`,
+      action_url: `${window.location.origin}/my-rental/agreements`,
+      action_text: 'View Agreement',
+    });
+  },
+
+  /**
+   * Send notification to landlord when tenant signs agreement
+   */
+  async sendAgreementSignedNotificationToLandlord(
+    to: string,
+    data: {
+      landlordName: string;
+      tenantName: string;
+      propertyAddress: string;
+      agreementTitle: string;
+      signedDate: string;
+      agreementsUrl?: string;
+    }
+  ): Promise<{ success: boolean; message: string }> {
+    return this.sendEmail(to, 'notification', {
+      subject: `Agreement Signed by ${data.tenantName} - ${data.propertyAddress}`,
+      name: data.landlordName,
+      message: `${data.tenantName} has signed the rental agreement.\n\nAgreement: ${data.agreementTitle}\nProperty: ${data.propertyAddress}\nSigned on: ${data.signedDate}`,
+      action_url: data.agreementsUrl || `${window.location.origin}/agreements`,
+      action_text: 'View Agreement',
+    });
+  },
 };

@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { unitService } from '../services/unitService';
-import { listingService } from '../services/listingService';
+import { listingService, PREDEFINED_AMENITIES, AMENITY_CATEGORIES, AmenityConfig } from '../services/listingService';
 import { tenantService } from '../services/tenantService';
+import { applicationTemplateService, ApplicationTemplate } from '../services/applicationTemplateService';
 import { supabase } from '../lib/supabase';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { TenantForm } from '../components/TenantForm';
-import { Unit, Tenant } from '../types';
+import { Unit, Tenant, AgreementTemplate } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../components/Toast';
 import {
   ArrowLeft, Users, ChevronRight, AlertCircle, Plus,
   DollarSign, Edit2, Wrench, FileText, Calendar,
-  CheckCircle, XCircle, Globe, Eye, ExternalLink, Trash2
+  CheckCircle, XCircle, Globe, ExternalLink, Trash2, ClipboardList, Eye, RefreshCw
 } from 'lucide-react';
 import { SlidePanel } from '../components/SlidePanel';
 import { OccupancyStatus } from '../types';
@@ -30,6 +32,7 @@ export function UnitDetail() {
   const { unitId } = useParams();
   const navigate = useNavigate();
   const { currentBusiness } = useAuth();
+  const toast = useToast();
   const [unit, setUnit] = useState<Unit | null>(null);
   const [property, setProperty] = useState<any>(null);
   const [tenants, setTenants] = useState<any[]>([]);
@@ -62,20 +65,99 @@ export function UnitDetail() {
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [publicPageEnabled, setPublicPageEnabled] = useState(false);
-  const [isSavingPublicSetting, setIsSavingPublicSetting] = useState(false);
   const [businessSlug, setBusinessSlug] = useState<string>('');
+  const [agreementTemplates, setAgreementTemplates] = useState<AgreementTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [applicationTemplates, setApplicationTemplates] = useState<ApplicationTemplate[]>([]);
+  const [selectedAppTemplateId, setSelectedAppTemplateId] = useState<string>('');
+  const [isSavingAppTemplate, setIsSavingAppTemplate] = useState(false);
+
+  // Listing customization state
+  const [listingDisplayTitle, setListingDisplayTitle] = useState<string>('');
+  const [listingAmenities, setListingAmenities] = useState<AmenityConfig[]>([]);
+  const [isSavingListingSettings, setIsSavingListingSettings] = useState(false);
+  const [showListingSettings, setShowListingSettings] = useState(false);
+  const [isSyncingFromUnit, setIsSyncingFromUnit] = useState(false);
 
   useEffect(() => {
     loadUnitData();
   }, [unitId]);
 
-  // Sync public page setting when unit loads
+  // Sync templates when unit loads
   useEffect(() => {
     if (unit) {
-      setPublicPageEnabled(unit.public_page_enabled || false);
+      setSelectedTemplateId(unit.default_agreement_template_id || '');
+      setSelectedAppTemplateId(unit.default_application_template_id || '');
     }
   }, [unit]);
+
+  // Load agreement templates
+  useEffect(() => {
+    async function loadTemplates() {
+      try {
+        if (!currentBusiness?.id) return;
+        const { data, error } = await supabase
+          .from('agreement_templates')
+          .select('*')
+          .eq('business_id', currentBusiness.id)
+          .eq('is_active', true)
+          .order('template_name');
+
+        if (error) throw error;
+        setAgreementTemplates(data || []);
+      } catch (err) {
+        console.error('Failed to load agreement templates:', err);
+      }
+    }
+    loadTemplates();
+  }, [currentBusiness?.id]);
+
+  // Load application templates
+  useEffect(() => {
+    async function loadAppTemplates() {
+      if (!currentBusiness?.id) return;
+      try {
+        const templates = await applicationTemplateService.getTemplates({
+          business_id: currentBusiness.id,
+          is_active: true
+        });
+        setApplicationTemplates(templates);
+      } catch (err) {
+        console.error('Failed to load application templates:', err);
+      }
+    }
+    loadAppTemplates();
+  }, [currentBusiness?.id]);
+
+  // Sync listing settings when listing loads
+  useEffect(() => {
+    if (listing) {
+      setListingDisplayTitle(listing.display_title || '');
+      // Always initialize ALL predefined amenities, merging with existing config
+      const existingConfig = listing.amenities_config || [];
+      const existingAmenities = listing.amenities || [];
+
+      const initialConfig: AmenityConfig[] = PREDEFINED_AMENITIES.map(amenity => {
+        // Check if this amenity exists in the saved config
+        const savedConfig = existingConfig.find((c: AmenityConfig) => c.id === amenity.id);
+        if (savedConfig) {
+          return savedConfig;
+        }
+        // Fall back to checking legacy amenities array
+        const isInLegacy = existingAmenities.some((a: string) =>
+          a.toLowerCase().includes(amenity.label.toLowerCase()) ||
+          amenity.label.toLowerCase().includes(a.toLowerCase())
+        );
+        return {
+          id: amenity.id,
+          included: isInLegacy,
+          isKeyFeature: false
+        };
+      });
+      setListingAmenities(initialConfig);
+    }
+  }, [listing]);
 
   const loadUnitData = async () => {
     if (!unitId) return;
@@ -180,6 +262,71 @@ export function UnitDetail() {
     }
   };
 
+  const handleSaveListingSettings = async () => {
+    if (!listing) return;
+    setIsSavingListingSettings(true);
+    try {
+      // Convert amenities config to simple string array for legacy support
+      const selectedAmenities = listingAmenities
+        .filter(a => a.included)
+        .map(a => {
+          const amenity = PREDEFINED_AMENITIES.find(p => p.id === a.id);
+          return amenity?.label || a.id;
+        });
+
+      const updated = await listingService.updateListing(listing.id, {
+        display_title: listingDisplayTitle || null,
+        amenities_config: listingAmenities,
+        amenities: selectedAmenities, // Keep legacy array in sync
+      });
+      setListing(updated);
+      setShowListingSettings(false);
+      toast.success('Listing settings saved', 'Your changes have been saved.');
+    } catch (err: any) {
+      console.error('Failed to save listing settings:', err);
+      toast.error('Failed to save settings', err?.message || 'Please try again.');
+    } finally {
+      setIsSavingListingSettings(false);
+    }
+  };
+
+  const handleSyncFromUnit = async () => {
+    if (!listing || !unit) return;
+    setIsSyncingFromUnit(true);
+    try {
+      const updated = await listingService.updateListing(listing.id, {
+        monthly_rent_cents: unit.monthly_rent_cents || 0,
+        bedrooms: unit.bedrooms || 0,
+        bathrooms: unit.bathrooms || 0,
+        square_feet: unit.square_feet || null,
+        deposit_cents: unit.security_deposit_cents || null,
+      });
+      setListing(updated);
+      toast.success('Listing synced', 'Listing data updated from unit.');
+    } catch (err: any) {
+      console.error('Failed to sync listing:', err);
+      toast.error('Failed to sync listing', err?.message || 'Please try again.');
+    } finally {
+      setIsSyncingFromUnit(false);
+    }
+  };
+
+  const toggleAmenity = (amenityId: string) => {
+    setListingAmenities(prev =>
+      prev.map(a =>
+        a.id === amenityId ? { ...a, included: !a.included } : a
+      )
+    );
+  };
+
+  const toggleKeyFeature = (amenityId: string) => {
+    setListingAmenities(prev =>
+      prev.map(a =>
+        a.id === amenityId ? { ...a, isKeyFeature: !a.isKeyFeature } : a
+      )
+    );
+  };
+
   const handleAddTenant = async (tenantData: Partial<Tenant>) => {
     if (!unitId || !currentBusiness) return;
     setIsSubmittingTenant(true);
@@ -261,17 +408,61 @@ export function UnitDetail() {
     }
   };
 
-  const handleTogglePublicVisibility = async (enabled: boolean) => {
+  const handleSaveAgreementTemplate = async () => {
     if (!unitId) return;
-    setIsSavingPublicSetting(true);
+    setIsSavingTemplate(true);
     try {
-      await unitService.updateUnit(unitId, { public_page_enabled: enabled });
-      setPublicPageEnabled(enabled);
+      await unitService.updateUnit(unitId, {
+        default_agreement_template_id: selectedTemplateId || null,
+      });
+      await loadUnitData();
     } catch (err) {
-      console.error('Failed to update public visibility:', err);
-      alert('Failed to update visibility. Please try again.');
+      console.error('Failed to save agreement template:', err);
+      alert('Failed to save template. Please try again.');
     } finally {
-      setIsSavingPublicSetting(false);
+      setIsSavingTemplate(false);
+    }
+  };
+
+  const handleSaveApplicationTemplate = async () => {
+    if (!unitId) return;
+    setIsSavingAppTemplate(true);
+    try {
+      await unitService.updateUnit(unitId, {
+        default_application_template_id: selectedAppTemplateId || null,
+      });
+      await loadUnitData();
+    } catch (err) {
+      console.error('Failed to save application template:', err);
+      alert('Failed to save template. Please try again.');
+    } finally {
+      setIsSavingAppTemplate(false);
+    }
+  };
+
+  const handleVisibilityOverrideChange = async (value: string) => {
+    if (!unitId || !unit) return;
+    try {
+      const newValue = value as 'inherit' | 'always_show' | 'never_show';
+      await unitService.updateUnit(unitId, {
+        public_page_visibility_override: newValue,
+      });
+      setUnit({ ...unit, public_page_visibility_override: newValue });
+    } catch (err) {
+      console.error('Failed to update visibility override:', err);
+    }
+  };
+
+  const handleOnlineApplicationsChange = async (value: string) => {
+    if (!unitId || !unit) return;
+    try {
+      const newValue = value === 'inherit' ? null : value === 'enabled';
+      await unitService.updateUnit(unitId, {
+        accept_online_applications: newValue,
+      });
+      setUnit({ ...unit, accept_online_applications: newValue });
+    } catch (err) {
+      console.error('Failed to update online applications setting:', err);
     }
   };
 
@@ -404,43 +595,6 @@ export function UnitDetail() {
           </div>
         )}
 
-        {/* Public Page Visibility - Only show when property uses custom display mode */}
-        {property?.public_unit_display_mode === 'custom' && (
-          <div className={`rounded-xl p-6 border ${
-            publicPageEnabled ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
-          }`}>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  publicPageEnabled ? 'bg-green-100' : 'bg-gray-200'
-                }`}>
-                  <Eye className={`w-6 h-6 ${
-                    publicPageEnabled ? 'text-green-600' : 'text-gray-500'
-                  }`} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Public Page Visibility</h3>
-                  <p className="text-sm text-gray-600">
-                    {publicPageEnabled
-                      ? 'This unit is visible on the property\'s public page'
-                      : 'This unit is hidden from the property\'s public page'}
-                  </p>
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={publicPageEnabled}
-                  onChange={(e) => handleTogglePublicVisibility(e.target.checked)}
-                  disabled={isSavingPublicSetting}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-              </label>
-            </div>
-          </div>
-        )}
-
         {/* Public Listing Status */}
         {stats.leaseStatus === 'vacant' && (
           <div className={`rounded-xl p-6 border ${
@@ -491,7 +645,7 @@ export function UnitDetail() {
                     {isCreatingListing ? 'Creating...' : 'Create Listing'}
                   </button>
                 ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {stats.hasActiveListing && listing && businessSlug && property?.public_page_slug && (
                       <a
                         href={`/browse/${businessSlug}/${property.public_page_slug}/${unitId}`}
@@ -504,12 +658,135 @@ export function UnitDetail() {
                       </a>
                     )}
                     <button
-                      onClick={() => navigate(`/applications?unitId=${unitId}`)}
+                      onClick={() => setShowListingSettings(!showListingSettings)}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm font-medium"
                     >
                       <Edit2 size={16} />
-                      Manage Listing
+                      {showListingSettings ? 'Hide Settings' : 'Edit Listing'}
                     </button>
+                  </div>
+                )}
+
+                {/* Listing Settings Panel */}
+                {listing && showListingSettings && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    {/* Display Title */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Display Title
+                      </label>
+                      <input
+                        type="text"
+                        value={listingDisplayTitle}
+                        onChange={(e) => setListingDisplayTitle(e.target.value)}
+                        placeholder={listing.title || 'Auto-generated from unit details'}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Leave blank to use auto-generated title based on bedrooms/bathrooms
+                      </p>
+                    </div>
+
+                    {/* Amenities & Key Features */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm font-medium text-gray-700">
+                          Amenities & Key Features
+                        </label>
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <span className="w-3 h-3 bg-blue-100 border border-blue-300 rounded"></span>
+                            Included
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="w-3 h-3 bg-amber-100 border border-amber-300 rounded"></span>
+                            Key Feature
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mb-3">
+                        Check "Include" to show in amenities. Check "Key" to highlight as a prominent Key Feature with icon.
+                      </p>
+                      <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                        {AMENITY_CATEGORIES.map((category) => (
+                          <div key={category}>
+                            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                              {category}
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {PREDEFINED_AMENITIES
+                                .filter(a => a.category === category)
+                                .map((amenity) => {
+                                  const config = listingAmenities.find(a => a.id === amenity.id);
+                                  const isIncluded = config?.included ?? false;
+                                  const isKeyFeature = config?.isKeyFeature ?? false;
+                                  return (
+                                    <div
+                                      key={amenity.id}
+                                      className={`flex items-center justify-between p-2 rounded-lg transition text-sm ${
+                                        isKeyFeature
+                                          ? 'bg-amber-50 border border-amber-200'
+                                          : isIncluded
+                                          ? 'bg-blue-50 border border-blue-200'
+                                          : 'bg-gray-50 border border-gray-200'
+                                      }`}
+                                    >
+                                      <span className={
+                                        isKeyFeature ? 'text-amber-700 font-medium' :
+                                        isIncluded ? 'text-blue-700' : 'text-gray-600'
+                                      }>
+                                        {amenity.label}
+                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <label className="flex items-center gap-1 cursor-pointer" title="Include in listing">
+                                          <input
+                                            type="checkbox"
+                                            checked={isIncluded}
+                                            onChange={() => toggleAmenity(amenity.id)}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                                          />
+                                          <span className="text-xs text-gray-500">Inc</span>
+                                        </label>
+                                        <label className="flex items-center gap-1 cursor-pointer" title="Show as Key Feature">
+                                          <input
+                                            type="checkbox"
+                                            checked={isKeyFeature}
+                                            onChange={() => toggleKeyFeature(amenity.id)}
+                                            className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 w-4 h-4"
+                                          />
+                                          <span className="text-xs text-gray-500">Key</span>
+                                        </label>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Sync and Save Buttons */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2 border-t border-gray-100">
+                      <button
+                        onClick={handleSyncFromUnit}
+                        disabled={isSyncingFromUnit}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition text-sm font-medium disabled:opacity-50"
+                      >
+                        <RefreshCw size={16} className={isSyncingFromUnit ? 'animate-spin' : ''} />
+                        {isSyncingFromUnit ? 'Syncing...' : 'Sync from Unit'}
+                      </button>
+                      <button
+                        onClick={handleSaveListingSettings}
+                        disabled={isSavingListingSettings}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium disabled:opacity-50"
+                      >
+                        {isSavingListingSettings ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      "Sync from Unit" updates listing price, bedrooms, bathrooms, and deposit from the unit's current data.
+                    </p>
                   </div>
                 )}
               </div>
@@ -651,6 +928,178 @@ export function UnitDetail() {
               <p className="text-sm text-gray-600">Rental applications</p>
             </button>
           )}
+        </div>
+
+        {/* Agreement Template Settings */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+              <FileText className="w-6 h-6 text-purple-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Default Agreement Template</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Select a default lease agreement template for this unit. This overrides the property's default template.
+              </p>
+              <div className="space-y-4">
+                <select
+                  value={selectedTemplateId}
+                  onChange={(e) => setSelectedTemplateId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                >
+                  <option value="">No default template (inherit from property)</option>
+                  {agreementTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.template_name} ({template.agreement_type})
+                    </option>
+                  ))}
+                </select>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={handleSaveAgreementTemplate}
+                    disabled={isSavingTemplate}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-medium disabled:opacity-50"
+                  >
+                    {isSavingTemplate ? 'Saving...' : 'Save Template'}
+                  </button>
+                  <button
+                    onClick={() => navigate('/agreements?action=create')}
+                    className="px-4 py-2 text-purple-600 hover:text-purple-700 text-sm font-medium"
+                  >
+                    Create New Template
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Application Template Settings */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <Users className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-gray-900 mb-2">Default Application Template</h2>
+              <p className="text-sm text-gray-600 mb-4">
+                Select a default rental application template for this unit. This overrides the property's default template.
+              </p>
+              <div className="space-y-4">
+                <select
+                  value={selectedAppTemplateId}
+                  onChange={(e) => setSelectedAppTemplateId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                >
+                  <option value="">No default template (inherit from property)</option>
+                  {applicationTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.template_name}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={handleSaveApplicationTemplate}
+                    disabled={isSavingAppTemplate}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium disabled:opacity-50"
+                  >
+                    {isSavingAppTemplate ? 'Saving...' : 'Save Template'}
+                  </button>
+                  <button
+                    onClick={() => navigate('/applications?action=create')}
+                    className="px-4 py-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    Create New Template
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Public Page Visibility Override */}
+        <div className={`rounded-xl p-6 border ${
+          unit?.public_page_visibility_override === 'always_show' ? 'bg-green-50 border-green-200' :
+          unit?.public_page_visibility_override === 'never_show' ? 'bg-gray-50 border-gray-200' :
+          'bg-blue-50 border-blue-200'
+        }`}>
+          <div className="flex items-start gap-4">
+            <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+              unit?.public_page_visibility_override === 'always_show' ? 'bg-green-100' :
+              unit?.public_page_visibility_override === 'never_show' ? 'bg-gray-200' :
+              'bg-blue-100'
+            }`}>
+              <Eye className={`w-6 h-6 ${
+                unit?.public_page_visibility_override === 'always_show' ? 'text-green-600' :
+                unit?.public_page_visibility_override === 'never_show' ? 'text-gray-500' :
+                'text-blue-600'
+              }`} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900">Public Page Visibility</h3>
+                <select
+                  value={unit?.public_page_visibility_override || 'inherit'}
+                  onChange={(e) => handleVisibilityOverrideChange(e.target.value)}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="inherit">Inherit from Property</option>
+                  <option value="always_show">Always Show</option>
+                  <option value="never_show">Never Show</option>
+                </select>
+              </div>
+              <p className="text-sm text-gray-600">
+                {unit?.public_page_visibility_override === 'always_show'
+                  ? 'This unit will always be shown on the public page, regardless of property settings.'
+                  : unit?.public_page_visibility_override === 'never_show'
+                  ? 'This unit will never be shown on the public page.'
+                  : 'Visibility is determined by property settings (All Units, Vacant Only, or Custom).'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Online Applications Toggle */}
+        <div className={`rounded-xl p-6 border ${
+          unit?.accept_online_applications === true ? 'bg-green-50 border-green-200' :
+          unit?.accept_online_applications === false ? 'bg-gray-50 border-gray-200' :
+          'bg-blue-50 border-blue-200'
+        }`}>
+          <div className="flex items-start gap-4">
+            <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
+              unit?.accept_online_applications === true ? 'bg-green-100' :
+              unit?.accept_online_applications === false ? 'bg-gray-200' :
+              'bg-blue-100'
+            }`}>
+              <ClipboardList className={`w-6 h-6 ${
+                unit?.accept_online_applications === true ? 'text-green-600' :
+                unit?.accept_online_applications === false ? 'text-gray-500' :
+                'text-blue-600'
+              }`} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <h3 className="text-lg font-semibold text-gray-900">Accept Online Applications</h3>
+                <select
+                  value={unit?.accept_online_applications === null ? 'inherit' : (unit?.accept_online_applications ? 'enabled' : 'disabled')}
+                  onChange={(e) => handleOnlineApplicationsChange(e.target.value)}
+                  className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="inherit">Inherit from Property</option>
+                  <option value="enabled">Enabled</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </div>
+              <p className="text-sm text-gray-600">
+                {unit?.accept_online_applications === true
+                  ? 'Online applications are enabled for this unit.'
+                  : unit?.accept_online_applications === false
+                  ? 'Online applications are disabled for this unit.'
+                  : 'Inheriting online application setting from property level.'}
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

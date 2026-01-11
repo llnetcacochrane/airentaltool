@@ -54,7 +54,15 @@ export function TenantForm({ tenant, onSubmit, onCancel, isSubmitting }: TenantF
     }
     try {
       const data = await unitService.getAllUnits(currentBusiness.id);
-      setUnits(data.filter(u => u.occupancy_status === 'vacant' || u.id === tenant?.unit_id));
+      // When editing a tenant, show all units (they might want to move to an occupied unit for co-tenant situations)
+      // When creating a new tenant, only show vacant units
+      if (tenant) {
+        // Editing mode: show all units
+        setUnits(data);
+      } else {
+        // Create mode: only show vacant units
+        setUnits(data.filter(u => u.occupancy_status === 'vacant'));
+      }
     } catch (error) {
       console.error('Failed to load units:', error);
     } finally {
@@ -179,7 +187,9 @@ export function TenantForm({ tenant, onSubmit, onCancel, isSubmitting }: TenantF
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-1">Only vacant units are shown</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {tenant ? 'All units shown - select where to assign this tenant' : 'Only vacant units are shown'}
+              </p>
             </div>
 
             <div>

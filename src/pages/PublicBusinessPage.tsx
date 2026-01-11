@@ -643,13 +643,17 @@ export function PublicBusinessPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm">
-                © {new Date().getFullYear()} {business.business_name}. All rights reserved.
+                <a href="https://app.airentaltool.com" className="hover:text-blue-600 transition">
+                  © {new Date().getFullYear()} {business.business_name}
+                </a>. All rights reserved.
               </p>
             </div>
             <div className="flex items-center gap-2 text-gray-400 text-sm">
               <span>Powered by</span>
-              <Globe className="w-4 h-4" />
-              <span className="font-semibold">AI Rental Tools</span>
+              <a href="https://app.airentaltool.com" className="flex items-center gap-2 hover:text-blue-600 transition">
+                <Globe className="w-4 h-4" />
+                <span className="font-semibold">AI Rental Tools</span>
+              </a>
             </div>
           </div>
         </div>

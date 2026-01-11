@@ -15,6 +15,32 @@ export type PropertyType =
   | 'vacant_land'
   | 'other';
 
+/**
+ * Standardized property type options for use across all forms
+ * This is the single source of truth for property type display labels
+ */
+export const PROPERTY_TYPE_OPTIONS: { value: PropertyType; label: string }[] = [
+  { value: 'single_family', label: 'Single Family Home' },
+  { value: 'multi_family', label: 'Multi-Family' },
+  { value: 'apartment_building', label: 'Apartment Building' },
+  { value: 'condo', label: 'Condo' },
+  { value: 'townhouse', label: 'Townhouse' },
+  { value: 'commercial', label: 'Commercial' },
+  { value: 'mixed_use', label: 'Mixed Use' },
+  { value: 'land', label: 'Land' },
+  { value: 'vacant_land', label: 'Vacant Land' },
+  { value: 'other', label: 'Other' },
+];
+
+/**
+ * Get the display label for a property type
+ * Falls back to the raw type value if not found
+ */
+export const getPropertyTypeLabel = (type: string): string => {
+  const option = PROPERTY_TYPE_OPTIONS.find(opt => opt.value === type);
+  return option?.label || type;
+};
+
 export type OccupancyStatus = 'vacant' | 'occupied' | 'maintenance' | 'reserved';
 
 // Public page unit display mode for properties
@@ -193,8 +219,11 @@ export interface Business {
   public_page_contact_email?: string;
   public_page_contact_phone?: string;
   public_page_custom_content?: any;
-  // Agreement template cascade (v5.6.0+)
+  // Template cascade (v5.6.0+)
   default_agreement_template_id?: string;
+  default_application_template_id?: string;
+  // Online applications (v5.7.0+)
+  accept_online_applications?: boolean;
 }
 
 export interface Property {
@@ -227,6 +256,9 @@ export interface Property {
   public_page_slug?: string;
   public_unit_display_mode?: PublicUnitDisplayMode;
   default_agreement_template_id?: string;
+  default_application_template_id?: string;
+  // Online applications (v5.7.0+)
+  accept_online_applications?: boolean | null;
 }
 
 export interface Unit {
@@ -262,7 +294,13 @@ export interface Unit {
   // Public page settings (v5.6.0+)
   public_page_enabled?: boolean;
   default_agreement_template_id?: string;
+  default_application_template_id?: string;
+  // Online applications and visibility (v5.7.0+)
+  accept_online_applications?: boolean | null;
+  public_page_visibility_override?: 'inherit' | 'always_show' | 'never_show';
 }
+
+export type PublicPageVisibilityOverride = 'inherit' | 'always_show' | 'never_show';
 
 export interface Tenant {
   id: string;
@@ -531,7 +569,8 @@ export interface RentalListing {
 export interface RentalApplication {
   id: string;
   listing_id: string;
-  organization_id?: string | null;  // Optional - businesses are now top-level entities
+  business_id?: string | null;  // Primary business association (preferred)
+  organization_id?: string | null;  // Legacy - businesses are now top-level entities
   property_id: string;
   unit_id: string;
   applicant_email: string;
@@ -658,6 +697,7 @@ export interface BusinessUserMessage {
   is_read: boolean;
   read_at?: string;
   parent_message_id?: string;
+  application_id?: string;
   created_at: string;
 }
 
@@ -814,4 +854,36 @@ export interface AffiliateDashboardData {
   recent_referrals: AffiliateReferral[];
   recent_commissions: AffiliateCommission[];
   settings: AffiliateSettings;
+}
+
+export type AgreementType = 'lease' | 'sublease' | 'month-to-month' | 'short-term';
+export type PaymentFrequency = 'daily' | 'weekly' | 'bi-weekly' | 'monthly';
+
+export interface AgreementTemplate {
+  id: string;
+  business_id: string;
+  template_name: string;
+  description?: string;
+  agreement_type: AgreementType;
+  agreement_title: string;
+  template_content: string;
+  default_lease_term_months?: number;
+  default_rent_amount?: number;
+  default_security_deposit?: number;
+  payment_frequency: PaymentFrequency;
+  pet_policy?: string;
+  house_rules?: string;
+  cancellation_policy?: string;
+  damage_policy?: string;
+  refund_policy?: string;
+  utilities_included?: string[];
+  amenities?: string[];
+  parking_details?: string;
+  max_occupants?: number;
+  is_active: boolean;
+  is_default: boolean;
+  version: number;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
 }

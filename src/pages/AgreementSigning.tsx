@@ -23,8 +23,9 @@ export default function AgreementSigning() {
   const loadAgreement = async () => {
     try {
       setLoading(true);
+      // Use getAgreementForSigning which allows unauthenticated access for signing
       const [agreementData, signaturesData] = await Promise.all([
-        agreementService.getAgreement(agreementId!),
+        agreementService.getAgreementForSigning(agreementId!),
         agreementService.getSignatures(agreementId!),
       ]);
       setAgreement(agreementData);

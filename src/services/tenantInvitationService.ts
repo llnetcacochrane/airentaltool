@@ -3,8 +3,12 @@ import { TenantInvitation, InvitationDetails } from '../types';
 import { generateSecureInvitationCode } from '../utils/crypto';
 
 export const tenantInvitationService = {
+  /**
+   * Create a tenant invitation
+   * @param businessId - Business ID (preferred) or organization_id for backward compatibility
+   */
   async createInvitation(
-    organizationId: string,
+    businessId: string | null | undefined,
     propertyId: string,
     unitId: string,
     tenantInfo: {
@@ -38,7 +42,8 @@ export const tenantInvitationService = {
     const { data, error } = await supabase
       .from('tenant_invitations')
       .insert({
-        organization_id: organizationId,
+        business_id: businessId || null, // Primary association
+        organization_id: businessId || null, // Keep for backward compatibility
         property_id: propertyId,
         unit_id: unitId,
         invitation_code: codeData,
