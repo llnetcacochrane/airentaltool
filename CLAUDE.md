@@ -136,9 +136,13 @@ Update version in `src/lib/version.ts`. Footer displays version across all pages
 - Rate limiting utilities in `src/utils/rateLimiter.ts`
 - Form validation in `src/utils/formValidation.ts`
 
+## Current Version
+
+**v5.7.0** (2026-01-11) - See `src/lib/version.ts` for version details.
+
 ## Responsive Design Requirements (MANDATORY)
 
-**All UI code MUST be mobile-responsive.** See `docs/RESPONSIVE_DESIGN_GUIDE.md` for complete patterns.
+**All UI code MUST be mobile-responsive.**
 
 ### Quick Reference - Required Patterns
 
@@ -184,3 +188,28 @@ Before any UI changes:
 - [ ] No horizontal scroll at 320px width
 - [ ] Touch targets are 44x44px minimum
 - [ ] Text sizes scale appropriately
+
+## Additional Documentation
+
+Reference documentation in `docs/` directory:
+- `ADMIN_HIERARCHY_GUIDE.md` - Admin roles and permissions hierarchy
+- `AGREEMENT_SYSTEM.md` - Lease agreement template system
+- `SMTP_AND_FILE_STORAGE_SETUP.md` - Email and storage configuration
+- `SUPER_ADMIN_SETUP.md` - Platform super admin setup
+- `TENANT_SYSTEMS_COMPLETE.md` - Tenant application and portal systems
+
+## Database Migrations
+
+Migrations are in `supabase/migrations/` (001-075). They are timestamp-prefixed and run in order.
+
+Utility SQL scripts in `supabase/sql-scripts/` are for development/maintenance only - not part of the production deployment.
+
+## Bare Metal Installation
+
+For self-hosted installations, use the scripts in `/home/ubuntu/airentaltool/scripts/`:
+- `install.sh` - Main installation script
+- `server-setup.sh` - Ubuntu server preparation
+- `postgres-prepare.sh` - PostgreSQL/Supabase database setup
+- `supabase-selfhost-setup.sh` - Self-hosted Supabase configuration
+- `ssl-setup.sh` - SSL/TLS certificate setup
+- `system-test.sh` - Installation verification
