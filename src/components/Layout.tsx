@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth, PackageType } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
@@ -6,6 +6,7 @@ import {
   LogOut,
   Settings,
   ChevronDown,
+  ChevronRight,
   Building2,
   User,
   Home,
@@ -25,7 +26,13 @@ import {
   UserCheck,
   Sparkles,
   Crown,
-  Lock,
+  DoorClosed,
+  Calculator,
+  Truck,
+  FolderOpen,
+  Receipt,
+  Cog,
+  LayoutGrid,
 } from 'lucide-react';
 import { Footer } from './Footer';
 import BusinessSelector from './BusinessSelector';
@@ -42,26 +49,70 @@ interface NavItem {
   requiresFeature?: string; // Feature required to access (for upselling)
 }
 
-const navigation: NavItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Settings', href: '/settings', icon: Settings },
-  { name: 'Property Wizard', href: '/welcome', icon: Sparkles },
-  { name: 'Businesses', href: '/businesses', icon: Briefcase },
-  { name: 'Properties', href: '/properties', icon: Building2 },
-  { name: 'Clients', href: '/property-owners', icon: UserCheck, packageType: 'management_company' }, // Property Managers manage clients
-  { name: 'Users', href: '/users', icon: Users },
-  { name: 'Applications', href: '/applications', icon: ClipboardList },
-  { name: 'Application Forms', href: '/application-templates', icon: ClipboardList },
-  { name: 'Agreements', href: '/agreements', icon: FileText },
-  { name: 'Payments', href: '/payments', icon: CreditCard },
-  { name: 'Expenses', href: '/expenses', icon: DollarSign },
-  { name: 'Maintenance', href: '/maintenance', icon: Wrench },
-  { name: 'Reports', href: '/reports', icon: BarChart3, requiresFeature: 'advanced_reporting' },
-];
+interface NavGroup {
+  name: string;
+  icon: React.ElementType;
+  items: NavItem[];
+  defaultOpen?: boolean;
+}
 
-const secondaryNavigation: NavItem[] = [
-  { name: 'Rent Optimization', href: '/rent-optimization', icon: TrendingUp, requiresFeature: 'rent_optimization' },
-  { name: 'Help Center', href: '/help', icon: HelpCircle },
+// Collapsible navigation groups
+const navigationGroups: NavGroup[] = [
+  {
+    name: 'Quick Setup',
+    icon: Sparkles,
+    items: [
+      { name: 'Setup Wizard', href: '/welcome', icon: Sparkles },
+      { name: 'Add Property', href: '/setup/add-property', icon: Building2 },
+      { name: 'Add Unit', href: '/setup/add-unit', icon: DoorClosed },
+    ],
+  },
+  {
+    name: 'Portfolio',
+    icon: FolderOpen,
+    items: [
+      { name: 'Businesses', href: '/businesses', icon: Briefcase },
+      { name: 'Properties', href: '/properties', icon: Building2 },
+      { name: 'Clients', href: '/property-owners', icon: UserCheck, packageType: 'management_company' },
+    ],
+    defaultOpen: true,
+  },
+  {
+    name: 'Leasing',
+    icon: FileText,
+    items: [
+      { name: 'Tenants', href: '/users', icon: Users },
+      { name: 'Applications', href: '/applications', icon: ClipboardList },
+      { name: 'App Forms', href: '/application-templates', icon: ClipboardList },
+      { name: 'Agreements', href: '/agreements', icon: FileText },
+    ],
+  },
+  {
+    name: 'Financials',
+    icon: Receipt,
+    items: [
+      { name: 'Payments', href: '/payments', icon: CreditCard },
+      { name: 'Expenses', href: '/expenses', icon: DollarSign },
+      { name: 'Accounting', href: '/accounting', icon: Calculator },
+      { name: 'Vendors', href: '/vendors', icon: Truck },
+    ],
+  },
+  {
+    name: 'Operations',
+    icon: Cog,
+    items: [
+      { name: 'Maintenance', href: '/maintenance', icon: Wrench },
+      { name: 'Reports', href: '/reports', icon: BarChart3, requiresFeature: 'advanced_reporting' },
+    ],
+  },
+  {
+    name: 'Tools',
+    icon: LayoutGrid,
+    items: [
+      { name: 'Rent Optimizer', href: '/rent-optimization', icon: TrendingUp, requiresFeature: 'rent_optimization' },
+      { name: 'Help Center', href: '/help', icon: HelpCircle },
+    ],
+  },
 ];
 
 const accountNavigation: NavItem[] = [
@@ -74,12 +125,38 @@ export function Layout() {
   const [businessDropdownOpen, setBusinessDropdownOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showFeatureModal, setShowFeatureModal] = useState<string | null>(null);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
   const location = useLocation();
   const { supabaseUser, currentBusiness, businesses, switchBusiness, logout, userProfile, isSuperAdmin, packageType, hasFeature } = useAuth();
   const { branding } = useBranding();
 
   const userTier = userProfile?.selected_tier || 'free';
+
+  // Initialize expanded groups based on defaultOpen and current route
+  useEffect(() => {
+    const initialExpanded: Record<string, boolean> = {};
+    navigationGroups.forEach(group => {
+      // Auto-expand if defaultOpen or if current route is in this group
+      const hasActiveItem = group.items.some(item => isActive(item.href));
+      initialExpanded[group.name] = group.defaultOpen || hasActiveItem;
+    });
+    setExpandedGroups(initialExpanded);
+  }, []); // Only run on mount
+
+  // Auto-expand group when navigating to an item in it
+  useEffect(() => {
+    navigationGroups.forEach(group => {
+      const hasActiveItem = group.items.some(item => isActive(item.href));
+      if (hasActiveItem && !expandedGroups[group.name]) {
+        setExpandedGroups(prev => ({ ...prev, [group.name]: true }));
+      }
+    });
+  }, [location.pathname]);
+
+  const toggleGroup = (groupName: string) => {
+    setExpandedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
+  };
 
   // Check if a nav item is locked (feature required but not available)
   const isNavLocked = (item: NavItem) => {
@@ -116,20 +193,28 @@ export function Layout() {
     return location.pathname.startsWith(href);
   };
 
-  const filteredNavigation = navigation.filter(item => {
-    // Filter by tier if specified
-    if (item.tier && !item.tier.includes(userTier)) {
-      return false;
-    }
-    // Filter by package type if specified
-    if (item.packageType) {
-      const allowedTypes = Array.isArray(item.packageType) ? item.packageType : [item.packageType];
-      if (!packageType || !allowedTypes.includes(packageType)) {
+  // Filter nav items based on tier and package type
+  const filterNavItems = (items: NavItem[]) => {
+    return items.filter(item => {
+      // Filter by tier if specified
+      if (item.tier && !item.tier.includes(userTier)) {
         return false;
       }
-    }
-    return true;
-  });
+      // Filter by package type if specified
+      if (item.packageType) {
+        const allowedTypes = Array.isArray(item.packageType) ? item.packageType : [item.packageType];
+        if (!packageType || !allowedTypes.includes(packageType)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  };
+
+  // Check if a group has any active items
+  const groupHasActiveItem = (group: NavGroup) => {
+    return filterNavItems(group.items).some(item => isActive(item.href));
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -148,72 +233,101 @@ export function Layout() {
           </div>
 
           {/* Navigation - scrollable */}
-          <nav className="flex-1 min-h-0 px-4 py-4 space-y-1 overflow-y-auto">
-            <div className="space-y-1">
-              {filteredNavigation.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                const locked = isNavLocked(item);
-                return (
-                  <Link
-                    key={item.name}
-                    to={locked ? '#' : item.href}
-                    onClick={(e) => handleNavClick(item, e)}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                      locked
-                        ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 hover:from-amber-100 hover:to-orange-100 border border-amber-200'
-                        : active
-                          ? 'bg-blue-50 text-blue-700'
-                          : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon className={`w-5 h-5 ${locked ? 'text-amber-500' : active ? 'text-blue-600' : 'text-gray-400'}`} />
-                      {item.name}
-                    </div>
-                    {locked && (
-                      <div className="flex items-center gap-1 text-xs bg-amber-100 px-1.5 py-0.5 rounded">
-                        <Crown size={10} />
-                      </div>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
+          <nav className="flex-1 min-h-0 px-3 py-4 space-y-1 overflow-y-auto">
+            {/* Dashboard - always visible at top */}
+            <Link
+              to="/dashboard"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                isActive('/dashboard')
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <Home className={`w-5 h-5 ${isActive('/dashboard') ? 'text-blue-600' : 'text-gray-400'}`} />
+              Dashboard
+            </Link>
 
-            <div className="pt-4 mt-4 border-t border-gray-200">
-              <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Tools
-              </p>
-              {secondaryNavigation.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                const locked = isNavLocked(item);
-                return (
-                  <Link
-                    key={item.name}
-                    to={locked ? '#' : item.href}
-                    onClick={(e) => handleNavClick(item, e)}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                      locked
-                        ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 hover:from-amber-100 hover:to-orange-100 border border-amber-200'
-                        : active
-                          ? 'bg-blue-50 text-blue-700'
-                          : 'text-gray-700 hover:bg-gray-100'
+            {/* Collapsible Navigation Groups */}
+            {navigationGroups.map((group) => {
+              const filteredItems = filterNavItems(group.items);
+              // Skip groups with no items after filtering
+              if (filteredItems.length === 0) return null;
+
+              const GroupIcon = group.icon;
+              const isExpanded = expandedGroups[group.name];
+              const hasActive = groupHasActiveItem(group);
+
+              return (
+                <div key={group.name} className="pt-2">
+                  {/* Group Header - Clickable to expand/collapse */}
+                  <button
+                    onClick={() => toggleGroup(group.name)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition ${
+                      hasActive ? 'text-blue-700 bg-blue-50/50' : 'text-gray-600 hover:bg-gray-100'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Icon className={`w-5 h-5 ${locked ? 'text-amber-500' : active ? 'text-blue-600' : 'text-gray-400'}`} />
-                      {item.name}
+                      <GroupIcon className={`w-4 h-4 ${hasActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                      <span>{group.name}</span>
                     </div>
-                    {locked && (
-                      <div className="flex items-center gap-1 text-xs bg-amber-100 px-1.5 py-0.5 rounded">
-                        <Crown size={10} />
-                      </div>
+                    {isExpanded ? (
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
                     )}
-                  </Link>
-                );
-              })}
+                  </button>
+
+                  {/* Group Items - Collapsible */}
+                  {isExpanded && (
+                    <div className="mt-1 ml-3 space-y-0.5 border-l-2 border-gray-100 pl-3">
+                      {filteredItems.map((item) => {
+                        const Icon = item.icon;
+                        const active = isActive(item.href);
+                        const locked = isNavLocked(item);
+                        return (
+                          <Link
+                            key={item.name}
+                            to={locked ? '#' : item.href}
+                            onClick={(e) => handleNavClick(item, e)}
+                            className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition ${
+                              locked
+                                ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 hover:from-amber-100 hover:to-orange-100 border border-amber-200'
+                                : active
+                                  ? 'bg-blue-50 text-blue-700 font-medium'
+                                  : 'text-gray-600 hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Icon className={`w-4 h-4 ${locked ? 'text-amber-500' : active ? 'text-blue-600' : 'text-gray-400'}`} />
+                              {item.name}
+                            </div>
+                            {locked && (
+                              <div className="flex items-center gap-1 text-xs bg-amber-100 px-1.5 py-0.5 rounded">
+                                <Crown size={10} />
+                              </div>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Settings - always visible at bottom */}
+            <div className="pt-4 mt-4 border-t border-gray-200">
+              <Link
+                to="/settings"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                  isActive('/settings')
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Settings className={`w-5 h-5 ${isActive('/settings') ? 'text-blue-600' : 'text-gray-400'}`} />
+                Settings
+              </Link>
             </div>
           </nav>
 
@@ -241,94 +355,115 @@ export function Layout() {
               </button>
             </div>
 
-            <nav className="px-4 py-4 space-y-1 overflow-y-auto max-h-[calc(100vh-8rem)]">
-              {filteredNavigation.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                const locked = isNavLocked(item);
-                return (
-                  <Link
-                    key={item.name}
-                    to={locked ? '#' : item.href}
-                    onClick={(e) => {
-                      if (locked && item.requiresFeature) {
-                        e.preventDefault();
-                        setSidebarOpen(false);
-                        setShowFeatureModal(item.requiresFeature);
-                      } else {
-                        setSidebarOpen(false);
-                      }
-                    }}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                      locked
-                        ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200'
-                        : active
-                          ? 'bg-blue-50 text-blue-700'
-                          : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon className={`w-5 h-5 ${locked ? 'text-amber-500' : active ? 'text-blue-600' : 'text-gray-400'}`} />
-                      {item.name}
-                    </div>
-                    {locked && (
-                      <div className="flex items-center gap-1 text-xs bg-amber-100 px-2 py-0.5 rounded-full">
-                        <Crown size={10} />
-                        <span>Upgrade</span>
-                      </div>
-                    )}
-                  </Link>
-                );
-              })}
+            <nav className="px-3 py-4 space-y-1 overflow-y-auto max-h-[calc(100vh-8rem)]">
+              {/* Dashboard - always visible at top */}
+              <Link
+                to="/dashboard"
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                  isActive('/dashboard')
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Home className={`w-5 h-5 ${isActive('/dashboard') ? 'text-blue-600' : 'text-gray-400'}`} />
+                Dashboard
+              </Link>
 
-              <div className="pt-4 mt-4 border-t border-gray-200">
-                <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  Tools
-                </p>
-                {secondaryNavigation.map((item) => {
-                  const Icon = item.icon;
-                  const active = isActive(item.href);
-                  const locked = isNavLocked(item);
-                  return (
-                    <Link
-                      key={item.name}
-                      to={locked ? '#' : item.href}
-                      onClick={(e) => {
-                        if (locked && item.requiresFeature) {
-                          e.preventDefault();
-                          setSidebarOpen(false);
-                          setShowFeatureModal(item.requiresFeature);
-                        } else {
-                          setSidebarOpen(false);
-                        }
-                      }}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                        locked
-                          ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200'
-                          : active
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'text-gray-700 hover:bg-gray-100'
+              {/* Collapsible Navigation Groups */}
+              {navigationGroups.map((group) => {
+                const filteredItems = filterNavItems(group.items);
+                // Skip groups with no items after filtering
+                if (filteredItems.length === 0) return null;
+
+                const GroupIcon = group.icon;
+                const isExpanded = expandedGroups[group.name];
+                const hasActive = groupHasActiveItem(group);
+
+                return (
+                  <div key={group.name} className="pt-2">
+                    {/* Group Header - Clickable to expand/collapse */}
+                    <button
+                      onClick={() => toggleGroup(group.name)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition ${
+                        hasActive ? 'text-blue-700 bg-blue-50/50' : 'text-gray-600 hover:bg-gray-100'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <Icon className={`w-5 h-5 ${locked ? 'text-amber-500' : active ? 'text-blue-600' : 'text-gray-400'}`} />
-                        {item.name}
+                        <GroupIcon className={`w-4 h-4 ${hasActive ? 'text-blue-600' : 'text-gray-400'}`} />
+                        <span>{group.name}</span>
                       </div>
-                      {locked && (
-                        <div className="flex items-center gap-1 text-xs bg-amber-100 px-2 py-0.5 rounded-full">
-                          <Crown size={10} />
-                          <span>Upgrade</span>
-                        </div>
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-gray-400" />
                       )}
-                    </Link>
-                  );
-                })}
-              </div>
+                    </button>
 
+                    {/* Group Items - Collapsible */}
+                    {isExpanded && (
+                      <div className="mt-1 ml-3 space-y-0.5 border-l-2 border-gray-100 pl-3">
+                        {filteredItems.map((item) => {
+                          const Icon = item.icon;
+                          const active = isActive(item.href);
+                          const locked = isNavLocked(item);
+                          return (
+                            <Link
+                              key={item.name}
+                              to={locked ? '#' : item.href}
+                              onClick={(e) => {
+                                if (locked && item.requiresFeature) {
+                                  e.preventDefault();
+                                  setSidebarOpen(false);
+                                  setShowFeatureModal(item.requiresFeature);
+                                } else {
+                                  setSidebarOpen(false);
+                                }
+                              }}
+                              className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition ${
+                                locked
+                                  ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 border border-amber-200'
+                                  : active
+                                    ? 'bg-blue-50 text-blue-700 font-medium'
+                                    : 'text-gray-600 hover:bg-gray-100'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <Icon className={`w-4 h-4 ${locked ? 'text-amber-500' : active ? 'text-blue-600' : 'text-gray-400'}`} />
+                                {item.name}
+                              </div>
+                              {locked && (
+                                <div className="flex items-center gap-1 text-xs bg-amber-100 px-2 py-0.5 rounded-full">
+                                  <Crown size={10} />
+                                  <span>Upgrade</span>
+                                </div>
+                              )}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Account section */}
               <div className="pt-4 mt-4 border-t border-gray-200">
                 <p className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  Your Account
+                  Account
                 </p>
+                <Link
+                  to="/settings"
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                    isActive('/settings')
+                      ? 'bg-blue-50 text-blue-700'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <Settings className={`w-5 h-5 ${isActive('/settings') ? 'text-blue-600' : 'text-gray-400'}`} />
+                  Settings
+                </Link>
                 {accountNavigation.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item.href);

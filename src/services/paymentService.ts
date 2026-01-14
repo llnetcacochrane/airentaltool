@@ -1,5 +1,51 @@
 import { supabase } from '../lib/supabase';
 import { Payment, PaymentSchedule, PaymentMethod, PaymentGateway } from '../types';
+import { journalService } from './journalService';
+import { glAccountService } from './glAccountService';
+
+// Helper function to post rent payment to GL
+async function postPaymentToGL(businessId: string, payment: Payment): Promise<void> {
+  try {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return; // No user session
+    }
+
+    // Check if auto-posting is enabled for this business
+    const { data: settings } = await supabase
+      .from('business_accounting_settings')
+      .select('auto_post_rent_payments, base_currency')
+      .eq('business_id', businessId)
+      .maybeSingle();
+
+    if (!settings?.auto_post_rent_payments) {
+      return; // Auto-posting disabled
+    }
+
+    // Check if chart of accounts is initialized
+    const accounts = await glAccountService.getAccounts(businessId);
+    if (accounts.length === 0) {
+      return; // No chart of accounts yet
+    }
+
+    // Map payment type to expected format
+    const paymentType = (payment.payment_type as 'rent' | 'security_deposit' | 'pet_deposit' | 'late_fee' | 'utility' | 'maintenance' | 'other') || 'rent';
+
+    // Create journal entry from rent payment
+    await journalService.createFromRentPayment(businessId, user.id, {
+      id: payment.id,
+      amountCents: payment.amount_cents || 0,
+      paymentDate: payment.payment_date || new Date().toISOString().split('T')[0],
+      paymentType,
+      tenantId: payment.tenant_id,
+      unitId: payment.unit_id,
+    });
+  } catch (error) {
+    // Log but don't fail the payment if GL posting fails
+    console.error('Failed to post payment to GL:', error);
+  }
+}
 
 export const paymentService = {
   async createPaymentSchedule(leaseId: string, schedules: Partial<PaymentSchedule>[]) {
@@ -78,6 +124,11 @@ export const paymentService = {
           })
           .eq('id', scheduleData.data.id);
       }
+    }
+
+    // Post to GL if auto-posting is enabled
+    if (data) {
+      await postPaymentToGL(organizationId, data);
     }
 
     return data;

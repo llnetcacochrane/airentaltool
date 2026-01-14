@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { User } from '../types';
+import { defaultTemplatesService } from './defaultTemplatesService';
 
 export interface ExtendedRegistrationData {
   phone: string;
@@ -174,7 +175,7 @@ export const authService = {
       if (extendedData?.managementCompany) {
         // Create the management company business
         try {
-          const { error: businessError } = await supabase
+          const { data: businessData, error: businessError } = await supabase
             .from('businesses')
             .insert({
               organization_id: organizationId,
@@ -194,10 +195,16 @@ export const authService = {
               is_active: true,
               is_default: true,
               created_by: userId,
-            });
+            })
+            .select()
+            .single();
 
           if (businessError) {
             console.error('Failed to create management company business:', businessError);
+          } else if (businessData) {
+            // Create default templates for the new business (non-blocking)
+            defaultTemplatesService.createDefaultTemplatesForBusiness(businessData.id, userId)
+              .catch(err => console.error('Failed to create default templates:', err));
           }
         } catch (err) {
           console.error('Error creating management company business:', err);
@@ -206,7 +213,7 @@ export const authService = {
         // If first client business was configured, create it too
         if (extendedData?.setupFirstClient && extendedData?.clientBusiness) {
           try {
-            const { error: clientError } = await supabase
+            const { data: clientData, error: clientError } = await supabase
               .from('businesses')
               .insert({
                 organization_id: organizationId,
@@ -226,10 +233,16 @@ export const authService = {
                 is_active: true,
                 is_default: false,
                 created_by: userId,
-              });
+              })
+              .select()
+              .single();
 
             if (clientError) {
               console.error('Failed to create client business:', clientError);
+            } else if (clientData) {
+              // Create default templates for the client business (non-blocking)
+              defaultTemplatesService.createDefaultTemplatesForBusiness(clientData.id, userId)
+                .catch(err => console.error('Failed to create default templates for client:', err));
             }
           } catch (err) {
             console.error('Error creating client business:', err);
@@ -241,7 +254,7 @@ export const authService = {
         const businessName = extendedData?.businessName || organizationName;
 
         try {
-          const { error: businessError } = await supabase
+          const { data: businessData, error: businessError } = await supabase
             .from('businesses')
             .insert({
               organization_id: organizationId,
@@ -260,10 +273,16 @@ export const authService = {
               is_active: true,
               is_default: true,
               created_by: userId,
-            });
+            })
+            .select()
+            .single();
 
           if (businessError) {
             console.error('Failed to create default business:', businessError);
+          } else if (businessData) {
+            // Create default templates for the new business (non-blocking)
+            defaultTemplatesService.createDefaultTemplatesForBusiness(businessData.id, userId)
+              .catch(err => console.error('Failed to create default templates:', err));
           }
         } catch (err) {
           console.error('Error creating default business:', err);

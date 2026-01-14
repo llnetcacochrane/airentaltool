@@ -1,5 +1,48 @@
 import { supabase } from '../lib/supabase';
 import { Expense } from '../types';
+import { journalService } from './journalService';
+import { glAccountService } from './glAccountService';
+
+// Helper function to post expense to GL
+async function postExpenseToGL(businessId: string, expense: Expense): Promise<void> {
+  try {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return; // No user session
+    }
+
+    // Check if auto-posting is enabled for this business
+    const { data: settings } = await supabase
+      .from('business_accounting_settings')
+      .select('auto_post_expenses, base_currency')
+      .eq('business_id', businessId)
+      .maybeSingle();
+
+    if (!settings?.auto_post_expenses) {
+      return; // Auto-posting disabled
+    }
+
+    // Check if chart of accounts is initialized
+    const accounts = await glAccountService.getAccounts(businessId);
+    if (accounts.length === 0) {
+      return; // No chart of accounts yet
+    }
+
+    // Create journal entry from expense
+    await journalService.createFromExpense(businessId, user.id, {
+      id: expense.id,
+      amountCents: expense.amount_cents || 0,
+      expenseDate: expense.expense_date,
+      category: expense.category,
+      propertyId: expense.property_id,
+      unitId: expense.unit_id,
+    });
+  } catch (error) {
+    // Log but don't fail the expense if GL posting fails
+    console.error('Failed to post expense to GL:', error);
+  }
+}
 
 export const expenseService = {
   async createExpense(organizationId: string, expense: Partial<Expense>) {
@@ -17,6 +60,12 @@ export const expenseService = {
       .maybeSingle();
 
     if (error) throw error;
+
+    // Post to GL if auto-posting is enabled
+    if (data) {
+      await postExpenseToGL(businessId, data);
+    }
+
     return data;
   },
 

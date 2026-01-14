@@ -17,7 +17,7 @@ import { HealthScoreRing, ProgressRing } from '../components/analytics/ProgressR
 import { ChartCard } from '../components/analytics/ChartCard';
 import { UpgradeCard, FeatureLocked } from '../components/upsell/UpgradeCard';
 import { Tooltip, FeatureHint } from '../components/ui/Tooltip';
-import { DashboardOnboarding } from '../components/DashboardOnboarding';
+import { ClientOnboardingChecklist } from '../components/ClientOnboardingChecklist';
 import { UsageLimitsWidget } from '../components/UsageLimitsWidget';
 
 interface Alert {
@@ -239,7 +239,7 @@ export function NewOperationsCenter() {
 
       <div className="px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Smart Onboarding */}
-        <DashboardOnboarding />
+        <ClientOnboardingChecklist />
 
         {/* Package Usage Limits */}
         <UsageLimitsWidget />

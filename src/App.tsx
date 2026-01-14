@@ -19,6 +19,7 @@ import { NewLanding } from './pages/NewLanding';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { VerifyEmail } from './pages/VerifyEmail';
+import { EmailVerificationPending } from './pages/EmailVerificationPending';
 import { RegistrationSuccess } from './pages/RegistrationSuccess';
 import { CompleteRegistration } from './pages/CompleteRegistration';
 
@@ -34,6 +35,8 @@ const BusinessSetupWizardPage = lazyWithRetry(() => import('./pages/BusinessSetu
 const Welcome = lazyWithRetry(() => import('./pages/Welcome').then(m => ({ default: m.Welcome })), 'Welcome');
 const GettingStarted = lazyWithRetry(() => import('./pages/GettingStarted').then(m => ({ default: m.GettingStarted })), 'GettingStarted');
 const QuickStart = lazyWithRetry(() => import('./pages/QuickStart').then(m => ({ default: m.QuickStart })), 'QuickStart');
+const AddPropertyWizard = lazyWithRetry(() => import('./pages/AddPropertyWizard'), 'AddPropertyWizard');
+const AddUnitWizard = lazyWithRetry(() => import('./pages/AddUnitWizard'), 'AddUnitWizard');
 
 // Lazy load: Main application pages
 const NewOperationsCenter = lazyWithRetry(() => import('./pages/NewOperationsCenter').then(m => ({ default: m.NewOperationsCenter })), 'NewOperationsCenter');
@@ -60,7 +63,7 @@ const Help = lazyWithRetry(() => import('./pages/Help').then(m => ({ default: m.
 
 // Lazy load: Super admin pages (rarely accessed)
 const SuperAdminDashboard = lazyWithRetry(() => import('./pages/SuperAdminDashboard').then(m => ({ default: m.SuperAdminDashboard })), 'SuperAdminDashboard');
-const SuperAdminUsers = lazyWithRetry(() => import('./pages/SuperAdminUsers').then(m => ({ default: m.SuperAdminUsers })), 'SuperAdminUsers');
+const SuperAdminClients = lazyWithRetry(() => import('./pages/SuperAdminClients').then(m => ({ default: m.SuperAdminClients })), 'SuperAdminClients');
 const SystemConfiguration = lazyWithRetry(() => import('./pages/SystemConfiguration').then(m => ({ default: m.SystemConfiguration })), 'SystemConfiguration');
 const PackageManagement = lazyWithRetry(() => import('./pages/PackageManagement').then(m => ({ default: m.PackageManagement })), 'PackageManagement');
 const FeatureManagement = lazyWithRetry(() => import('./pages/FeatureManagement').then(m => ({ default: m.FeatureManagement })), 'FeatureManagement');
@@ -120,6 +123,14 @@ const PublicUnitPage = lazyWithRetry(() => import('./pages/PublicUnitPage').then
 const DiagnosticPanel = lazyWithRetry(() => import('./pages/DiagnosticPanel').then(m => ({ default: m.DiagnosticPanel })), 'DiagnosticPanel');
 const EmailDiagnostics = lazyWithRetry(() => import('./pages/EmailDiagnostics').then(m => ({ default: m.EmailDiagnostics })), 'EmailDiagnostics');
 
+// Lazy load: Accounting pages
+const AccountingDashboard = lazyWithRetry(() => import('./pages/accounting').then(m => ({ default: m.AccountingDashboard })), 'AccountingDashboard');
+const ChartOfAccounts = lazyWithRetry(() => import('./pages/accounting').then(m => ({ default: m.ChartOfAccounts })), 'ChartOfAccounts');
+const JournalEntries = lazyWithRetry(() => import('./pages/accounting').then(m => ({ default: m.JournalEntries })), 'JournalEntries');
+
+// Lazy load: Vendor pages
+const VendorList = lazyWithRetry(() => import('./pages/vendors').then(m => ({ default: m.VendorList })), 'VendorList');
+
 // Loading fallback component
 function PageLoader() {
   return (
@@ -154,6 +165,7 @@ function AppWithAnalytics() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/email-verification-pending" element={<EmailVerificationPending />} />
       <Route path="/registration-success" element={<RegistrationSuccess />} />
       <Route path="/complete-registration" element={<CompleteRegistration />} />
       <Route path="/register/single-landlord" element={<RegisterType1 />} />
@@ -164,14 +176,6 @@ function AppWithAnalytics() {
         element={
           <ProtectedRoute>
             <Onboarding />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/welcome"
-        element={
-          <ProtectedRoute>
-            <Welcome />
           </ProtectedRoute>
         }
       />
@@ -232,10 +236,10 @@ function AppWithAnalytics() {
         }
       />
       <Route
-        path="/super-admin/users"
+        path="/super-admin/clients"
         element={
           <SuperAdminRoute>
-            <SuperAdminUsers />
+            <SuperAdminClients />
           </SuperAdminRoute>
         }
       />
@@ -343,6 +347,16 @@ function AppWithAnalytics() {
         <Route path="/addons" element={<Addons />} />
         <Route path="/packages" element={<Pricing />} />
         <Route path="/settings" element={<Settings />} />
+        {/* Accounting Routes */}
+        <Route path="/accounting" element={<AccountingDashboard />} />
+        <Route path="/accounting/chart-of-accounts" element={<ChartOfAccounts />} />
+        <Route path="/accounting/journals" element={<JournalEntries />} />
+        {/* Vendor Routes */}
+        <Route path="/vendors" element={<VendorList />} />
+        {/* Setup Wizard Routes */}
+        <Route path="/setup/add-property" element={<AddPropertyWizard />} />
+        <Route path="/setup/add-unit" element={<AddUnitWizard />} />
+        <Route path="/welcome" element={<Welcome />} />
       </Route>
       {/* Tenant Portal Routes */}
       <Route

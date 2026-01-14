@@ -138,7 +138,12 @@ Update version in `src/lib/version.ts`. Footer displays version across all pages
 
 ## Current Version
 
-**v5.7.0** (2026-01-11) - See `src/lib/version.ts` for version details.
+**v5.10.0** (2026-01-14) - See `src/lib/version.ts` for version details.
+
+### Recent Changes (v5.8.0 - v5.10.0)
+- **v5.10.0** - Default templates system (4 application + 4 agreement templates auto-created for new businesses)
+- **v5.9.0** - Collapsible sidebar navigation with organized menu groups (Portfolio, Leasing, Financials, Operations, Quick Setup, Tools)
+- **v5.8.0** - Client onboarding system (dashboard checklist, post-onboarding guide, Add Property/Unit wizard pages)
 
 ## Responsive Design Requirements (MANDATORY)
 

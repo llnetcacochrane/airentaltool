@@ -37,7 +37,7 @@ const navigation: NavItem[] = [
 ];
 
 export function ApplicantLayout() {
-  const { logout, supabaseUser, user } = useAuth();
+  const { logout, supabaseUser } = useAuth();
   const { branding } = useBranding();
   const navigate = useNavigate();
   const location = useLocation();
@@ -115,8 +115,8 @@ export function ApplicantLayout() {
     return location.pathname.startsWith(href);
   };
 
-  const firstName = user?.user_metadata?.first_name || supabaseUser?.user_metadata?.first_name || '';
-  const lastName = user?.user_metadata?.last_name || supabaseUser?.user_metadata?.last_name || '';
+  const firstName = supabaseUser?.user_metadata?.first_name || '';
+  const lastName = supabaseUser?.user_metadata?.last_name || '';
 
   return (
     <div className="min-h-screen bg-gray-50">

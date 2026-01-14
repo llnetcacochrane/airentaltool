@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
+import { supabase } from '../lib/supabase';
 import { LogIn } from 'lucide-react';
 import { PublicHeader } from '../components/PublicHeader';
 import { Footer } from '../components/Footer';
@@ -24,11 +25,38 @@ export function Login() {
 
       const user = await authService.getCurrentUser();
       if (user) {
+        // Check if super admin first
         const isSuperAdmin = await authService.checkSuperAdmin(user.id);
-
         if (isSuperAdmin) {
           navigate('/super-admin');
+          return;
+        }
+
+        // Check if user is an applicant (has business_users record with role='applicant')
+        const { data: applicantRecords } = await supabase
+          .from('business_users')
+          .select('id, role')
+          .eq('auth_user_id', user.id)
+          .eq('role', 'applicant')
+          .limit(1);
+
+        if (applicantRecords && applicantRecords.length > 0) {
+          // User is an applicant - check if they also own businesses
+          const { data: ownedBusinesses } = await supabase
+            .from('businesses')
+            .select('id')
+            .eq('owner_user_id', user.id)
+            .limit(1);
+
+          if (ownedBusinesses && ownedBusinesses.length > 0) {
+            // User is both applicant AND business owner - go to dashboard
+            navigate('/dashboard');
+          } else {
+            // User is only an applicant - go to applicant portal
+            navigate('/my-applications');
+          }
         } else {
+          // Not an applicant - go to dashboard
           navigate('/dashboard');
         }
       } else {

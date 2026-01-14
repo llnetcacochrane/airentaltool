@@ -17,7 +17,7 @@ interface SuperAdminLayoutProps {
 
 const menuItems = [
   { name: 'Dashboard', href: '/super-admin', icon: Home },
-  { name: 'Users', href: '/super-admin/users', icon: Users },
+  { name: 'Clients', href: '/super-admin/clients', icon: Users },
   { name: 'Packages', href: '/super-admin/packages', icon: Package },
   { name: 'Features & Add-Ons', href: '/super-admin/features', icon: Layers },
   { name: 'System Config', href: '/super-admin/config', icon: Settings },

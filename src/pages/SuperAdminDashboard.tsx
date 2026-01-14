@@ -89,8 +89,8 @@ export function SuperAdminDashboard() {
     navigate('/super-admin/config');
   };
 
-  const handleManageAdmins = () => {
-    navigate('/super-admin/users');
+  const handleManageClients = () => {
+    navigate('/super-admin/clients');
   };
 
   if (isLoading) {
@@ -266,10 +266,10 @@ export function SuperAdminDashboard() {
             </h3>
             <div className="space-y-2 sm:space-y-3">
               <button
-                onClick={handleManageAdmins}
+                onClick={handleManageClients}
                 className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold"
               >
-                Manage Users & Admins
+                Manage Clients
               </button>
               <button
                 onClick={() => navigate('/super-admin/packages')}

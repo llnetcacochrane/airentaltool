@@ -83,7 +83,7 @@ interface PublicListing {
 export function PublicUnitPage() {
   const { businessSlug, propertySlug, unitId } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { supabaseUser, isAuthenticated } = useAuth();
   const [listing, setListing] = useState<PublicListing | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -239,13 +239,13 @@ export function PublicUnitPage() {
   };
 
   const handleApplyNowClick = () => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && supabaseUser) {
       // User is logged in, pre-fill application data and show form
       setApplicationData({
-        first_name: user.user_metadata?.first_name || '',
-        last_name: user.user_metadata?.last_name || '',
-        email: user.email || '',
-        phone: user.user_metadata?.phone || '',
+        first_name: supabaseUser.user_metadata?.first_name || '',
+        last_name: supabaseUser.user_metadata?.last_name || '',
+        email: supabaseUser.email || '',
+        phone: supabaseUser.user_metadata?.phone || '',
         current_address: '',
         move_in_date: '',
         monthly_income: '',
@@ -334,6 +334,16 @@ export function PublicUnitPage() {
           }
         }
 
+        // Check if email confirmation is required
+        // If user was created but email not confirmed, redirect to verification pending
+        if (signUpData.user && !signUpData.user.email_confirmed_at) {
+          // Redirect to email verification pending page
+          const returnUrl = encodeURIComponent(window.location.pathname);
+          navigate(`/email-verification-pending?email=${encodeURIComponent(authData.email)}&return=${returnUrl}`);
+          return;
+        }
+
+        // If email is already confirmed (rare - might be disabled in Supabase settings)
         // Pre-fill application data and show form
         setApplicationData({
           first_name: authData.first_name,

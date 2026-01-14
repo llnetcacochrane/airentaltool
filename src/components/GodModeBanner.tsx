@@ -41,7 +41,7 @@ export function GodModeBanner() {
 
     // Refresh auth and navigate back
     await refetch();
-    navigate('/super-admin/users');
+    navigate('/super-admin/clients');
   };
 
   return (

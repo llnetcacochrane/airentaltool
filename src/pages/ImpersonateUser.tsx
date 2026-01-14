@@ -94,7 +94,7 @@ export function ImpersonateUser() {
 
     // Refresh auth context and redirect to super admin
     await refetch();
-    navigate('/super-admin/users');
+    navigate('/super-admin/clients');
   };
 
   if (isLoading) {
@@ -120,10 +120,10 @@ export function ImpersonateUser() {
           </div>
           <p className="text-gray-700 mb-6">{error}</p>
           <button
-            onClick={() => navigate('/super-admin/users')}
+            onClick={() => navigate('/super-admin/clients')}
             className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
           >
-            Return to User Management
+            Return to Client Management
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { Business } from '../types';
 import { organizationService } from './organizationService';
+import { defaultTemplatesService } from './defaultTemplatesService';
 
 export interface BusinessWithStats extends Business {
   property_count?: number;
@@ -143,6 +144,13 @@ export const businessService = {
       .single();
 
     if (error) throw error;
+
+    // Create default templates for the new business (non-blocking)
+    if (data) {
+      defaultTemplatesService.createDefaultTemplatesForBusiness(data.id, user.id)
+        .catch(err => console.error('Failed to create default templates:', err));
+    }
+
     return data;
   },
 
@@ -191,6 +199,13 @@ export const businessService = {
       .single();
 
     if (error) throw error;
+
+    // Create default templates for the new business (non-blocking)
+    if (data) {
+      defaultTemplatesService.createDefaultTemplatesForBusiness(data.id, user.id)
+        .catch(err => console.error('Failed to create default templates:', err));
+    }
+
     return data;
   },
 
