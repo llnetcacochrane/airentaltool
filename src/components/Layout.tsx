@@ -78,10 +78,9 @@ const navigationGroups: NavGroup[] = [
     defaultOpen: true,
   },
   {
-    name: 'Leasing',
+    name: 'Lease/Rental',
     icon: FileText,
     items: [
-      { name: 'Tenants', href: '/users', icon: Users },
       { name: 'Applications', href: '/applications', icon: ClipboardList },
       { name: 'App Forms', href: '/application-templates', icon: ClipboardList },
       { name: 'Agreements', href: '/agreements', icon: FileText },
@@ -247,6 +246,19 @@ export function Layout() {
               Dashboard
             </Link>
 
+            {/* User Manager - top level */}
+            <Link
+              to="/users"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                isActive('/users')
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <Users className={`w-5 h-5 ${isActive('/users') ? 'text-blue-600' : 'text-gray-400'}`} />
+              User Manager
+            </Link>
+
             {/* Collapsible Navigation Groups */}
             {navigationGroups.map((group) => {
               const filteredItems = filterNavItems(group.items);
@@ -368,6 +380,20 @@ export function Layout() {
               >
                 <Home className={`w-5 h-5 ${isActive('/dashboard') ? 'text-blue-600' : 'text-gray-400'}`} />
                 Dashboard
+              </Link>
+
+              {/* User Manager - top level */}
+              <Link
+                to="/users"
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+                  isActive('/users')
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Users className={`w-5 h-5 ${isActive('/users') ? 'text-blue-600' : 'text-gray-400'}`} />
+                User Manager
               </Link>
 
               {/* Collapsible Navigation Groups */}
